@@ -1,0 +1,3 @@
+This is OpenBSCs MGCP implementation and is made to fit on top of the
+NexusWare UniPorte library. All changes to the MGCP must be merged back
+to the OpenBSC implementation in one way or another.

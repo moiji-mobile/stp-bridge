@@ -1,0 +1,75 @@
+== Building the cellmgr_ng ==
+
+=== Requirements ===
+
+==== OpenBSC ====
+The result of "make install" of OpenBSC is required. The cellmgr_ng is using
+the osmocomm and sccp library provided by OpenBSC.
+
+==== NexusWare C7 =====
+The NexusWare C7 library must be available. It is used to communicate with
+MTP up to Level3.
+
+==== NexusWare Uniporte ====
+The NexusWare Uniported library must be available. It is used to handle
+the configuration of the MGW.
+
+
+=== Configuring & Building ===
+The cellmgr_ng is using autoconf. At first the configure script must be
+generated, after this ./configure can be called. The configure script will
+use pkg-config to find the CFLAGS and LIBS for the Osmocomm, SCCP, NexusWare
+C7 and NexusWare Uniporte libraries.
+
+The NexusWare libraries naturally do not come with pkg-config files. There
+are two example files in the pkg-config directory of the cellmgr_ng that can
+be changed to point to the proper paths. Alternatively the NEXUSWARE_C7_CFLAGS,
+NEXUSWARE_C7_LIBS, NEXUSWARE_UNIPORTE_CFLAGS, NEXUSWARE_UNIPORTE_LIBS environment
+variables can be set instead.
+
+$ autoreconf --install --force
+$ export PKG_CONFIG_PATH=/openbsc/install/lib/pkg-config:$PWD/pkgconfig
+$ . /stuff/NexusWare/SETUP.SH
+$ ./configure --host=ppc-linux
+$ make
+
+
+
+== Reset handling ==
+
+=== Loss of the TCP connection to the MSC ===
+ * All open SCCP connections need to be closed
+ * All circuits allocated for voice calls need to be closed
+ * On reconnect the cellmgr needs to generate the reset messages
+ * The SCCP link is considered to be up
+
+=== Loss of the MTP link/SLTM timeouts ===
+ * We will have to generate a SCCP reset to the network
+ * We will have to close ever voice call/mgcp and such
+
+== Filtering ==
+=== Filtering reset acks ===
+For the above reset handling we filter the reset on both sides. Whenever
+we connect to the MSC or lose the BSC we send it a reset.
+
+Whenever the BSC is sending us a reset we directly respond with a reset act
+
+=== Filtering RLSD messages ===
+We are using the RLSD from the network and immediately reply with a RLC
+if we don't know about this combination of src and dest reference. If we
+do have a pair we set a flag and will send a RLC when we receive a RLC from
+the BSC.
+
+If we receive a RLSD from the BSC we do have a bug as we didn't respond
+within a short enough timeout. We will close the connection. At which point
+we will handle the above.
+
+The reason to handle RLSD is that the BSC has a rather short timeout from
+cleanup complete to wanting a RLSD and then the MSC and BSC will have some
+issues...
+
+== Header Rewriting ==
+=== POI ===
+We do not want to have the point code indicator in the SCCP header. Currently
+we are removing this from the CR and DT1 messages.
+
