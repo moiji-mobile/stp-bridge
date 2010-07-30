@@ -34,8 +34,8 @@
  */
 struct pcap_hdr {
 	u_int32_t magic_number;
-	u_int16_t version_major;
-	u_int16_t version_minor;
+	uint16_t version_major;
+	uint16_t version_minor;
 	int32_t  thiszone;
 	u_int32_t sigfigs;
 	u_int32_t snaplen;

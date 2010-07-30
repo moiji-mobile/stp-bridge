@@ -26,7 +26,7 @@
 
 #define TVLV_MAX_ONEBYTE	0x7f
 
-static inline u_int16_t TVLV_GROSS_LEN(u_int16_t len)
+static inline uint16_t TVLV_GROSS_LEN(uint16_t len)
 {
 	if (len <= TVLV_MAX_ONEBYTE)
 		return TLV_GROSS_LEN(len);
@@ -54,7 +54,7 @@ static inline uint8_t *tlv_put(uint8_t *buf, uint8_t tag, uint8_t len,
 }
 
 static inline uint8_t *tlv16_put(uint8_t *buf, uint8_t tag, uint8_t len,
-				const u_int16_t *val)
+				const uint16_t *val)
 {
 	*buf++ = tag;
 	*buf++ = len;
@@ -62,7 +62,7 @@ static inline uint8_t *tlv16_put(uint8_t *buf, uint8_t tag, uint8_t len,
 	return buf + len*2;
 }
 
-static inline uint8_t *tl16v_put(uint8_t *buf, uint8_t tag, u_int16_t len,
+static inline uint8_t *tl16v_put(uint8_t *buf, uint8_t tag, uint16_t len,
 				const uint8_t *val)
 {
 	*buf++ = tag;
@@ -72,7 +72,7 @@ static inline uint8_t *tl16v_put(uint8_t *buf, uint8_t tag, u_int16_t len,
 	return buf + len*2;
 }
 
-static inline uint8_t *tvlv_put(uint8_t *buf, uint8_t tag, u_int16_t len,
+static inline uint8_t *tvlv_put(uint8_t *buf, uint8_t tag, uint16_t len,
 				 const uint8_t *val)
 {
 	uint8_t *ret;
@@ -86,27 +86,27 @@ static inline uint8_t *tvlv_put(uint8_t *buf, uint8_t tag, u_int16_t len,
 	return ret;
 }
 
-static inline uint8_t *msgb_tlv16_put(struct msgb *msg, uint8_t tag, uint8_t len, const u_int16_t *val)
+static inline uint8_t *msgb_tlv16_put(struct msgb *msg, uint8_t tag, uint8_t len, const uint16_t *val)
 {
 	uint8_t *buf = msgb_put(msg, TLV16_GROSS_LEN(len));
 	return tlv16_put(buf, tag, len, val);
 }
 
-static inline uint8_t *msgb_tl16v_put(struct msgb *msg, uint8_t tag, u_int16_t len,
+static inline uint8_t *msgb_tl16v_put(struct msgb *msg, uint8_t tag, uint16_t len,
 					const uint8_t *val)
 {
 	uint8_t *buf = msgb_put(msg, TL16V_GROSS_LEN(len));
 	return tl16v_put(buf, tag, len, val);
 }
 
-static inline uint8_t *msgb_tvlv_put(struct msgb *msg, uint8_t tag, u_int16_t len,
+static inline uint8_t *msgb_tvlv_put(struct msgb *msg, uint8_t tag, uint16_t len,
 				      const uint8_t *val)
 {
 	uint8_t *buf = msgb_put(msg, TVLV_GROSS_LEN(len));
 	return tvlv_put(buf, tag, len, val);
 }
 
-static inline uint8_t *msgb_l16tv_put(struct msgb *msg, u_int16_t len, uint8_t tag,
+static inline uint8_t *msgb_l16tv_put(struct msgb *msg, uint16_t len, uint8_t tag,
                                        const uint8_t *val)
 {
 	uint8_t *buf = msgb_put(msg, L16TV_GROSS_LEN(len));
@@ -134,7 +134,7 @@ static inline uint8_t *tv_put(uint8_t *buf, uint8_t tag,
 
 /* 'val' is still in host byte order! */
 static inline uint8_t *tv16_put(uint8_t *buf, uint8_t tag, 
-				 u_int16_t val)
+				 uint16_t val)
 {
 	*buf++ = tag;
 	*buf++ = val >> 8;
@@ -166,7 +166,7 @@ static inline uint8_t *msgb_v_put(struct msgb *msg, uint8_t val)
 	return v_put(buf, val);
 }
 
-static inline uint8_t *msgb_tv16_put(struct msgb *msg, uint8_t tag, u_int16_t val)
+static inline uint8_t *msgb_tv16_put(struct msgb *msg, uint8_t tag, uint16_t val)
 {
 	uint8_t *buf = msgb_put(msg, 3);
 	return tv16_put(buf, tag, val);
@@ -184,7 +184,7 @@ static inline uint8_t *msgb_tv_push(struct msgb *msg, uint8_t tag, uint8_t val)
 	return tv_put(buf, tag, val);
 }
 
-static inline uint8_t *msgb_tv16_push(struct msgb *msg, uint8_t tag, u_int16_t val)
+static inline uint8_t *msgb_tv16_push(struct msgb *msg, uint8_t tag, uint16_t val)
 {
 	uint8_t *buf = msgb_push(msg, 3);
 	return tv16_put(buf, tag, val);
@@ -193,7 +193,7 @@ static inline uint8_t *msgb_tv16_push(struct msgb *msg, uint8_t tag, u_int16_t v
 /* TLV parsing */
 
 struct tlv_p_entry {
-	u_int16_t len;
+	uint16_t len;
 	const uint8_t *val;
 };
 
@@ -221,7 +221,7 @@ struct tlv_parsed {
 
 extern struct tlv_definition tvlv_att_def;
 
-int tlv_parse_one(uint8_t *o_tag, u_int16_t *o_len, const uint8_t **o_val,
+int tlv_parse_one(uint8_t *o_tag, uint16_t *o_len, const uint8_t **o_val,
                   const struct tlv_definition *def,
                   const uint8_t *buf, int buf_len);
 int tlv_parse(struct tlv_parsed *dec, const struct tlv_definition *def,

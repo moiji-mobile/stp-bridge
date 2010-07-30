@@ -28,7 +28,7 @@ int tlv_dump(struct tlv_parsed *dec)
  *
  * Also, returns the number of bytes consumed by the TLV entry
  */
-int tlv_parse_one(uint8_t *o_tag, u_int16_t *o_len, const uint8_t **o_val,
+int tlv_parse_one(uint8_t *o_tag, uint16_t *o_len, const uint8_t **o_val,
 		  const struct tlv_definition *def,
 		  const uint8_t *buf, int buf_len)
 {
@@ -107,7 +107,7 @@ int tlv_parse(struct tlv_parsed *dec, const struct tlv_definition *def,
 	      uint8_t lv_tag2)
 {
 	int ofs = 0, num_parsed = 0;
-	u_int16_t len;
+	uint16_t len;
 
 	memset(dec, 0, sizeof(*dec));
 

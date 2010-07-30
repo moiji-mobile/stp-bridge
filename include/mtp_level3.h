@@ -77,7 +77,7 @@ static inline u_int32_t c_swap_32(u_int32_t in)
 		((in & 0x00ff0000) >>  8) |
 	        ((in & 0xff000000) >> 24));
 }
-static inline u_int16_t c_swap_16(u_int16_t in)
+static inline uint16_t c_swap_16(uint16_t in)
 {
 	return (((in & 0x00ff) << 8) |
 		 (in & 0xff00) >> 8);
@@ -97,8 +97,8 @@ static inline u_int16_t c_swap_16(u_int16_t in)
  * not the on wire address...
  */
 struct mtp_addr {
-	u_int16_t dpc;
-	u_int16_t opc;
+	uint16_t dpc;
+	uint16_t opc;
 	uint8_t link;
 } __attribute__((packed));
 
@@ -145,13 +145,13 @@ struct mtp_level_3_mng {
 struct mtp_level_3_prohib {
 	struct mtp_level_3_cmn  cmn;
 
-	u_int16_t apoc;
+	uint16_t apoc;
 } __attribute__((packed));
 
 struct sccp_con_ctrl_prt_mgt {
 	uint8_t sst;
 	uint8_t assn; /* affected sub system number */
-	u_int16_t apoc;
+	uint16_t apoc;
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 	uint8_t mul_ind : 2,
 		 spare : 6;

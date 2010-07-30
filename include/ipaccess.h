@@ -7,7 +7,7 @@
 #define IPA_TCP_PORT_RSL	3003
 
 struct ipaccess_head {
-	u_int16_t len;	/* network byte order */
+	uint16_t len;	/* network byte order */
 	uint8_t proto;
 	uint8_t data[0];
 } __attribute__ ((packed));

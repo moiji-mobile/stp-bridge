@@ -11,7 +11,7 @@
 
 struct mtp_test {
 	const uint8_t *input;
-	const u_int16_t length;
+	const uint16_t length;
 	struct mtp_level_3_hdr hdr;
 
 	int has_mng;
