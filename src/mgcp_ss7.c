@@ -76,7 +76,7 @@ struct mgcp_ss7_endpoint {
 };
 
 static void mgcp_ss7_endp_free(struct mgcp_ss7* ss7, int endp);
-static void mgcp_ss7_do_exec(struct mgcp_ss7 *mgcp, uint8_t type, u_int32_t port, u_int32_t param);
+static void mgcp_ss7_do_exec(struct mgcp_ss7 *mgcp, uint8_t type, uint32_t port, uint32_t param);
 static void mgcp_mgw_vty_init();
 
 static void check_exit(int status)
@@ -371,7 +371,7 @@ static void allocate_endp(struct mgcp_ss7 *ss7, int endp_no)
 }
 #endif
 
-static void mgcp_ss7_do_exec(struct mgcp_ss7 *mgcp, uint8_t type, u_int32_t port, u_int32_t param)
+static void mgcp_ss7_do_exec(struct mgcp_ss7 *mgcp, uint8_t type, uint32_t port, uint32_t param)
 {
 #ifndef NO_UNIPORTE
 	struct mgcp_ss7_endpoint *mgw_endp = &mgcp->mgw_end[port];
@@ -404,7 +404,7 @@ static void mgcp_ss7_do_exec(struct mgcp_ss7 *mgcp, uint8_t type, u_int32_t port
 #endif
 }
 
-void mgcp_ss7_exec(struct mgcp_ss7 *mgcp, uint8_t type, u_int32_t port, u_int32_t param)
+void mgcp_ss7_exec(struct mgcp_ss7 *mgcp, uint8_t type, uint32_t port, uint32_t param)
 {
 	struct mgcp_ss7_cmd *cmd = malloc(sizeof(*cmd));
 	memset(cmd, 0, sizeof(*cmd));

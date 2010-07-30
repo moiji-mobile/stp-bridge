@@ -70,7 +70,7 @@
 #define MTP_MAKE_APOC(apoc) \
 	(apoc & 0x3fff)
 #elif __BYTE_ORDER == __BIG_ENDIAN
-static inline u_int32_t c_swap_32(u_int32_t in)
+static inline uint32_t c_swap_32(uint32_t in)
 {
 	return 	(((in & 0x000000ff) << 24) |
 		((in & 0x0000ff00) <<  8) |
@@ -116,7 +116,7 @@ struct mtp_level_3_hdr {
 		 spare : 2,
 		 ser_ind : 4;
 #endif
-	u_int32_t addr;
+	uint32_t addr;
 	uint8_t data[0];
 } __attribute__((packed));
 

@@ -580,7 +580,7 @@ static void check_prohib(const uint8_t *data, const struct mtp_level_3_prohib *t
 
 int main(int argc, char **argv)
 {
-	u_int32_t addr;
+	uint32_t addr;
 	int i;
 
         /* set the addresses here due big endian MTP_ADDRESS macro */

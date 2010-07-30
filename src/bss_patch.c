@@ -149,7 +149,7 @@ int bss_patch_filter_msg(struct msgb *msg, struct sccp_parse_result *sccp)
 
 static void create_cr(struct msgb *target, struct msgb *inpt, struct sccp_parse_result *sccp)
 {
-	static const u_int32_t optional_offset =
+	static const uint32_t optional_offset =
 			offsetof(struct sccp_connection_request, optional_start);
 
 	unsigned int optional_length, optional_start;
@@ -241,7 +241,7 @@ void bss_rewrite_header_for_msc(int rc, struct msgb *target, struct msgb *inpt, 
 }
 
 /* it is asssumed that the SCCP stack checked the size */
-static int patch_address(u_int32_t offset, int pc, struct msgb *msg)
+static int patch_address(uint32_t offset, int pc, struct msgb *msg)
 {
 	struct sccp_called_party_address *party;
 	uint8_t *the_pc;
@@ -260,9 +260,9 @@ static int patch_address(u_int32_t offset, int pc, struct msgb *msg)
  
 int bss_rewrite_header_to_bsc(struct msgb *msg, int opc, int dpc)
 {
-	static const u_int32_t called_offset =
+	static const uint32_t called_offset =
 		offsetof(struct sccp_data_unitdata, variable_called);
-	static const u_int32_t calling_offset =
+	static const uint32_t calling_offset =
 		offsetof(struct sccp_data_unitdata, variable_calling);
 
 	struct sccp_data_unitdata *udt;

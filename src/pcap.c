@@ -33,20 +33,20 @@
  * pcap format is from http://wiki.wireshark.org/Development/LibpcapFileFormat
  */
 struct pcap_hdr {
-	u_int32_t magic_number;
+	uint32_t magic_number;
 	uint16_t version_major;
 	uint16_t version_minor;
 	int32_t  thiszone;
-	u_int32_t sigfigs;
-	u_int32_t snaplen;
-	u_int32_t network;
+	uint32_t sigfigs;
+	uint32_t snaplen;
+	uint32_t network;
 } __attribute__((packed));
 
 struct pcaprec_hdr {
-	u_int32_t ts_sec;
-	u_int32_t ts_usec;
-	u_int32_t incl_len;
-	u_int32_t orig_len;
+	uint32_t ts_sec;
+	uint32_t ts_usec;
+	uint32_t incl_len;
+	uint32_t orig_len;
 } __attribute__((packed));
 
 int mtp_pcap_write_header(int fd)
