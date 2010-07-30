@@ -44,9 +44,9 @@
 
 #define TS1_ALLOC_SIZE	4096
 
-static const u_int8_t pong[] = { 0, 1, IPAC_PROTO_IPACCESS, IPAC_MSGT_PONG };
-static const u_int8_t id_ack[] = { 0, 1, IPAC_PROTO_IPACCESS, IPAC_MSGT_ID_ACK };
-static const u_int8_t id_req[] = { 0, 17, IPAC_PROTO_IPACCESS, IPAC_MSGT_ID_GET,
+static const uint8_t pong[] = { 0, 1, IPAC_PROTO_IPACCESS, IPAC_MSGT_PONG };
+static const uint8_t id_ack[] = { 0, 1, IPAC_PROTO_IPACCESS, IPAC_MSGT_ID_ACK };
+static const uint8_t id_req[] = { 0, 17, IPAC_PROTO_IPACCESS, IPAC_MSGT_ID_GET,
 					0x01, IPAC_IDTAG_UNIT, 
 					0x01, IPAC_IDTAG_MACADDR,
 					0x01, IPAC_IDTAG_LOCATION1,
@@ -92,7 +92,7 @@ int ipaccess_send_id_req(int fd)
 int ipaccess_rcvmsg_base(struct msgb *msg,
 			 struct bsc_fd *bfd)
 {
-	u_int8_t msg_type = *(msg->l2h);
+	uint8_t msg_type = *(msg->l2h);
 	int ret = 0;
 
 	switch (msg_type) {

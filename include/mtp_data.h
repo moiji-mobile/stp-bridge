@@ -45,7 +45,7 @@ struct mtp_link {
 	int sccp_up;
 
 	/* misc data */
-	u_int8_t test_ptrn[14];
+	uint8_t test_ptrn[14];
 
 	int sltm_pending;
 	struct llist_head pending_msgs;
@@ -68,7 +68,7 @@ struct mtp_link *mtp_link_alloc(void);
 void mtp_link_stop(struct mtp_link *link);
 void mtp_link_reset(struct mtp_link *link);
 int mtp_link_data(struct mtp_link *link, struct msgb *msg);
-int mtp_link_submit_sccp_data(struct mtp_link *link, int sls, const u_int8_t *data, unsigned int length);
+int mtp_link_submit_sccp_data(struct mtp_link *link, int sls, const uint8_t *data, unsigned int length);
 
 
 /* one time init function */

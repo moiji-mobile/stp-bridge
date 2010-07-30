@@ -36,14 +36,14 @@ enum BSSAP_MSG_TYPE {
 };
 
 struct bssmap_header {
-	u_int8_t type;
-	u_int8_t length;
+	uint8_t type;
+	uint8_t length;
 } __attribute__((packed));
 
 struct dtap_header {
-	u_int8_t type;
-	u_int8_t link_id;
-	u_int8_t length;
+	uint8_t type;
+	uint8_t link_id;
+	uint8_t length;
 } __attribute__((packed));
 
 
@@ -313,17 +313,17 @@ struct msgb *bssmap_create_layer3(struct msgb *msg);
 struct msgb *bssmap_create_reset(void);
 struct msgb *bssmap_create_clear_complete(void);
 struct msgb *bssmap_create_cipher_complete(struct msgb *layer3);
-struct msgb *bssmap_create_cipher_reject(u_int8_t cause);
-struct msgb *bssmap_create_sapi_reject(u_int8_t link_id);
-struct msgb *bssmap_create_assignment_completed(struct gsm_lchan *lchan, u_int8_t rr_cause);
-struct msgb *bssmap_create_assignment_failure(u_int8_t cause, u_int8_t *rr_cause);
-struct msgb *bssmap_create_classmark_update(const u_int8_t *classmark, u_int8_t length);
+struct msgb *bssmap_create_cipher_reject(uint8_t cause);
+struct msgb *bssmap_create_sapi_reject(uint8_t link_id);
+struct msgb *bssmap_create_assignment_completed(struct gsm_lchan *lchan, uint8_t rr_cause);
+struct msgb *bssmap_create_assignment_failure(uint8_t cause, uint8_t *rr_cause);
+struct msgb *bssmap_create_classmark_update(const uint8_t *classmark, uint8_t length);
 
-void gsm0808_send_assignment_failure(struct gsm_lchan *l, u_int8_t cause, u_int8_t *rr_value);
-void gsm0808_send_assignment_compl(struct gsm_lchan *l, u_int8_t rr_value);
+void gsm0808_send_assignment_failure(struct gsm_lchan *l, uint8_t cause, uint8_t *rr_value);
+void gsm0808_send_assignment_compl(struct gsm_lchan *l, uint8_t rr_value);
 
 int dtap_rcvmsg(struct gsm_lchan *lchan, struct msgb *msg, unsigned int length);
-struct msgb *dtap_create_msg(struct msgb *msg_l3, u_int8_t link_id);
+struct msgb *dtap_create_msg(struct msgb *msg_l3, uint8_t link_id);
 
 void bsc_queue_connection_write(struct sccp_connection *conn, struct msgb *msg);
 void bsc_free_queued(struct sccp_connection *conn);

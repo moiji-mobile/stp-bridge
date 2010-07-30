@@ -54,12 +54,12 @@ enum {
 
 struct mgcp_ss7_cmd {
 	struct llist_head entry;
-	u_int8_t type;
+	uint8_t type;
 	u_int32_t port;
 	u_int32_t param;
 };
 
-void mgcp_ss7_exec(struct mgcp_ss7 *mgcp, u_int8_t type, u_int32_t port, u_int32_t param);
+void mgcp_ss7_exec(struct mgcp_ss7 *mgcp, uint8_t type, u_int32_t port, u_int32_t param);
 
 struct mgcp_ss7 *mgcp_ss7_init(int endpoints, const char *local_ip, const char *mgw_ip, int base_port, int payload);
 void mgcp_ss7_reset(struct mgcp_ss7 *mgcp);

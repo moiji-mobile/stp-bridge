@@ -99,7 +99,7 @@ static inline u_int16_t c_swap_16(u_int16_t in)
 struct mtp_addr {
 	u_int16_t dpc;
 	u_int16_t opc;
-	u_int8_t link;
+	uint8_t link;
 } __attribute__((packed));
 
 /*
@@ -108,24 +108,24 @@ struct mtp_addr {
  */
 struct mtp_level_3_hdr {
 #if __BYTE_ORDER == __LITTLE_ENDIAN
-	u_int8_t ser_ind : 4,
+	uint8_t ser_ind : 4,
 		 spare : 2,
 		 ni : 2;
 #elif __BYTE_ORDER == __BIG_ENDIAN
-	u_int8_t ni : 2,
+	uint8_t ni : 2,
 		 spare : 2,
 		 ser_ind : 4;
 #endif
 	u_int32_t addr;
-	u_int8_t data[0];
+	uint8_t data[0];
 } __attribute__((packed));
 
 struct mtp_level_3_cmn {
 #if __BYTE_ORDER == __LITTLE_ENDIAN
-	u_int8_t h0 : 4,
+	uint8_t h0 : 4,
 		 h1 : 4;
 #elif __BYTE_ORDER == __BIG_ENDIAN
-	u_int8_t h1 : 4,
+	uint8_t h1 : 4,
 		 h0 : 4;
 #endif
 } __attribute__((packed));
@@ -133,13 +133,13 @@ struct mtp_level_3_cmn {
 struct mtp_level_3_mng {
 	struct mtp_level_3_cmn  cmn;
 #if __BYTE_ORDER == __LITTLE_ENDIAN
-	u_int8_t spare : 4,
+	uint8_t spare : 4,
 		 length : 4;
 #elif __BYTE_ORDER == __BIG_ENDIAN
-	u_int8_t length : 4,
+	uint8_t length : 4,
 		 spare : 4;
 #endif
-	u_int8_t data[0];
+	uint8_t data[0];
 } __attribute__((packed));
 
 struct mtp_level_3_prohib {
@@ -149,14 +149,14 @@ struct mtp_level_3_prohib {
 } __attribute__((packed));
 
 struct sccp_con_ctrl_prt_mgt {
-	u_int8_t sst;
-	u_int8_t assn; /* affected sub system number */
+	uint8_t sst;
+	uint8_t assn; /* affected sub system number */
 	u_int16_t apoc;
 #if __BYTE_ORDER == __LITTLE_ENDIAN
-	u_int8_t mul_ind : 2,
+	uint8_t mul_ind : 2,
 		 spare : 6;
 #elif __BYTE_ORDER == __BIG_ENDIAN
-	u_int8_t spare : 6,
+	uint8_t spare : 6,
 		 mul_ind : 2;
 #endif
 } __attribute__((packed));

@@ -50,11 +50,11 @@ static struct msgb *mtp_msg_alloc(struct mtp_link *link)
 
 static struct msgb *mtp_create_sltm(struct mtp_link *link)
 {
-	const u_int8_t test_ptrn[14] = { 'G', 'S', 'M', 'M', 'M', 'S', };
+	const uint8_t test_ptrn[14] = { 'G', 'S', 'M', 'M', 'M', 'S', };
 	struct mtp_level_3_hdr *hdr;
 	struct mtp_level_3_mng *mng;
 	struct msgb *msg = mtp_msg_alloc(link);
-	u_int8_t *data;
+	uint8_t *data;
 	if (!msg)
 		return NULL;
 
@@ -140,7 +140,7 @@ static struct msgb *mtp_sccp_alloc_ssa(struct mtp_link *link, int sls)
 	struct sccp_data_unitdata *udt;
 	struct sccp_con_ctrl_prt_mgt *prt;
 	struct mtp_level_3_hdr *hdr;
-	u_int8_t *data;
+	uint8_t *data;
 
 
 	struct msgb *out = mtp_msg_alloc(link);
@@ -479,9 +479,9 @@ int mtp_link_data(struct mtp_link *link, struct msgb *msg)
 	return rc;
 }
 
-int mtp_link_submit_sccp_data(struct mtp_link *link, int sls, const u_int8_t *data, unsigned int length)
+int mtp_link_submit_sccp_data(struct mtp_link *link, int sls, const uint8_t *data, unsigned int length)
 {
-	u_int8_t *put_ptr;
+	uint8_t *put_ptr;
 	struct mtp_level_3_hdr *hdr;
 	struct msgb *msg;
 

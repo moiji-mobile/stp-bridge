@@ -64,7 +64,7 @@ int mtp_pcap_write_header(int fd)
 	return write(fd, &hdr, sizeof(hdr));
 }
 
-int mtp_pcap_write_msu(int fd, const u_int8_t *data, int length)
+int mtp_pcap_write_msu(int fd, const uint8_t *data, int length)
 {
 	int rc_h, rc_d;
 	struct timeval tv;

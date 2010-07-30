@@ -28,11 +28,11 @@ int tlv_dump(struct tlv_parsed *dec)
  *
  * Also, returns the number of bytes consumed by the TLV entry
  */
-int tlv_parse_one(u_int8_t *o_tag, u_int16_t *o_len, const u_int8_t **o_val,
+int tlv_parse_one(uint8_t *o_tag, u_int16_t *o_len, const uint8_t **o_val,
 		  const struct tlv_definition *def,
-		  const u_int8_t *buf, int buf_len)
+		  const uint8_t *buf, int buf_len)
 {
-	u_int8_t tag;
+	uint8_t tag;
 	int len;
 
 	tag = *buf;
@@ -103,8 +103,8 @@ int tlv_parse_one(u_int8_t *o_tag, u_int16_t *o_len, const u_int8_t **o_val,
  * lv_tag2: input: a second initial LV tag following lv_tag 
  */
 int tlv_parse(struct tlv_parsed *dec, const struct tlv_definition *def,
-	      const u_int8_t *buf, int buf_len, u_int8_t lv_tag,
-	      u_int8_t lv_tag2)
+	      const uint8_t *buf, int buf_len, uint8_t lv_tag,
+	      uint8_t lv_tag2)
 {
 	int ofs = 0, num_parsed = 0;
 	u_int16_t len;
@@ -136,8 +136,8 @@ int tlv_parse(struct tlv_parsed *dec, const struct tlv_definition *def,
 
 	while (ofs < buf_len) {
 		int rv;
-		u_int8_t tag;
-		const u_int8_t *val;
+		uint8_t tag;
+		const uint8_t *val;
 
 		rv = tlv_parse_one(&tag, &len, &val, def,
 		                   &buf[ofs], buf_len-ofs);

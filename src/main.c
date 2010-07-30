@@ -110,7 +110,7 @@ static void mgcp_reset(struct bsc_data *bsc)
             "RSIP 1 13@mgw MGCP 1.0\r\n"
         };
 
-	mgcp_forward(bsc, (const u_int8_t *) mgcp_reset, strlen(mgcp_reset));
+	mgcp_forward(bsc, (const uint8_t *) mgcp_reset, strlen(mgcp_reset));
 }
 
 /*
@@ -663,7 +663,7 @@ static void send_local_rlsd(struct mtp_link *link, struct sccp_parse_result *res
 
 static void send_reset_ack(struct mtp_link *link, int sls)
 {
-	static const u_int8_t reset_ack[] = {
+	static const uint8_t reset_ack[] = {
 		0x09, 0x00, 0x03, 0x05, 0x7, 0x02, 0x42, 0xfe,
 		0x02, 0x42, 0xfe, 0x03,
 		0x00, 0x01, 0x31
@@ -675,7 +675,7 @@ static void send_reset_ack(struct mtp_link *link, int sls)
 static void start_flood()
 {
 	static unsigned int i = 0;
-	static const u_int8_t paging_cmd[] = {
+	static const uint8_t paging_cmd[] = {
 		0x09, 0x00, 0x03,  0x07, 0x0b, 0x04, 0x43, 0x0a,
 		0x00, 0xfe, 0x04,  0x43, 0x5c, 0x00, 0xfe, 0x10,
 		0x00, 0x0e, 0x52,  0x08, 0x08, 0x29, 0x80, 0x10,

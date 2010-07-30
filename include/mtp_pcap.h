@@ -24,6 +24,6 @@
 #include <sys/types.h>
 
 int mtp_pcap_write_header(int fd);
-int mtp_pcap_write_msu(int fd, const u_int8_t *data, int length);
+int mtp_pcap_write_msu(int fd, const uint8_t *data, int length);
 
 #endif

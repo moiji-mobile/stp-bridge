@@ -10,7 +10,7 @@
 #define ARRAY_SIZE(a) (sizeof(a)/sizeof(a[0]))
 
 struct mtp_test {
-	const u_int8_t *input;
+	const uint8_t *input;
 	const u_int16_t length;
 	struct mtp_level_3_hdr hdr;
 
@@ -522,7 +522,7 @@ static struct mtp_test tests[] = {
 	}
 };
 
-static void check_hdr(const u_int8_t *data, const struct mtp_level_3_hdr *t_hdr)
+static void check_hdr(const uint8_t *data, const struct mtp_level_3_hdr *t_hdr)
 {
 	struct mtp_level_3_hdr *hdr;
 	hdr = (struct mtp_level_3_hdr *) data;
@@ -542,7 +542,7 @@ static void check_hdr(const u_int8_t *data, const struct mtp_level_3_hdr *t_hdr)
 	abort();
 }
 
-static void check_mng(const u_int8_t *data, const struct mtp_level_3_mng *t_mng)
+static void check_mng(const uint8_t *data, const struct mtp_level_3_mng *t_mng)
 {
 	struct mtp_level_3_hdr *hdr = (struct mtp_level_3_hdr *) data;
 	struct mtp_level_3_mng *mng = (struct mtp_level_3_mng *) &hdr->data[0];
@@ -560,7 +560,7 @@ static void check_mng(const u_int8_t *data, const struct mtp_level_3_mng *t_mng)
 	abort();
 }
 
-static void check_prohib(const u_int8_t *data, const struct mtp_level_3_prohib *t_prohib)
+static void check_prohib(const uint8_t *data, const struct mtp_level_3_prohib *t_prohib)
 {
 	struct mtp_level_3_hdr *hdr = (struct mtp_level_3_hdr *) data;
 	struct mtp_level_3_prohib *prohib = (struct mtp_level_3_prohib *) &hdr->data[0];
@@ -606,9 +606,9 @@ int main(int argc, char **argv)
 			.mul_ind = 1,
 		};
 
-		u_int8_t data[] = { 0x03, 0xfe, 0x5b, 0x00, 0x01 };
+		uint8_t data[] = { 0x03, 0xfe, 0x5b, 0x00, 0x01 };
 		if (memcmp(&prt, data, 5) != 0) {
-			u_int8_t *d = (u_int8_t *) &prt;
+			uint8_t *d = (uint8_t *) &prt;
 			fprintf(stderr, "GOT: 0x%.2x 0x%.2x 0x%.2x 0x%.2x 0x%.2x\n",
 				d[0], d[1], d[2], d[3], d[4]);
 			abort();

@@ -204,7 +204,7 @@ static int ipaccess_a_fd_cb(struct bsc_fd *bfd)
 			/* we can not forward it right now */
 			if (link->sltm_pending) {
 				LOGP(DMSC, LOGL_NOTICE, "Queueing msg for pending SLTM.\n");
-				msg->l3h = (u_int8_t *) sls;
+				msg->l3h = (uint8_t *) sls;
 				msgb_enqueue(&link->pending_msgs, msg);
 				return 0;
 			}
@@ -430,7 +430,7 @@ static int mgcp_do_read(struct bsc_fd *fd)
 	return 0;
 }
 
-void mgcp_forward(struct bsc_data *bsc, const u_int8_t *data, unsigned int length)
+void mgcp_forward(struct bsc_data *bsc, const uint8_t *data, unsigned int length)
 {
 	struct msgb *mgcp;
 
@@ -569,7 +569,7 @@ static void msc_send_id_response(struct bsc_data *bsc)
 	msg = msgb_alloc_headroom(4096, 128, "id resp");
 	msg->l2h = msgb_v_put(msg, IPAC_MSGT_ID_RESP);
 	msgb_l16tv_put(msg, strlen(bsc->token) + 1,
-		       IPAC_IDTAG_UNITNAME, (u_int8_t *) bsc->token);
+		       IPAC_IDTAG_UNITNAME, (uint8_t *) bsc->token);
 
 	msc_send(bsc, msg, IPAC_PROTO_IPACCESS);
 }

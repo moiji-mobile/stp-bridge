@@ -34,7 +34,7 @@
 static void patch_ass_rqst(struct msgb *msg, int length)
 {
 	struct tlv_parsed tp;
-	u_int8_t *data, audio;
+	uint8_t *data, audio;
 	int len;
 
 	tlv_parse(&tp, gsm0808_att_tlvdef(), msg->l3h + 1, length - 1, 0, 0);
@@ -42,7 +42,7 @@ static void patch_ass_rqst(struct msgb *msg, int length)
 	if (len < 3)
 		return;
 
-	data = (u_int8_t *) TLVP_VAL(&tp, GSM0808_IE_CHANNEL_TYPE);
+	data = (uint8_t *) TLVP_VAL(&tp, GSM0808_IE_CHANNEL_TYPE);
 	/* no speech... ignore */
 	if ((data[0] & 0xf) != 0x1)
 		return;
@@ -58,7 +58,7 @@ static void patch_ass_rqst(struct msgb *msg, int length)
 static void patch_ass_cmpl(struct msgb *msg, int length)
 {
 	struct tlv_parsed tp;
-	u_int8_t *data;
+	uint8_t *data;
 
 	tlv_parse(&tp, gsm0808_att_tlvdef(), msg->l3h + 1, length - 1, 0, 0);
 	if (!TLVP_PRESENT(&tp, GSM0808_IE_CHOSEN_CHANNEL)) {
@@ -72,10 +72,10 @@ static void patch_ass_cmpl(struct msgb *msg, int length)
 	}
 
 	/* claim to have a TCH/H with no mode indication */
-	data = (u_int8_t *) TLVP_VAL(&tp, GSM0808_IE_CHOSEN_CHANNEL);
+	data = (uint8_t *) TLVP_VAL(&tp, GSM0808_IE_CHOSEN_CHANNEL);
 	data[0] = 0x09;
 
-	data = (u_int8_t *) TLVP_VAL(&tp, GSM0808_IE_SPEECH_VERSION);
+	data = (uint8_t *) TLVP_VAL(&tp, GSM0808_IE_SPEECH_VERSION);
 	data[0] = GSM0808_PERM_HR3;
 }
 
@@ -244,8 +244,8 @@ void bss_rewrite_header_for_msc(int rc, struct msgb *target, struct msgb *inpt, 
 static int patch_address(u_int32_t offset, int pc, struct msgb *msg)
 {
 	struct sccp_called_party_address *party;
-	u_int8_t *the_pc;
-	u_int8_t pc_low, pc_high;
+	uint8_t *the_pc;
+	uint8_t pc_low, pc_high;
 
 	party = (struct sccp_called_party_address *)(msg->l2h + offset + 1);
 	the_pc = &party->data[0];

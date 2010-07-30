@@ -126,6 +126,6 @@ int link_c7_init(struct link_data *data);
 int link_udp_init(struct link_data *data, int src_port, const char *dest_ip, int port);
 
 /* MGCP */
-void mgcp_forward(struct bsc_data *bsc, const u_int8_t *data, unsigned int length);
+void mgcp_forward(struct bsc_data *bsc, const uint8_t *data, unsigned int length);
 
 #endif
