@@ -23,6 +23,7 @@
 #ifndef mtp_level3_h
 #define mtp_level3_h
 
+#include <stdint.h>
 #include <endian.h>
 #include <sys/types.h>
 

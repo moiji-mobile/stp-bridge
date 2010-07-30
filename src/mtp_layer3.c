@@ -21,9 +21,9 @@
  */
 #include <mtp_data.h>
 #include <mtp_level3.h>
+#include <cellmgr_debug.h>
 
-#include <laf0rge1/debug.h>
-#include <laf0rge1/talloc.h>
+#include <osmocore/talloc.h>
 
 #include <sccp/sccp.h>
 

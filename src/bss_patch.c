@@ -21,12 +21,12 @@
  */
 
 #include <bss_patch.h>
+#include <cellmgr_debug.h>
 
 #include <string.h>
 
 #include <openbsc_nat/bssap.h>
 #include <openbsc_nat/tlv.h>
-#include <laf0rge1/debug.h>
 #include <sccp/sccp.h>
 
 #include <arpa/inet.h>

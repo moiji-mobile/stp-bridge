@@ -21,7 +21,7 @@
 #ifndef mtp_pcap_h
 #define mtp_pcap_h
 
-#include <sys/types.h>
+#include <stdint.h>
 
 int mtp_pcap_write_header(int fd);
 int mtp_pcap_write_msu(int fd, const uint8_t *data, int length);

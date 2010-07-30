@@ -20,7 +20,7 @@
  */
 #include <thread.h>
 
-#include <laf0rge1/talloc.h>
+#include <osmocore/talloc.h>
 
 #include <sys/types.h>
 #include <sys/socket.h>

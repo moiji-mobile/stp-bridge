@@ -19,10 +19,13 @@ dnl Check for the SNMP header
 AC_CHECK_HEADERS([net-snmp/net-snmp-config.h])
 
 dnl Checks for typedefs, structures and compiler characteristics
-PKG_CHECK_MODULES([LAFORGE], [liblaf0rge1])
-PKG_CHECK_MODULES([SCCP], [libsccp])
+PKG_CHECK_MODULES([LIBOSMOCORE], [libosmocore])
+PKG_CHECK_MODULES([LIBOSMOSCCP], [libosmo-sccp])
+PKG_CHECK_MODULES([LIBOSMOVTY], [libosmovty])
 #PKG_CHECK_MODULES([NEXUSWARE_C7], [nexusware-c7])
 #PKG_CHECK_MODULES([NEXUSWARE_UNIPORTE], [nexusware-uniporte])
+
+AC_SUBST(UNIPORTE, [-DNO_UNIPORTE])
 
 AC_OUTPUT(
     include/Makefile

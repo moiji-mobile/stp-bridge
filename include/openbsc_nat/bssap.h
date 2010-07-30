@@ -5,7 +5,7 @@
 
 #include <stdlib.h>
 
-#include <laf0rge1/msgb.h>
+#include <osmocore/msgb.h>
 #include <sccp/sccp.h>
 
 struct gsm_network;

@@ -32,9 +32,9 @@
 #include <sys/ioctl.h>
 #include <arpa/inet.h>
 
-#include <laf0rge1/select.h>
-#include <laf0rge1/msgb.h>
-#include <laf0rge1/talloc.h>
+#include <osmocore/select.h>
+#include <osmocore/msgb.h>
+#include <osmocore/talloc.h>
 #include <ipaccess.h>
 
 

@@ -23,13 +23,13 @@
 #ifndef BSC_DATA_H
 #define BSC_DATA_H
 
-#include <laf0rge1/linuxlist.h>
-#include <laf0rge1/select.h>
-#include <laf0rge1/timer.h>
+#include <osmocore/linuxlist.h>
+#include <osmocore/select.h>
+#include <osmocore/timer.h>
+#include <osmocore/write_queue.h>
 
 #include <sccp/sccp.h>
 
-#include "write_queue.h"
 
 #include <netinet/in.h>
 #include <arpa/inet.h>

@@ -27,12 +27,12 @@
 #include <bssap_sccp.h>
 #include <bsc_data.h>
 #include <snmp_mtp.h>
+#include <cellmgr_debug.h>
 
-#include <laf0rge1/debug.h>
-#include <laf0rge1/talloc.h>
+#include <osmocore/talloc.h>
 
-#include <vty/command.h>
-#include <vty/vty.h>
+#include <osmocom/vty/command.h>
+#include <osmocom/vty/vty.h>
 
 #include <openbsc_nat/bssap.h>
 
@@ -54,7 +54,7 @@
 #endif
 #include <getopt.h>
 
-static struct debug_target *stderr_target;
+static struct log_target *stderr_target;
 static int dpc = 1;
 static int opc = 0;
 
@@ -65,6 +65,12 @@ static int src_port = 1313;
 static int once = 0;
 static int flood = 0;
 static struct timer_list flood_timer;
+
+static struct vty_app_info vty_info = {
+	.name 		= "Cellmgr-ng",
+	.version	= "0.0.1",
+	.go_parent_cb	= NULL,
+};
 
 /*
  * One SCCP connection.
@@ -816,19 +822,21 @@ int main(int argc, char **argv)
 
 	mtp_link_init();
 	thread_init();
-	debug_init();
 
-	stderr_target = debug_target_create_stderr();
-	debug_add_target(stderr_target);
+	log_init(&log_info);
+	stderr_target = log_target_create_stderr();
+	log_add_target(stderr_target);
 
 	/* enable filters */
-	debug_set_all_filter(stderr_target, 1);
-	debug_set_category_filter(stderr_target, DINP, 1, LOGL_INFO);
-	debug_set_category_filter(stderr_target, DSCCP, 1, LOGL_INFO);
-	debug_set_category_filter(stderr_target, DMSC, 1, LOGL_INFO);
-	debug_set_category_filter(stderr_target, DMGCP, 1, LOGL_INFO);
-	debug_set_print_timestamp(stderr_target, 1);
-	debug_set_use_color(stderr_target, 0);
+	log_set_all_filter(stderr_target, 1);
+	log_set_category_filter(stderr_target, DINP, 1, LOGL_INFO);
+	log_set_category_filter(stderr_target, DSCCP, 1, LOGL_INFO);
+	log_set_category_filter(stderr_target, DMSC, 1, LOGL_INFO);
+	log_set_category_filter(stderr_target, DMGCP, 1, LOGL_INFO);
+	log_set_print_timestamp(stderr_target, 1);
+	log_set_use_color(stderr_target, 0);
+
+	sccp_set_log_area(DSCCP);
 
 	bsc.setup = 0;
 	bsc.msc_address = "127.0.0.1";
@@ -846,7 +854,7 @@ int main(int argc, char **argv)
 	srand(time(NULL));
 
 	cell_vty_init();
-	if (vty_read_config_file(config) < 0) {
+	if (vty_read_config_file(config, NULL) < 0) {
 		fprintf(stderr, "Failed to read the VTY config.\n");
 		return -1;
 	}
@@ -902,8 +910,12 @@ int main(int argc, char **argv)
 }
 
 /* vty code */
+enum cellmgr_node {
+	CELLMGR_NODE = _LAST_OSMOVTY_NODE,
+};
+
 static struct cmd_node cell_node = {
-	GSMNET_NODE,
+	CELLMGR_NODE,
 	"%s(cellmgr)#",
 	1,
 };
@@ -916,7 +928,7 @@ static int config_write_cell()
 DEFUN(cfg_cell, cfg_cell_cmd,
       "cellmgr", "Configure the Cellmgr")
 {
-	vty->node = GSMNET_NODE;
+	vty->node = CELLMGR_NODE;
 	return CMD_SUCCESS;
 }
 
@@ -1054,25 +1066,25 @@ DEFUN(cfg_msc_time, cfg_msc_time_cmd,
 static void cell_vty_init(void)
 {
 	cmd_init(1);
-	vty_init();
+	vty_init(&vty_info);
 
 	install_element(CONFIG_NODE, &cfg_cell_cmd);
 	install_node(&cell_node, config_write_cell);
 
-	install_element(GSMNET_NODE, &cfg_net_dpc_cmd);
-	install_element(GSMNET_NODE, &cfg_net_opc_cmd);
-	install_element(GSMNET_NODE, &cfg_udp_dst_ip_cmd);
-	install_element(GSMNET_NODE, &cfg_udp_dst_port_cmd);
-	install_element(GSMNET_NODE, &cfg_udp_src_port_cmd);
-	install_element(GSMNET_NODE, &cfg_udp_reset_cmd);
-	install_element(GSMNET_NODE, &cfg_sltm_once_cmd);
-	install_element(GSMNET_NODE, &cfg_msc_ip_cmd);
-	install_element(GSMNET_NODE, &cfg_msc_token_cmd);
-	install_element(GSMNET_NODE, &cfg_msc_ip_dscp_cmd);
-	install_element(GSMNET_NODE, &cfg_msc_ip_tos_cmd);
-	install_element(GSMNET_NODE, &cfg_ping_time_cmd);
-	install_element(GSMNET_NODE, &cfg_pong_time_cmd);
-	install_element(GSMNET_NODE, &cfg_msc_time_cmd);
+	install_element(CELLMGR_NODE, &cfg_net_dpc_cmd);
+	install_element(CELLMGR_NODE, &cfg_net_opc_cmd);
+	install_element(CELLMGR_NODE, &cfg_udp_dst_ip_cmd);
+	install_element(CELLMGR_NODE, &cfg_udp_dst_port_cmd);
+	install_element(CELLMGR_NODE, &cfg_udp_src_port_cmd);
+	install_element(CELLMGR_NODE, &cfg_udp_reset_cmd);
+	install_element(CELLMGR_NODE, &cfg_sltm_once_cmd);
+	install_element(CELLMGR_NODE, &cfg_msc_ip_cmd);
+	install_element(CELLMGR_NODE, &cfg_msc_token_cmd);
+	install_element(CELLMGR_NODE, &cfg_msc_ip_dscp_cmd);
+	install_element(CELLMGR_NODE, &cfg_msc_ip_tos_cmd);
+	install_element(CELLMGR_NODE, &cfg_ping_time_cmd);
+	install_element(CELLMGR_NODE, &cfg_pong_time_cmd);
+	install_element(CELLMGR_NODE, &cfg_msc_time_cmd);
 }
 
 void subscr_put() {}

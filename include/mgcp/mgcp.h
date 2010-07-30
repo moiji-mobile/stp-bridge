@@ -24,7 +24,7 @@
 #ifndef OPENBSC_MGCP_H
 #define OPENBSC_MGCP_H
 
-#include <laf0rge1/msgb.h>
+#include <osmocore/msgb.h>
 
 #include <arpa/inet.h>
 

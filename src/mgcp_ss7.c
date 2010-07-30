@@ -24,15 +24,14 @@
 #include <mgcp/mgcp.h>
 #include <mgcp/mgcp_internal.h>
 
-#include <write_queue.h>
+#include <cellmgr_debug.h>
 
-#include <laf0rge1/debug.h>
-#include <laf0rge1/select.h>
-#include <laf0rge1/talloc.h>
-#include <laf0rge1/timer.h>
+#include <osmocore/select.h>
+#include <osmocore/talloc.h>
+#include <osmocore/timer.h>
 
-#include <vty/command.h>
-#include <vty/vty.h>
+#include <osmocom/vty/command.h>
+#include <osmocom/vty/vty.h>
 
 /* uniporte includes */
 #ifndef NO_UNIPORTE
@@ -55,7 +54,7 @@
 #endif
 #include <getopt.h>
 
-static struct debug_target *stderr_target;
+static struct log_target *stderr_target;
 static int payload = 126;
 static int number_endpoints = 32;
 static char *mgw_ip = "172.18.0.30";
@@ -766,26 +765,26 @@ static void handle_options(int argc, char **argv)
 int main(int argc, char **argv)
 {
 	struct mgcp_ss7 *mgcp;
-	debug_init();
 
-	stderr_target = debug_target_create_stderr();
-	debug_add_target(stderr_target);
+	log_init(&log_info);
+	stderr_target = log_target_create_stderr();
+	log_add_target(stderr_target);
 
 	/* enable filters */
-	debug_set_all_filter(stderr_target, 1);
-	debug_set_category_filter(stderr_target, DINP, 1, LOGL_INFO);
-	debug_set_category_filter(stderr_target, DSCCP, 1, LOGL_INFO);
-	debug_set_category_filter(stderr_target, DMSC, 1, LOGL_INFO);
-	debug_set_category_filter(stderr_target, DMGCP, 1, LOGL_INFO);
-	debug_set_print_timestamp(stderr_target, 1);
-	debug_set_use_color(stderr_target, 0);
+	log_set_all_filter(stderr_target, 1);
+	log_set_category_filter(stderr_target, DINP, 1, LOGL_INFO);
+	log_set_category_filter(stderr_target, DSCCP, 1, LOGL_INFO);
+	log_set_category_filter(stderr_target, DMSC, 1, LOGL_INFO);
+	log_set_category_filter(stderr_target, DMGCP, 1, LOGL_INFO);
+	log_set_print_timestamp(stderr_target, 1);
+	log_set_use_color(stderr_target, 0);
 
 	handle_options(argc, argv);
 
 	signal(SIGPIPE, SIG_IGN);
 
 	mgcp_mgw_vty_init();
-	if (vty_read_config_file(config_file) < 0) {
+	if (vty_read_config_file(config_file, NULL) < 0) {
 		fprintf(stderr, "Failed to parse the config file: '%s'\n", config_file);
 		return -1;
 	}
@@ -805,6 +804,10 @@ int main(int argc, char **argv)
 }
 
 /* VTY code */
+enum cellmgr_node {
+	MGCP_NODE = _LAST_OSMOVTY_NODE,
+};
+
 struct cmd_node mgcp_node = {
 	MGCP_NODE,
 	"%s(mgcp)#",
@@ -918,10 +921,17 @@ static int config_write_mgcp()
 	return CMD_SUCCESS;
 }
 
+static struct vty_app_info vty_info = {
+	.name 		= "mgcp_ss7",
+	.version	= "0.0.1",
+	.go_parent_cb	= NULL,
+};
+
+
 static void mgcp_mgw_vty_init(void)
 {
 	cmd_init(1);
-	vty_init();
+	vty_init(&vty_info);
 
 	install_element(CONFIG_NODE, &cfg_mgcp_cmd);
 	install_node(&mgcp_node, config_write_mgcp);
@@ -937,3 +947,5 @@ static void mgcp_mgw_vty_init(void)
 
 void subscr_put() {}
 void vty_event() {}
+
+const char *openbsc_copyright = "";

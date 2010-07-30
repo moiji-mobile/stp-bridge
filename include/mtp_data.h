@@ -21,8 +21,9 @@
 #ifndef mtp_data_h
 #define mtp_data_h
 
-#include <laf0rge1/msgb.h>
-#include <laf0rge1/timer.h>
+#include <osmocore/msgb.h>
+#include <osmocore/timer.h>
+#include <osmocore/utils.h>
 
 /* MTP Level3 timers */
 
@@ -80,9 +81,5 @@ void mtp_link_forward_sccp(struct mtp_link *link, struct msgb *msg, int sls);
 void mtp_link_restart(struct mtp_link *link);
 void mtp_link_slta_recv(struct mtp_link *link);
 void mtp_link_sccp_down(struct mtp_link *link);
-
-#ifndef ARRAY_SIZE
-#define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
-#endif
 
 #endif

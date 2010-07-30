@@ -21,8 +21,8 @@
 #ifndef thread_h
 #define thread_h
 
-#include <laf0rge1/linuxlist.h>
-#include <laf0rge1/select.h>
+#include <osmocore/linuxlist.h>
+#include <osmocore/select.h>
 
 #include <pthread.h>
 

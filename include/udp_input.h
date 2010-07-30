@@ -24,7 +24,7 @@
 #define c7_udp_input_h
 
 #include <stdint.h>
-#include "write_queue.h"
+#include <osmocore/write_queue.h>
 
 #define UDP_FORMAT_SIMPLE_UDP	2
 #define UDP_FORMAT_SIMPLE_TCP	3

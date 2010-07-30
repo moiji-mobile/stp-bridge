@@ -24,13 +24,9 @@
 #ifndef OPENBSC_MGCP_DATA_H
 #define OPENBSC_MGCP_DATA_H
 
-#include <laf0rge1/select.h>
+#include <osmocore/select.h>
 
 #define CI_UNUSED 0
-
-#ifndef ARRAY_SIZE
-#define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
-#endif
 
 enum mgcp_connection_mode {
 	MGCP_CONN_NONE = 0,

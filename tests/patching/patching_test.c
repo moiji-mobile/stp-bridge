@@ -1,6 +1,8 @@
 #include <bss_patch.h>
 
-#include <laf0rge1/debug.h>
+#include <cellmgr_debug.h>
+
+#include <osmocore/utils.h>
 
 #include <stdio.h>
 #include <string.h>

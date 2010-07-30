@@ -22,7 +22,7 @@
 #ifndef bss_patch_h
 #define bss_patch_h
 
-#include <laf0rge1/msgb.h>
+#include <osmocore/msgb.h>
 
 #include <sccp/sccp.h>
 

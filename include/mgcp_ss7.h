@@ -23,9 +23,9 @@
 #ifndef mgcp_ss7_h
 #define mgcp_ss7_h
 
-#include <laf0rge1/timer.h>
+#include <osmocore/timer.h>
+#include <osmocore/write_queue.h>
 
-#include "write_queue.h"
 #include "thread.h"
 
 

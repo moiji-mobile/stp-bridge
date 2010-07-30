@@ -1,7 +1,7 @@
 #ifndef _IPACCESS_H
 #define _IPACCESS_H
 
-#include <laf0rge1/linuxlist.h>
+#include <osmocore/linuxlist.h>
 
 #define IPA_TCP_PORT_OML	3002
 #define IPA_TCP_PORT_RSL	3003

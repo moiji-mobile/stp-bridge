@@ -25,9 +25,10 @@
 #include <bssap_sccp.h>
 #include <ipaccess.h>
 #include <mtp_data.h>
+#include <cellmgr_debug.h>
 
-#include <laf0rge1/debug.h>
-#include <laf0rge1/tlv.h>
+#include <osmocore/tlv.h>
+#include <osmocore/utils.h>
 
 #include <arpa/inet.h>
 #include <sys/socket.h>

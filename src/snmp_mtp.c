@@ -19,7 +19,7 @@
  *
  */
 #include <snmp_mtp.h>
-#include <laf0rge1/talloc.h>
+#include <osmocore/talloc.h>
 
 static void add_pdu_var(netsnmp_pdu *pdu, const char *mib_name, int id, const char *value)
 {

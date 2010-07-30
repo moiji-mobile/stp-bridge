@@ -34,10 +34,11 @@
 #include <mgcp/mgcp.h>
 #include <mgcp/mgcp_internal.h>
 
-#include <laf0rge1/debug.h>
-#include <laf0rge1/msgb.h>
-#include <laf0rge1/talloc.h>
-#include <laf0rge1/select.h>
+#include <cellmgr_debug.h>
+
+#include <osmocore/msgb.h>
+#include <osmocore/talloc.h>
+#include <osmocore/select.h>
 
 #warning "Make use of the rtp proxy code"
 

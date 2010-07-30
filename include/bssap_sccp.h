@@ -21,7 +21,7 @@
 #ifndef bssap_sccp_h
 #define bssap_sccp_h
 
-#include <sys/types.h>
+#include <stdint.h>
 #include <sccp/sccp_types.h>
 
 struct msgb *create_clear_command(struct sccp_source_reference *dest_ref);

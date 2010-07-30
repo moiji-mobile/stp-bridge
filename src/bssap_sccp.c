@@ -21,9 +21,9 @@
  */
 
 #include <bssap_sccp.h>
+#include <cellmgr_debug.h>
 
-#include <laf0rge1/msgb.h>
-#include <laf0rge1/debug.h>
+#include <osmocore/msgb.h>
 
 #include <openbsc_nat/bssap.h>
 

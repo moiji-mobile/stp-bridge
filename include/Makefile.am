@@ -1,5 +1,5 @@
 noinst_HEADERS = mtp_level3.h mtp_data.h ipaccess.h thread.h mtp_pcap.h \
-		 mgcp_ss7.h bss_patch.h write_queue.h bssap_sccp.h bsc_data.h udp_input.h \
+		 mgcp_ss7.h bss_patch.h bssap_sccp.h bsc_data.h udp_input.h \
                  snmp_mtp.h
 
 SUBDIRS = mgcp openbsc_nat
