@@ -945,7 +945,5 @@ static void mgcp_mgw_vty_init(void)
 	install_element(MGCP_NODE, &cfg_mgcp_number_endp_cmd);
 }
 
-void subscr_put() {}
-void vty_event() {}
 
 const char *openbsc_copyright = "";
