@@ -1094,3 +1094,4 @@ static void cell_vty_init(void)
 	install_element(CELLMGR_NODE, &cfg_msc_time_cmd);
 }
 
+const char *openbsc_copyright = "";
