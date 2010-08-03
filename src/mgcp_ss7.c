@@ -32,6 +32,7 @@
 
 #include <osmocom/vty/command.h>
 #include <osmocom/vty/vty.h>
+#include <osmocom/vty/telnet_interface.h>
 
 /* uniporte includes */
 #ifndef NO_UNIPORTE
@@ -765,6 +766,7 @@ static void handle_options(int argc, char **argv)
 int main(int argc, char **argv)
 {
 	struct mgcp_ss7 *mgcp;
+	int rc;
 
 	log_init(&log_info);
 	stderr_target = log_target_create_stderr();
@@ -788,6 +790,10 @@ int main(int argc, char **argv)
 		fprintf(stderr, "Failed to parse the config file: '%s'\n", config_file);
 		return -1;
 	}
+
+	rc = telnet_init(NULL, NULL, 4243);
+	if (rc < 0)
+		return rc;
 
 	printf("Creating MGCP MGW with endpoints: %d ip: %s mgw: %s rtp-base: %d payload: %d\n",
 		number_endpoints, local_ip, mgw_ip, base_port, payload);
