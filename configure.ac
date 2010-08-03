@@ -23,9 +23,15 @@ PKG_CHECK_MODULES([LIBOSMOCORE], [libosmocore])
 PKG_CHECK_MODULES([LIBOSMOSCCP], [libosmo-sccp])
 PKG_CHECK_MODULES([LIBOSMOVTY], [libosmovty])
 #PKG_CHECK_MODULES([NEXUSWARE_C7], [nexusware-c7])
-#PKG_CHECK_MODULES([NEXUSWARE_UNIPORTE], [nexusware-uniporte])
 
-AC_SUBST(UNIPORTE, [-DNO_UNIPORTE])
+AC_ARG_ENABLE([uniporte], [AS_HELP_STRING([--enable-uniporte], [Build with uniporte])],
+   [
+       PKG_CHECK_MODULES([NEXUSWARE_UNIPORTE], [nexusware-uniporte])
+       AC_SUBST(UNIPORTE, [])
+   ],
+   [
+       AC_SUBST(UNIPORTE, [-DNO_UNIPORTE])
+   ])
 
 AC_OUTPUT(
     include/Makefile
