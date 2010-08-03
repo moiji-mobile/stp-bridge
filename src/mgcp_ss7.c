@@ -68,6 +68,7 @@ static int endp_dscp = 0;
 #define TO_MGW_PORT(no) (no-1)
 #define FROM_MGW_PORT(no) (no+1)
 
+static struct mgcp_config *g_cfg;
 static struct mgcp_ss7 *s_ss7;
 
 struct mgcp_ss7_endpoint {
@@ -608,12 +609,7 @@ struct mgcp_ss7 *mgcp_ss7_init(int endpoints, const char *local_ip, const char *
 		return NULL;
 
 	write_queue_init(&conf->mgcp_fd, 30);
-	conf->cfg = mgcp_config_alloc();
-	if (!conf->cfg) {
-		LOGP(DMGCP, LOGL_ERROR, "Failed to allocate memory.\n");
-		talloc_free(conf);
-		return NULL;
-	}
+	conf->cfg = g_cfg;
 
 	/* take over the ownership */
 	talloc_steal(conf, conf->cfg);
@@ -786,6 +782,13 @@ int main(int argc, char **argv)
 	signal(SIGPIPE, SIG_IGN);
 
 	mgcp_mgw_vty_init();
+
+	g_cfg = mgcp_config_alloc();
+	if (!g_cfg) {
+		LOGP(DMGCP, LOGL_ERROR, "Failed to allocate mgcp config.\n");
+		return -1;
+	}
+
 	if (vty_read_config_file(config_file, NULL) < 0) {
 		fprintf(stderr, "Failed to parse the config file: '%s'\n", config_file);
 		return -1;
