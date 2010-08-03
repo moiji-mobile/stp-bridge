@@ -57,10 +57,9 @@ static int config_write_mgcp(struct vty *vty)
 	if (g_cfg->local_ip)
 		vty_out(vty, "  local ip %s%s", g_cfg->local_ip, VTY_NEWLINE);
 	if (g_cfg->bts_ip && strlen(g_cfg->bts_ip) != 0)
-		vty_out(vty, "  bts ip %s%s", g_cfg->bts_ip, VTY_NEWLINE);
+		vty_out(vty, "  mgw ip %s%s", g_cfg->bts_ip, VTY_NEWLINE);
 	vty_out(vty, "  bind ip %s%s", g_cfg->source_addr, VTY_NEWLINE);
 	vty_out(vty, "  bind port %u%s", g_cfg->source_port, VTY_NEWLINE);
-	vty_out(vty, "  bind early %u%s", !!g_cfg->early_bind, VTY_NEWLINE);
 	vty_out(vty, "  rtp base %u%s", g_cfg->rtp_base_port, VTY_NEWLINE);
 	vty_out(vty, "  rtp ip-dscp %d%s", g_cfg->endp_dscp, VTY_NEWLINE);
 	if (g_cfg->audio_payload != -1)
@@ -69,12 +68,6 @@ static int config_write_mgcp(struct vty *vty)
 		vty_out(vty, "  sdp audio payload name %s%s", g_cfg->audio_name, VTY_NEWLINE);
 	vty_out(vty, "  loop %u%s", !!g_cfg->audio_loop, VTY_NEWLINE);
 	vty_out(vty, "  number endpoints %u%s", g_cfg->number_endpoints - 1, VTY_NEWLINE);
-	if (g_cfg->forward_ip)
-		vty_out(vty, "  forward audio ip %s%s", g_cfg->forward_ip, VTY_NEWLINE);
-	if (g_cfg->forward_port != 0)
-		vty_out(vty, "  forward audio port %d%s", g_cfg->forward_port, VTY_NEWLINE);
-	if (g_cfg->call_agent_addr)
-		vty_out(vty, "  call agent ip %s%s", g_cfg->call_agent_addr, VTY_NEWLINE);
 
 	return CMD_SUCCESS;
 }
@@ -152,16 +145,6 @@ DEFUN(cfg_mgcp_bind_port,
 	return CMD_SUCCESS;
 }
 
-DEFUN(cfg_mgcp_bind_early,
-      cfg_mgcp_bind_early_cmd,
-      "bind early (0|1)",
-      "Bind all RTP ports early")
-{
-	unsigned int bind = atoi(argv[0]);
-	g_cfg->early_bind = bind == 1;
-	return CMD_SUCCESS;
-}
-
 DEFUN(cfg_mgcp_rtp_base_port,
       cfg_mgcp_rtp_base_port_cmd,
       "rtp base <0-65534>",
@@ -224,37 +207,6 @@ DEFUN(cfg_mgcp_number_endp,
 {
 	/* + 1 as we start counting at one */
 	g_cfg->number_endpoints = atoi(argv[0]) + 1;
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_mgcp_forward_ip,
-      cfg_mgcp_forward_ip_cmd,
-      "forward audio ip A.B.C.D",
-      "Forward packets from and to the IP. This disables most of the MGCP feature.")
-{
-	if (g_cfg->forward_ip)
-		talloc_free(g_cfg->forward_ip);
-	g_cfg->forward_ip = talloc_strdup(g_cfg, argv[0]);
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_mgcp_forward_port,
-      cfg_mgcp_forward_port_cmd,
-      "forward audio port <1-15000>",
-      "Forward packets from and to the port. This disables most of the MGCP feature.")
-{
-	g_cfg->forward_port = atoi(argv[0]);
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_mgcp_agent_addr,
-      cfg_mgcp_agent_addr_cmd,
-      "call agent ip IP",
-      "Set the address of the call agent.")
-{
-	if (g_cfg->call_agent_addr)
-		talloc_free(g_cfg->call_agent_addr);
-	g_cfg->call_agent_addr = talloc_strdup(g_cfg, argv[0]);
 	return CMD_SUCCESS;
 }
 
@@ -331,7 +283,6 @@ int mgcp_vty_init(void)
 	install_element(MGCP_NODE, &cfg_mgcp_bts_ip_cmd);
 	install_element(MGCP_NODE, &cfg_mgcp_bind_ip_cmd);
 	install_element(MGCP_NODE, &cfg_mgcp_bind_port_cmd);
-	install_element(MGCP_NODE, &cfg_mgcp_bind_early_cmd);
 	install_element(MGCP_NODE, &cfg_mgcp_rtp_base_port_cmd);
 	install_element(MGCP_NODE, &cfg_mgcp_rtp_ip_dscp_cmd);
 	install_element(MGCP_NODE, &cfg_mgcp_rtp_ip_tos_cmd);
@@ -339,9 +290,6 @@ int mgcp_vty_init(void)
 	install_element(MGCP_NODE, &cfg_mgcp_sdp_payload_name_cmd);
 	install_element(MGCP_NODE, &cfg_mgcp_loop_cmd);
 	install_element(MGCP_NODE, &cfg_mgcp_number_endp_cmd);
-	install_element(MGCP_NODE, &cfg_mgcp_forward_ip_cmd);
-	install_element(MGCP_NODE, &cfg_mgcp_forward_port_cmd);
-	install_element(MGCP_NODE, &cfg_mgcp_agent_addr_cmd);
 	return 0;
 }
 
