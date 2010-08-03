@@ -35,6 +35,7 @@
 #include <osmocom/vty/vty.h>
 
 #include <string.h>
+#include <netdb.h>
 
 static struct mgcp_config *g_cfg = NULL;
 
@@ -103,23 +104,43 @@ DEFUN(cfg_mgcp,
 
 DEFUN(cfg_mgcp_local_ip,
       cfg_mgcp_local_ip_cmd,
-      "local ip A.B.C.D",
+      "local ip IP",
       "Set the IP to be used in SDP records")
 {
+	struct hostent *hosts;
+	struct in_addr *addr;
+
+	hosts = gethostbyname(argv[0]);
+	if (!hosts || hosts->h_length < 1 || hosts->h_addrtype != AF_INET) {
+		vty_out(vty, "Failed to resolve '%s'%s", argv[0], VTY_NEWLINE);
+		return CMD_WARNING;
+	}
+
+	addr = (struct in_addr *) hosts->h_addr_list[0];
 	if (g_cfg->local_ip)
 		talloc_free(g_cfg->local_ip);
-	g_cfg->local_ip = talloc_strdup(g_cfg, argv[0]);
+	g_cfg->local_ip = talloc_strdup(g_cfg, inet_ntoa(*addr));
 	return CMD_SUCCESS;
 }
 
-DEFUN(cfg_mgcp_bts_ip,
-      cfg_mgcp_bts_ip_cmd,
-      "bts ip A.B.C.D",
-      "Set the IP of the BTS for RTP forwarding")
+DEFUN(cfg_mgcp_mgw_ip,
+      cfg_mgcp_mgw_ip_cmd,
+      "mgw ip IP",
+      "Set the IP of the MGW for RTP forwarding")
 {
+	struct hostent *hosts;
+	struct in_addr *addr;
+
+	hosts = gethostbyname(argv[0]);
+	if (!hosts || hosts->h_length < 1 || hosts->h_addrtype != AF_INET) {
+		vty_out(vty, "Failed to resolve '%s'%s", argv[0], VTY_NEWLINE);
+		return CMD_WARNING;
+	}
+
+	addr = (struct in_addr *) hosts->h_addr_list[0];
 	if (g_cfg->bts_ip)
 		talloc_free(g_cfg->bts_ip);
-	g_cfg->bts_ip = talloc_strdup(g_cfg, argv[0]);
+	g_cfg->bts_ip = talloc_strdup(g_cfg, inet_ntoa(*addr));
 	inet_aton(g_cfg->bts_ip, &g_cfg->bts_in);
 	return CMD_SUCCESS;
 }
@@ -280,7 +301,7 @@ int mgcp_vty_init(void)
 	install_element(MGCP_NODE, &ournode_exit_cmd);
 	install_element(MGCP_NODE, &ournode_end_cmd);
 	install_element(MGCP_NODE, &cfg_mgcp_local_ip_cmd);
-	install_element(MGCP_NODE, &cfg_mgcp_bts_ip_cmd);
+	install_element(MGCP_NODE, &cfg_mgcp_mgw_ip_cmd);
 	install_element(MGCP_NODE, &cfg_mgcp_bind_ip_cmd);
 	install_element(MGCP_NODE, &cfg_mgcp_bind_port_cmd);
 	install_element(MGCP_NODE, &cfg_mgcp_rtp_base_port_cmd);
@@ -290,79 +311,11 @@ int mgcp_vty_init(void)
 	install_element(MGCP_NODE, &cfg_mgcp_sdp_payload_name_cmd);
 	install_element(MGCP_NODE, &cfg_mgcp_loop_cmd);
 	install_element(MGCP_NODE, &cfg_mgcp_number_endp_cmd);
+
 	return 0;
 }
 
-int mgcp_parse_config(const char *config_file, struct mgcp_config *cfg)
+void mgcp_vty_set_config(struct mgcp_config *cfg)
 {
-	int i, rc;
-
 	g_cfg = cfg;
-	rc = vty_read_config_file(config_file, NULL);
-	if (rc < 0) {
-		fprintf(stderr, "Failed to parse the config file: '%s'\n", config_file);
-		return rc;
-	}
-
-
-	if (!g_cfg->bts_ip)
-		fprintf(stderr, "No BTS ip address specified. This will allow everyone to connect.\n");
-
-	if (!g_cfg->source_addr) {
-		fprintf(stderr, "You need to specify a bind address.\n");
-		return -1;
-	}
-
-	if (mgcp_endpoints_allocate(g_cfg) != 0) {
-		fprintf(stderr, "Failed to allocate endpoints: %d. Quitting.\n", g_cfg->number_endpoints);
-		return -1;
-	}
-
-	/*
-	 * This application supports two modes.
-	 *    1.) a true MGCP gateway with support for AUEP, CRCX, MDCX, DLCX
-	 *    2.) plain forwarding of RTP packets on the endpoints.
-	 * both modes are mutual exclusive
-	 */
-	if (g_cfg->forward_ip) {
-		int port = g_cfg->rtp_base_port;
-		if (g_cfg->forward_port != 0)
-			port = g_cfg->forward_port;
-
-		if (!g_cfg->early_bind) {
-			LOGP(DMGCP, LOGL_NOTICE, "Forwarding requires early bind.\n");
-			return -1;
-		}
-
-		/*
-		 * Store the forward IP and assign a ci. For early bind
-		 * the sockets will be created after this.
-		 */
-		for (i = 1; i < g_cfg->number_endpoints; ++i) {
-			struct mgcp_endpoint *endp = &g_cfg->endpoints[i];
-			inet_aton(g_cfg->forward_ip, &endp->remote);
-			endp->ci = CI_UNUSED + 23;
-			endp->net_rtp = htons(rtp_calculate_port(ENDPOINT_NUMBER(endp), port));
-			endp->net_rtcp = htons(rtp_calculate_port(ENDPOINT_NUMBER(endp), port) + 1);
-		}
-
-		LOGP(DMGCP, LOGL_NOTICE, "Configured for Audio Forwarding.\n");
-	}
-
-	/* early bind */
-	if (g_cfg->early_bind) {
-		for (i = 1; i < g_cfg->number_endpoints; ++i) {
-			struct mgcp_endpoint *endp = &g_cfg->endpoints[i];
-			int rtp_port;
-
-			rtp_port = rtp_calculate_port(ENDPOINT_NUMBER(endp), g_cfg->rtp_base_port);
-			if (mgcp_bind_rtp_port(endp, rtp_port) != 0) {
-				LOGP(DMGCP, LOGL_FATAL, "Failed to bind: %d\n", rtp_port);
-				return -1;
-			}
-		}
-	}
-
-	return !!g_cfg->forward_ip;
 }
-

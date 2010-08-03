@@ -48,7 +48,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <signal.h>
-#include <netdb.h>
 
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
@@ -62,7 +61,6 @@ static int exit_on_failure = 0;
 #define TO_MGW_PORT(no) (no-1)
 #define FROM_MGW_PORT(no) (no+1)
 
-static struct mgcp_config *g_cfg;
 static struct mgcp_ss7 *s_ss7;
 
 struct mgcp_ss7_endpoint {
@@ -625,7 +623,7 @@ static struct mgcp_ss7 *mgcp_ss7_init(struct mgcp_config *cfg)
 
 	if (mgcp_endpoints_allocate(conf->cfg) != 0) {
 		LOGP(DMGCP, LOGL_ERROR, "Failed to allocate endpoints: %d\n",
-		     g_cfg->number_endpoints);
+		     cfg->number_endpoints);
 		talloc_free(conf);
 		return NULL;
 	}
@@ -756,6 +754,7 @@ static void handle_options(int argc, char **argv)
 
 int main(int argc, char **argv)
 {
+	struct mgcp_config *cfg;
 	struct mgcp_ss7 *mgcp;
 	int rc;
 
@@ -778,13 +777,14 @@ int main(int argc, char **argv)
 
 	mgcp_mgw_vty_init();
 
-	g_cfg = mgcp_config_alloc();
-	if (!g_cfg) {
+	cfg = mgcp_config_alloc();
+	if (!cfg) {
 		LOGP(DMGCP, LOGL_ERROR, "Failed to allocate mgcp config.\n");
 		return -1;
 	}
 
-	mgcp_ss7_set_default(g_cfg);
+	mgcp_ss7_set_default(cfg);
+	mgcp_vty_set_config(cfg);
 	if (vty_read_config_file(config_file, NULL) < 0) {
 		fprintf(stderr, "Failed to parse the config file: '%s'\n", config_file);
 		return -1;
@@ -795,10 +795,10 @@ int main(int argc, char **argv)
 		return rc;
 
 	printf("Creating MGCP MGW with endpoints: %d ip: %s mgw: %s rtp-base: %d payload: %d\n",
-		g_cfg->number_endpoints, g_cfg->local_ip, g_cfg->bts_ip,
-		g_cfg->rtp_base_port, g_cfg->audio_payload);
+		cfg->number_endpoints, cfg->local_ip, cfg->bts_ip,
+		cfg->rtp_base_port, cfg->audio_payload);
 
-	mgcp = mgcp_ss7_init(g_cfg);
+	mgcp = mgcp_ss7_init(cfg);
 	if (!mgcp) {
 		fprintf(stderr, "Failed to create MGCP\n");
 		exit(-1);
@@ -807,129 +807,6 @@ int main(int argc, char **argv)
 		bsc_select_main(0);
         }
 	return 0;
-}
-
-/* VTY code */
-enum cellmgr_node {
-	MGCP_NODE = _LAST_OSMOVTY_NODE,
-};
-
-struct cmd_node mgcp_node = {
-	MGCP_NODE,
-	"%s(mgcp)#",
-	1,
-};
-
-DEFUN(cfg_mgcp,
-      cfg_mgcp_cmd,
-      "mgcp",
-      "Configure the MGCP")
-{
-	vty->node = MGCP_NODE;
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_mgcp_local_ip,
-      cfg_mgcp_local_ip_cmd,
-      "local ip IP",
-      "Set the IP to be used in SDP records")
-{
-	struct hostent *hosts;
-	struct in_addr *addr;
-
-	hosts = gethostbyname(argv[0]);
-	if (!hosts || hosts->h_length < 1 || hosts->h_addrtype != AF_INET) {
-		vty_out(vty, "Failed to resolve '%s'%s", argv[0], VTY_NEWLINE);
-		return CMD_WARNING;
-	}
-
-	addr = (struct in_addr *) hosts->h_addr_list[0];
-	if (g_cfg->local_ip)
-		talloc_free(g_cfg->local_ip);
-	g_cfg->local_ip = talloc_strdup(g_cfg, inet_ntoa(*addr));
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_mgcp_mgw_ip,
-      cfg_mgcp_mgw_ip_cmd,
-      "mgw ip IP",
-      "Set the IP of the MGW for RTP forwarding")
-{
-	struct hostent *hosts;
-	struct in_addr *addr;
-
-	hosts = gethostbyname(argv[0]);
-	if (!hosts || hosts->h_length < 1 || hosts->h_addrtype != AF_INET) {
-		vty_out(vty, "Failed to resolve '%s'%s", argv[0], VTY_NEWLINE);
-		return CMD_WARNING;
-	}
-
-	addr = (struct in_addr *) hosts->h_addr_list[0];
-	if (g_cfg->bts_ip)
-		talloc_free(g_cfg->bts_ip);
-	g_cfg->bts_ip = talloc_strdup(g_cfg, inet_ntoa(*addr));
-	inet_aton(g_cfg->bts_ip, &g_cfg->bts_in);
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_mgcp_rtp_base_port,
-      cfg_mgcp_rtp_base_port_cmd,
-      "rtp base <0-65534>",
-      "Base port to use")
-{
-	unsigned int port = atoi(argv[0]);
-	if (port > 65534) {
-		vty_out(vty, "%% wrong base port '%s'%s", argv[0], VTY_NEWLINE);
-		return CMD_WARNING;
-	}
-
-	g_cfg->rtp_base_port = port;
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_mgcp_rtp_ip_dscp,
-      cfg_mgcp_rtp_ip_dscp_cmd,
-      "rtp ip-dscp <0-255>",
-      "Set the IP_TOS socket attribute on the RTP/RTCP sockets.\n" "The TOS value.")
-{
-	int dscp = atoi(argv[0]);
-	g_cfg->endp_dscp = dscp;
-	return CMD_SUCCESS;
-}
-
-ALIAS_DEPRECATED(cfg_mgcp_rtp_ip_dscp, cfg_mgcp_rtp_ip_tos_cmd,
-      "rtp ip-tos <0-255>",
-      "Set the IP_TOS socket attribute on the RTP/RTCP sockets.\n" "The TOS value.")
-
-
-DEFUN(cfg_mgcp_sdp_payload_number,
-      cfg_mgcp_sdp_payload_number_cmd,
-      "sdp audio payload number <1-255>",
-      "Set the audio codec to use")
-{
-	unsigned int new_payload = atoi(argv[0]);
-	if (new_payload > 255) {
-		vty_out(vty, "%% wrong payload number '%s'%s", argv[0], VTY_NEWLINE);
-		return CMD_WARNING;
-	}
-
-	g_cfg->audio_payload = new_payload;
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_mgcp_number_endp,
-      cfg_mgcp_number_endp_cmd,
-      "number endpoints <0-65534>",
-      "The number of endpoints to allocate. This is not dynamic.")
-{
-	/* + 1 as we start counting at one */
-	g_cfg->number_endpoints = atoi(argv[0]) + 1;
-	return CMD_SUCCESS;
-}
-
-static int config_write_mgcp()
-{
-	return CMD_SUCCESS;
 }
 
 static struct vty_app_info vty_info = {
@@ -945,17 +822,7 @@ static void mgcp_mgw_vty_init(void)
 	cmd_init(1);
 	vty_init(&vty_info);
 	logging_vty_add_cmds();
-
-	install_element(CONFIG_NODE, &cfg_mgcp_cmd);
-	install_node(&mgcp_node, config_write_mgcp);
-	install_default(MGCP_NODE);
-	install_element(MGCP_NODE, &cfg_mgcp_local_ip_cmd);
-	install_element(MGCP_NODE, &cfg_mgcp_mgw_ip_cmd);
-	install_element(MGCP_NODE, &cfg_mgcp_rtp_base_port_cmd);
-	install_element(MGCP_NODE, &cfg_mgcp_rtp_ip_tos_cmd);
-	install_element(MGCP_NODE, &cfg_mgcp_rtp_ip_dscp_cmd);
-	install_element(MGCP_NODE, &cfg_mgcp_sdp_payload_number_cmd);
-	install_element(MGCP_NODE, &cfg_mgcp_number_endp_cmd);
+	mgcp_vty_init();
 }
 
 
