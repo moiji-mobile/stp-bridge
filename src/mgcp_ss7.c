@@ -927,11 +927,13 @@ static struct vty_app_info vty_info = {
 	.go_parent_cb	= NULL,
 };
 
+void logging_vty_add_cmds(void);
 
 static void mgcp_mgw_vty_init(void)
 {
 	cmd_init(1);
 	vty_init(&vty_info);
+	logging_vty_add_cmds();
 
 	install_element(CONFIG_NODE, &cfg_mgcp_cmd);
 	install_node(&mgcp_node, config_write_mgcp);
