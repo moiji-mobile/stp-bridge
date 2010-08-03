@@ -109,6 +109,13 @@ static void send_local_rlsd(struct mtp_link *link, struct sccp_parse_result *res
 static void start_flood();
 static void cell_vty_init(void);
 
+int link_c7_init(struct link_data *data) __attribute__((__weak__));
+
+int link_c7_init(struct link_data *data)
+{
+	return -1;
+}
+
 /* send a RSIP to the MGCP GW */
 static void mgcp_reset(struct bsc_data *bsc)
 {
