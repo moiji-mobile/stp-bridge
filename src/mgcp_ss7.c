@@ -56,14 +56,8 @@
 #include <getopt.h>
 
 static struct log_target *stderr_target;
-static int payload = 126;
-static int number_endpoints = 32;
-static char *mgw_ip = "172.18.0.30";
-static int base_port = RTP_PORT_DEFAULT;
-static char *local_ip = "172.18.0.20";
 static char *config_file = "mgcp_mgw.cfg";
 static int exit_on_failure = 0;
-static int endp_dscp = 0;
 
 #define TO_MGW_PORT(no) (no-1)
 #define FROM_MGW_PORT(no) (no+1)
@@ -601,7 +595,17 @@ static int reset_cb(struct mgcp_config *cfg)
 	return 0;
 }
 
-struct mgcp_ss7 *mgcp_ss7_init(int endpoints, const char *local_ip, const char *mgw_ip, int base_port, int payload)
+static void mgcp_ss7_set_default(struct mgcp_config *cfg)
+{
+	/* do not attempt to allocate call ids */
+	cfg->early_bind = 1;
+
+	talloc_free(cfg->audio_name);
+	cfg->audio_payload = 126;
+	cfg->audio_name = talloc_strdup(cfg, "AMR/8000");
+}
+
+static struct mgcp_ss7 *mgcp_ss7_init(struct mgcp_config *cfg)
 {
 	int i;
 	struct mgcp_ss7 *conf = talloc_zero(NULL, struct mgcp_ss7);
@@ -609,28 +613,19 @@ struct mgcp_ss7 *mgcp_ss7_init(int endpoints, const char *local_ip, const char *
 		return NULL;
 
 	write_queue_init(&conf->mgcp_fd, 30);
-	conf->cfg = g_cfg;
+	conf->cfg = cfg;
 
 	/* take over the ownership */
 	talloc_steal(conf, conf->cfg);
-	conf->cfg->number_endpoints = endpoints;
-	conf->cfg->local_ip = talloc_strdup(conf->cfg, local_ip);
-	conf->cfg->bts_ip = talloc_strdup(conf->cfg, mgw_ip);
-	inet_aton(conf->cfg->bts_ip, &conf->cfg->bts_in);
-	talloc_free(conf->cfg->audio_name);
-	conf->cfg->audio_name = talloc_strdup(conf->cfg, "AMR/8000");
-	conf->cfg->audio_payload = payload;
-	conf->cfg->rtp_base_port = base_port;
+
 	conf->cfg->policy_cb = mgcp_ss7_policy;
 	conf->cfg->reset_cb = reset_cb;
 	conf->cfg->data = conf;
-	conf->cfg->endp_dscp = endp_dscp;
 
-	/* do not attempt to allocate call ids */
-	conf->cfg->early_bind = 1;
 
 	if (mgcp_endpoints_allocate(conf->cfg) != 0) {
-		LOGP(DMGCP, LOGL_ERROR, "Failed to allocate endpoints: %d\n", endpoints);
+		LOGP(DMGCP, LOGL_ERROR, "Failed to allocate endpoints: %d\n",
+		     g_cfg->number_endpoints);
 		talloc_free(conf);
 		return NULL;
 	}
@@ -789,6 +784,7 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
+	mgcp_ss7_set_default(g_cfg);
 	if (vty_read_config_file(config_file, NULL) < 0) {
 		fprintf(stderr, "Failed to parse the config file: '%s'\n", config_file);
 		return -1;
@@ -799,9 +795,10 @@ int main(int argc, char **argv)
 		return rc;
 
 	printf("Creating MGCP MGW with endpoints: %d ip: %s mgw: %s rtp-base: %d payload: %d\n",
-		number_endpoints, local_ip, mgw_ip, base_port, payload);
+		g_cfg->number_endpoints, g_cfg->local_ip, g_cfg->bts_ip,
+		g_cfg->rtp_base_port, g_cfg->audio_payload);
 
-	mgcp = mgcp_ss7_init(number_endpoints, local_ip, mgw_ip, base_port, payload);
+	mgcp = mgcp_ss7_init(g_cfg);
 	if (!mgcp) {
 		fprintf(stderr, "Failed to create MGCP\n");
 		exit(-1);
@@ -847,7 +844,9 @@ DEFUN(cfg_mgcp_local_ip,
 	}
 
 	addr = (struct in_addr *) hosts->h_addr_list[0];
-	local_ip = talloc_strdup(NULL, inet_ntoa(*addr));
+	if (g_cfg->local_ip)
+		talloc_free(g_cfg->local_ip);
+	g_cfg->local_ip = talloc_strdup(g_cfg, inet_ntoa(*addr));
 	return CMD_SUCCESS;
 }
 
@@ -866,7 +865,10 @@ DEFUN(cfg_mgcp_mgw_ip,
 	}
 
 	addr = (struct in_addr *) hosts->h_addr_list[0];
-	mgw_ip = talloc_strdup(NULL, inet_ntoa(*addr));
+	if (g_cfg->bts_ip)
+		talloc_free(g_cfg->bts_ip);
+	g_cfg->bts_ip = talloc_strdup(g_cfg, inet_ntoa(*addr));
+	inet_aton(g_cfg->bts_ip, &g_cfg->bts_in);
 	return CMD_SUCCESS;
 }
 
@@ -881,7 +883,7 @@ DEFUN(cfg_mgcp_rtp_base_port,
 		return CMD_WARNING;
 	}
 
-	base_port = port;
+	g_cfg->rtp_base_port = port;
 	return CMD_SUCCESS;
 }
 
@@ -891,7 +893,7 @@ DEFUN(cfg_mgcp_rtp_ip_dscp,
       "Set the IP_TOS socket attribute on the RTP/RTCP sockets.\n" "The TOS value.")
 {
 	int dscp = atoi(argv[0]);
-	endp_dscp = dscp;
+	g_cfg->endp_dscp = dscp;
 	return CMD_SUCCESS;
 }
 
@@ -911,7 +913,7 @@ DEFUN(cfg_mgcp_sdp_payload_number,
 		return CMD_WARNING;
 	}
 
-	payload = new_payload;
+	g_cfg->audio_payload = new_payload;
 	return CMD_SUCCESS;
 }
 
@@ -921,7 +923,7 @@ DEFUN(cfg_mgcp_number_endp,
       "The number of endpoints to allocate. This is not dynamic.")
 {
 	/* + 1 as we start counting at one */
-	number_endpoints = atoi(argv[0]) + 1;
+	g_cfg->number_endpoints = atoi(argv[0]) + 1;
 	return CMD_SUCCESS;
 }
 
