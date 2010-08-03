@@ -33,6 +33,20 @@ enum mgcp_connection_mode {
 	MGCP_CONN_RECV_ONLY = 1,
 	MGCP_CONN_SEND_ONLY = 2,
 	MGCP_CONN_RECV_SEND = MGCP_CONN_RECV_ONLY | MGCP_CONN_SEND_ONLY,
+	MGCP_CONN_LOOPBACK  = 4,
+};
+
+struct mgcp_rtp_state {
+	int initialized;
+	int patch;
+
+	uint32_t orig_ssrc;
+	uint32_t ssrc;
+	uint16_t seq_no;
+	int lost_no;
+	int seq_offset;
+	uint32_t last_timestamp;
+	int32_t  timestamp_offset;
 };
 
 struct mgcp_endpoint {
@@ -40,6 +54,7 @@ struct mgcp_endpoint {
 	char *callid;
 	char *local_options;
 	int conn_mode;
+	int orig_mode;
 
 	int bts_payload_type;
 	int net_payload_type;
@@ -68,6 +83,10 @@ struct mgcp_endpoint {
 	/* statistics */
 	unsigned int in_bts;
 	unsigned int in_remote;
+
+	/* sequence bits */
+	struct mgcp_rtp_state net_state;
+	struct mgcp_rtp_state bts_state;
 };
 
 #define ENDPOINT_NUMBER(endp) abs(endp - endp->cfg->endpoints)

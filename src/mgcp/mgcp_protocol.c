@@ -360,6 +360,8 @@ static int parse_conn_mode(const char* msg, int *conn_mode)
 		*conn_mode = MGCP_CONN_RECV_ONLY;
 	else if (strcmp(msg, "sendrecv") == 0)
 		*conn_mode = MGCP_CONN_RECV_SEND;
+	else if (strcmp(msg, "loopback") == 0)
+		*conn_mode = MGCP_CONN_LOOPBACK;
 	else {
 		LOGP(DMGCP, LOGL_ERROR, "Unknown connection mode: '%s'\n", msg);
 		ret = -1;
@@ -385,6 +387,7 @@ static struct msgb *handle_create_con(struct mgcp_config *cfg, struct msgb *msg)
 		if (cfg->force_realloc) {
 			LOGP(DMGCP, LOGL_NOTICE, "Endpoint 0x%x already allocated. Forcing realloc.\n",
 			    ENDPOINT_NUMBER(endp));
+			mgcp_free_endp(endp);
 		} else {
 			LOGP(DMGCP, LOGL_ERROR, "Endpoint is already used. 0x%x\n",
 			     ENDPOINT_NUMBER(endp));
@@ -409,6 +412,8 @@ static struct msgb *handle_create_con(struct mgcp_config *cfg, struct msgb *msg)
 		    error_code = 517;
 		    goto error2;
 		}
+
+		endp->orig_mode = endp->conn_mode;
 		break;
 	default:
 		LOGP(DMGCP, LOGL_NOTICE, "Unhandled option: '%c'/%d on 0x%x\n",
@@ -513,6 +518,7 @@ static struct msgb *handle_modify_con(struct mgcp_config *cfg, struct msgb *msg)
 		    error_code = 517;
 		    goto error3;
 		}
+		endp->orig_mode = endp->conn_mode;
 		break;
 	case 'Z':
 		silent = strcmp("noanswer", (const char *)&msg->l3h[line_start + 3]) == 0;
@@ -737,7 +743,7 @@ int mgcp_endpoints_allocate(struct mgcp_config *cfg)
 void mgcp_free_endp(struct mgcp_endpoint *endp)
 {
 	LOGP(DMGCP, LOGL_DEBUG, "Deleting endpoint on: 0x%x\n", ENDPOINT_NUMBER(endp));
-	endp->ci= CI_UNUSED;
+	endp->ci = CI_UNUSED;
 
 	if (endp->callid) {
 		talloc_free(endp->callid);
@@ -759,4 +765,9 @@ void mgcp_free_endp(struct mgcp_endpoint *endp)
 	endp->in_bts = endp->in_remote = 0;
 	memset(&endp->remote, 0, sizeof(endp->remote));
 	memset(&endp->bts, 0, sizeof(endp->bts));
+
+	memset(&endp->net_state, 0, sizeof(endp->net_state));
+	memset(&endp->bts_state, 0, sizeof(endp->bts_state));
+
+	endp->conn_mode = endp->orig_mode = MGCP_CONN_NONE;
 }

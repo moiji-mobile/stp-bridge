@@ -29,6 +29,7 @@
 #include <arpa/inet.h>
 
 #define RTP_PORT_DEFAULT 4000
+
 /**
  * Calculate the RTP audio port for the given multiplex
  * and the direction. This allows a semi static endpoint
@@ -79,14 +80,13 @@ typedef int (*mgcp_policy)(struct mgcp_config *cfg, int endpoint, int state, con
 typedef int (*mgcp_reset)(struct mgcp_config *cfg);
 
 struct mgcp_config {
-	/* common configuration */
 	int source_port;
 	char *local_ip;
 	char *source_addr;
+	unsigned int number_endpoints;
 	char *bts_ip;
 	char *call_agent_addr;
 
-	/* default endpoint data */
 	struct in_addr bts_in;
 	char *audio_name;
 	int audio_payload;
@@ -95,24 +95,19 @@ struct mgcp_config {
 	int rtp_base_port;
 	int endp_dscp;
 
-	/* only used in forward mode */
 	char *forward_ip;
 	int forward_port;
-
-	unsigned int last_call_id;
-
-	/* endpoint configuration */
-	unsigned int number_endpoints;
-	struct mgcp_endpoint *endpoints;
 
 	/* spec handling */
 	int force_realloc;
 
-	/* callback functionality */
 	mgcp_change change_cb;
 	mgcp_policy policy_cb;
 	mgcp_reset reset_cb;
 	void *data;
+
+	struct mgcp_endpoint *endpoints;
+	unsigned int last_call_id;
 };
 
 /* config management */

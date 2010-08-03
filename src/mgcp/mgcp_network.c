@@ -96,17 +96,53 @@ int mgcp_send_dummy(struct mgcp_endpoint *endp)
 			endp->net_rtp, buf, 1);
 }
 
-static void patch_payload(int payload, char *data, int len)
+static void patch_and_count(struct mgcp_rtp_state *state, int payload, char *data, int len)
 {
+	uint16_t seq;
+	uint32_t timestamp;
 	struct rtp_hdr *rtp_hdr;
 
 	if (len < sizeof(*rtp_hdr))
 		return;
 
+	rtp_hdr = (struct rtp_hdr *) data;
+	seq = ntohs(rtp_hdr->sequence);
+	timestamp = ntohl(rtp_hdr->timestamp);
+
+	if (!state->initialized) {
+		state->seq_no = seq - 1;
+		state->ssrc = state->orig_ssrc = rtp_hdr->ssrc;
+		state->initialized = 1;
+		state->last_timestamp = timestamp;
+	} else if (state->ssrc != rtp_hdr->ssrc) {
+		state->ssrc = rtp_hdr->ssrc;
+		state->seq_offset = (state->seq_no + 1) - seq;
+		state->timestamp_offset = state->last_timestamp - timestamp;
+		state->patch = 1;
+		LOGP(DMGCP, LOGL_NOTICE, "The SSRC changed... SSRC: %u offset: %d\n",
+			state->ssrc, state->seq_offset);
+	}
+
+	/* apply the offset and store it back to the packet */
+	if (state->patch) {
+		seq += state->seq_offset;
+		rtp_hdr->sequence = htons(seq);
+		rtp_hdr->ssrc = state->orig_ssrc;
+
+		timestamp += state->timestamp_offset;
+		rtp_hdr->timestamp = htonl(timestamp);
+	}
+
+	/* seq changed, now compare if we have lost something */
+	if (state->seq_no + 1u != seq)
+		state->lost_no = abs(seq - (state->seq_no + 1));
+	state->seq_no = seq;
+
+	state->last_timestamp = timestamp;
+
 	if (payload < 0)
 		return;
 
-	rtp_hdr = (struct rtp_hdr *) data;
 	rtp_hdr->payload_type = payload;
 }
 
@@ -141,10 +177,8 @@ static int rtp_data_cb(struct bsc_fd *fd, unsigned int what)
 	}
 
 	/* do not forward aynthing... maybe there is a packet from the bts */
-	if (endp->ci == CI_UNUSED) {
-		LOGP(DMGCP, LOGL_DEBUG, "Unknown message on endpoint: 0x%x\n", ENDPOINT_NUMBER(endp));
+	if (endp->ci == CI_UNUSED)
 		return -1;
-	}
 
 	/*
 	 * Figure out where to forward it to. This code assumes that we
@@ -155,7 +189,7 @@ static int rtp_data_cb(struct bsc_fd *fd, unsigned int what)
 	 */
 	#warning "Slight spec violation. With connection mode recvonly we should attempt to forward."
 	dest = memcmp(&addr.sin_addr, &endp->remote, sizeof(addr.sin_addr)) == 0 &&
-                    (endp->net_rtp == addr.sin_port || endp->net_rtcp == addr.sin_port)
+		    (endp->net_rtp == addr.sin_port || endp->net_rtcp == addr.sin_port)
 			? DEST_BTS : DEST_NETWORK;
 	proto = fd == &endp->local_rtp ? PROTO_RTP : PROTO_RTCP;
 
@@ -196,15 +230,21 @@ static int rtp_data_cb(struct bsc_fd *fd, unsigned int what)
 	if (cfg->audio_loop)
 		dest = !dest;
 
+	/* Loop based on the conn_mode, maybe undoing the above */
+	if (endp->conn_mode == MGCP_CONN_LOOPBACK)
+		dest = !dest;
+
 	if (dest == DEST_NETWORK) {
 		if (proto == PROTO_RTP)
-			patch_payload(endp->net_payload_type, buf, rc);
+			patch_and_count(&endp->bts_state,
+					endp->net_payload_type, buf, rc);
 		return udp_send(fd->fd, &endp->remote,
 			     proto == PROTO_RTP ? endp->net_rtp : endp->net_rtcp,
 			     buf, rc);
 	} else {
 		if (proto == PROTO_RTP)
-			patch_payload(endp->bts_payload_type, buf, rc);
+			patch_and_count(&endp->net_state,
+					endp->bts_payload_type, buf, rc);
 		return udp_send(fd->fd, &endp->bts,
 			     proto == PROTO_RTP ? endp->bts_rtp : endp->bts_rtcp,
 			     buf, rc);
