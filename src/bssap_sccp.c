@@ -24,8 +24,7 @@
 #include <cellmgr_debug.h>
 
 #include <osmocore/msgb.h>
-
-#include <openbsc_nat/bssap.h>
+#include <osmocore/protocol/gsm_08_08.h>
 
 #include <string.h>
 

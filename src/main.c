@@ -30,11 +30,10 @@
 #include <cellmgr_debug.h>
 
 #include <osmocore/talloc.h>
+#include <osmocore/protocol/gsm_08_08.h>
 
 #include <osmocom/vty/command.h>
 #include <osmocom/vty/vty.h>
-
-#include <openbsc_nat/bssap.h>
 
 #include <sys/stat.h>
 #include <sys/types.h>
