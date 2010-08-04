@@ -22,7 +22,7 @@
 #define bssap_sccp_h
 
 #include <stdint.h>
-#include <sccp/sccp_types.h>
+#include <osmocom/sccp/sccp_types.h>
 
 struct msgb *create_clear_command(struct sccp_source_reference *dest_ref);
 struct msgb *create_sccp_rlsd(struct sccp_source_reference *src_ref, struct sccp_source_reference *dst);

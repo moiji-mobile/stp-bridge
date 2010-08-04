@@ -22,7 +22,7 @@
 #include <openbsc_nat/bssap.h>
 #include <openbsc_nat/tlv.h>
 
-#include <sccp/sccp.h>
+#include <osmocom/sccp/sccp.h>
 
 #include <arpa/inet.h>
 #include <assert.h>

@@ -6,7 +6,7 @@
 #include <stdlib.h>
 
 #include <osmocore/msgb.h>
-#include <sccp/sccp.h>
+#include <osmocom/sccp/sccp.h>
 
 struct gsm_network;
 struct bss_sccp_connection_data;

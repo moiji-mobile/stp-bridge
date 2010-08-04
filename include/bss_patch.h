@@ -24,7 +24,7 @@
 
 #include <osmocore/msgb.h>
 
-#include <sccp/sccp.h>
+#include <osmocom/sccp/sccp.h>
 
 #define BSS_FILTER_RESET	1
 #define BSS_FILTER_RESET_ACK	2

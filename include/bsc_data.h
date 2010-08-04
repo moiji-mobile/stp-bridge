@@ -28,7 +28,7 @@
 #include <osmocore/timer.h>
 #include <osmocore/write_queue.h>
 
-#include <sccp/sccp.h>
+#include <osmocom/sccp/sccp.h>
 
 
 #include <netinet/in.h>
