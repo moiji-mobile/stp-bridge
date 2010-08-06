@@ -358,10 +358,7 @@ void release_bsc_resources(struct bsc_data *bsc)
 	}
 
 	/* clear pending messages from the MSC */
-	while (!llist_empty(&bsc->link.the_link->pending_msgs)) {
-		struct msgb *msg = msgb_dequeue(&bsc->link.the_link->pending_msgs);
-		msgb_free(msg);
-	}
+	msc_clear_queue(bsc);
 }
 
 void bsc_link_down(struct link_data *data)
