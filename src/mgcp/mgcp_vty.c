@@ -28,6 +28,7 @@
 
 #include <mgcp/mgcp.h>
 #include <mgcp/mgcp_internal.h>
+#include <mgcp_ss7.h>
 
 #include <osmocore/talloc.h>
 
@@ -38,10 +39,6 @@
 #include <netdb.h>
 
 static struct mgcp_config *g_cfg = NULL;
-
-enum cellmgr_node {
-	MGCP_NODE = _LAST_OSMOVTY_NODE + 1,
-};
 
 /*
  * vty code for mgcp below

@@ -26,7 +26,13 @@
 #include <osmocore/timer.h>
 #include <osmocore/write_queue.h>
 
+#include <osmocom/vty/command.h>
+
 #include "thread.h"
+
+enum cellmgr_node {
+	MGCP_NODE = _LAST_OSMOVTY_NODE + 1,
+};
 
 
 struct mgcp_ss7_endpoint;
