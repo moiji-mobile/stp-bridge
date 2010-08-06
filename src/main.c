@@ -159,7 +159,7 @@ void mtp_link_forward_sccp(struct mtp_link *link, struct msgb *_msg, int sls)
 	}
 
 	/* special responder */
-	if (bsc.closing) {
+	if (bsc.msc_link_down) {
 		if (rc == BSS_FILTER_RESET_ACK && bsc.reset_count > 0) {
 			LOGP(DMSC, LOGL_ERROR, "Received reset ack for closing.\n");
 			clear_connections(&bsc);
@@ -325,7 +325,7 @@ void release_bsc_resources(struct bsc_data *bsc)
 	struct active_sccp_con *tmp;
 	struct active_sccp_con *con;
 
-	bsc->closing = 1;
+	bsc->msc_link_down = 1;
 	bsc_del_timer(&bsc->reset_timeout);
 
 	/* 2. clear the MGCP endpoints */
@@ -378,7 +378,7 @@ void bsc_link_down(struct link_data *data)
 	msc_clear_queue(data->bsc);
 
 	/* for the case the link is going down while we are trying to reset */
-	if (data->bsc->closing)
+	if (data->bsc->msc_link_down)
 		msc_schedule_reconnect(data->bsc);
 	else if (was_up)
 		msc_send_reset(data->bsc);
@@ -389,7 +389,7 @@ void bsc_link_up(struct link_data *data)
 	data->the_link->available = 1;
 
 	/* we have not gone through link down */
-	if (data->bsc->closing) {
+	if (data->bsc->msc_link_down) {
 		clear_connections(data->bsc);
 		bsc_resources_released(data->bsc);
 	}

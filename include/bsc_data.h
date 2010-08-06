@@ -85,7 +85,7 @@ struct bsc_data {
 	struct timer_list ping_timeout;
 	struct timer_list pong_timeout;
 
-	int closing;
+	int msc_link_down;
 	struct llist_head sccp_connections;
 	struct timer_list reset_timeout;
 	int reset_count;

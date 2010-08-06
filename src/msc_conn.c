@@ -170,7 +170,7 @@ static int ipaccess_a_fd_cb(struct bsc_fd *bfd)
 			LOGP(DMSC, LOGL_NOTICE, "Connected to MSC. Sending reset.\n");
 			bsc_del_timer(&bsc->msc_timeout);
 			bsc->first_contact = 0;
-			bsc->closing = 0;
+			bsc->msc_link_down = 0;
 			msc_send_reset(bsc);
 		}
 		if (msg->l2h[0] == IPAC_MSGT_ID_GET && bsc->token) {
@@ -507,7 +507,7 @@ int msc_init(struct bsc_data *bsc)
 	bsc->msc_connection.read_cb = ipaccess_a_fd_cb;
 	bsc->msc_connection.write_cb = ipaccess_write_cb;
 	bsc->msc_connection.bfd.data = bsc;
-	bsc->closing = 1;
+	bsc->msc_link_down = 1;
 
 	/* handle the timeout */
 	bsc->ping_timeout.cb = msc_ping_timeout;
