@@ -272,7 +272,6 @@ static void clear_connections(struct bsc_data *bsc)
 void bsc_resources_released(struct bsc_data *bsc)
 {
 	bsc_del_timer(&bsc->reset_timeout);
-	msc_schedule_reconnect(bsc);
 }
 
 static void bsc_reset_timeout(void *_data)
@@ -376,11 +375,8 @@ void bsc_link_down(struct link_data *data)
 	/* clear pending messages from the MSC */
 	msc_clear_queue(data->bsc);
 
-	/* for the case the link is going down while we are trying to reset */
-	if (data->bsc->msc_link_down)
-		msc_schedule_reconnect(data->bsc);
-	else if (was_up)
-		msc_send_reset(data->bsc);
+	/* If we have an A link send a reset to the MSC */
+	msc_send_reset(data->bsc);
 }
 
 void bsc_link_up(struct link_data *data)

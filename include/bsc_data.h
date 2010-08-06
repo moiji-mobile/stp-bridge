@@ -109,7 +109,6 @@ void bsc_link_up(struct link_data *data);
 
 /* msc related functions */
 int msc_init(struct bsc_data *bsc);
-void msc_schedule_reconnect(struct bsc_data *bsc);
 void msc_send_rlc(struct bsc_data *bsc, struct sccp_source_reference *src, struct sccp_source_reference *dest);
 void msc_send_reset(struct bsc_data *bsc);
 void msc_send_msg(struct bsc_data *bsc, int rc, struct sccp_parse_result *, struct msgb *msg);

@@ -44,6 +44,7 @@
 
 static void msc_send_id_response(struct bsc_data *bsc);
 static void msc_send(struct bsc_data *bsc, struct msgb *msg, int proto);
+static void msc_schedule_reconnect(struct bsc_data *bsc);
 
 void mtp_link_slta_recv(struct mtp_link *link)
 {
@@ -83,6 +84,7 @@ void msc_close_connection(struct bsc_data *bsc)
 	release_bsc_resources(bsc);
 	bsc_del_timer(&bsc->ping_timeout);
 	bsc_del_timer(&bsc->pong_timeout);
+	msc_schedule_reconnect(bsc);
 }
 
 static void msc_connect_timeout(void *_bsc_data)
@@ -377,7 +379,7 @@ static void msc_reconnect(void *_data)
 	bsc_schedule_timer(&bsc->msc_timeout, bsc->msc_time, 0);
 }
 
-void msc_schedule_reconnect(struct bsc_data *bsc)
+static void msc_schedule_reconnect(struct bsc_data *bsc)
 {
 	bsc_schedule_timer(&bsc->reconnect_timer, RECONNECT_TIME);
 }
@@ -519,11 +521,20 @@ int msc_init(struct bsc_data *bsc)
 	/* create MGCP port */
 	if (mgcp_create_port(bsc) != 0)
 		return -1;
+
+	/* now connect to the BSC */
+	msc_schedule_reconnect(bsc);
 	return 0;
 }
 
 static void msc_send(struct bsc_data *bsc, struct msgb *msg, int proto)
 {
+	if (bsc->msc_link_down) {
+		LOGP(DMSC, LOGL_NOTICE, "Dropping data due lack of MSC connection.\n");
+		msgb_free(msg);
+		return;
+	}
+
 	ipaccess_prepend_header(msg, proto);
 
 	if (write_queue_enqueue(&bsc->msc_connection, msg) != 0) {
