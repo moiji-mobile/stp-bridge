@@ -375,10 +375,7 @@ void bsc_link_down(struct link_data *data)
 	data->clear_queue(data);
 
 	/* clear pending messages from the MSC */
-	while (!llist_empty(&link->pending_msgs)) {
-		struct msgb *msg = msgb_dequeue(&link->pending_msgs);
-		msgb_free(msg);
-	}
+	msc_clear_queue(data->bsc);
 
 	/* for the case the link is going down while we are trying to reset */
 	if (data->bsc->closing)
