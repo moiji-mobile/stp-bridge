@@ -114,6 +114,7 @@ void msc_send_rlc(struct bsc_data *bsc, struct sccp_source_reference *src, struc
 void msc_send_reset(struct bsc_data *bsc);
 void msc_send_msg(struct bsc_data *bsc, int rc, struct sccp_parse_result *, struct msgb *msg);
 void msc_clear_queue(struct bsc_data *data);
+void msc_close_connection(struct bsc_data *data);
 
 /* connection tracking and action */
 void update_con_state(int rc, struct sccp_parse_result *result, struct msgb *msg, int from_msc, int sls);

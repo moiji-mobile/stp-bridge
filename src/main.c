@@ -748,10 +748,7 @@ out:
 static void sigusr2()
 {
 	printf("Closing the MSC connection on demand.\n");
-	close(bsc.msc_connection.bfd.fd);
-	bsc_unregister_fd(&bsc.msc_connection.bfd);
-	bsc.msc_connection.bfd.fd = -1;
-	release_bsc_resources(&bsc);
+	msc_close_connection(&bsc);
 }
 
 static void print_help()

@@ -72,7 +72,7 @@ void msc_clear_queue(struct bsc_data *data)
 	}
 }
 
-static void close_msc(struct bsc_data *bsc)
+void msc_close_connection(struct bsc_data *bsc)
 {
 	struct bsc_fd *bfd = &bsc->msc_connection.bfd;
 
@@ -89,14 +89,14 @@ static void msc_connect_timeout(void *_bsc_data)
 	struct bsc_data *bsc_data = _bsc_data;
 
 	LOGP(DMSC, LOGL_ERROR, "Timeout on the MSC connection.\n");
-	close_msc(bsc_data);
+	msc_close_connection(bsc_data);
 }
 
 static void msc_pong_timeout(void *_bsc_data)
 {
 	struct bsc_data *bsc_data = _bsc_data;
 	LOGP(DMSC, LOGL_ERROR, "MSC didn't respond to ping. Closing.\n");
-	close_msc(bsc_data);
+	msc_close_connection(bsc_data);
 }
 
 static void send_ping(struct bsc_data *bsc)
@@ -152,7 +152,7 @@ static int ipaccess_a_fd_cb(struct bsc_fd *bfd)
 		else
 			fprintf(stderr, "Error in the IPA stream.\n");
 
-		close_msc(bsc);
+		msc_close_connection(bsc);
 		return -1;
 	}
 
