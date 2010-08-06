@@ -273,14 +273,7 @@ static int msc_connection_connect(struct bsc_fd *fd, unsigned int what)
 	return 0;
 
 error:
-	bsc_unregister_fd(fd);
-	close(fd->fd);
-	fd->fd = -1;
-	fd->cb = write_queue_bfd_cb;
-	fd->when = 0;
-	release_bsc_resources(bsc);
-	bsc_del_timer(&bsc->ping_timeout);
-	bsc_del_timer(&bsc->pong_timeout);
+	msc_close_connection(bsc);
 	return -1;
 }
 
