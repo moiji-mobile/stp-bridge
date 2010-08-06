@@ -62,6 +62,7 @@ static int exit_on_failure = 0;
 #define FROM_MGW_PORT(no) (no+1)
 
 static struct mgcp_ss7 *s_ss7;
+static int s_vad_enabled = 1;
 
 struct mgcp_ss7_endpoint {
 	unsigned int port;
@@ -350,6 +351,8 @@ static void allocate_endp(struct mgcp_ss7 *ss7, int endp_no)
 			  ManObj_G_RTP_AMR_PAYLOAD_FORMAT, RtpAmrPayloadFormat_OCTET_ALIGNED, 0);
 	MtnSaSetManObject(mgw_port, ChannelType_PORT,
 			  ManObj_G_VOICE_ENCODING, Voice_Encoding_AMR_5_90, 0);
+	MtnSaSetManObject(mgw_port, ChannelType_PORT,
+			  ManObj_C_VOICE_VAD_CNG, s_vad_enabled, 0);
 
 	update_mute_status(mgw_port, mg_endp->conn_mode);
 
@@ -817,12 +820,26 @@ static struct vty_app_info vty_info = {
 
 void logging_vty_add_cmds(void);
 
+DEFUN(cfg_mgcp_vad, cfg_mgcp_vad_cmd,
+      "vad (enabled|disabled)",
+      "Enable the Voice Activity Detection\n"
+      "Enable\n" "Disable\n")
+{
+	if (argv[0][0] == 'e')
+		s_vad_enabled = 1;
+	else
+		s_vad_enabled = 0;
+	return CMD_SUCCESS;
+}
+
 static void mgcp_mgw_vty_init(void)
 {
 	cmd_init(1);
 	vty_init(&vty_info);
 	logging_vty_add_cmds();
 	mgcp_vty_init();
+
+	install_element(MGCP_NODE, &cfg_mgcp_vad_cmd);
 }
 
 
