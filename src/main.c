@@ -325,7 +325,6 @@ void release_bsc_resources(struct bsc_data *bsc)
 	struct active_sccp_con *tmp;
 	struct active_sccp_con *con;
 
-	bsc->msc_link_down = 1;
 	bsc_del_timer(&bsc->reset_timeout);
 
 	/* 2. clear the MGCP endpoints */

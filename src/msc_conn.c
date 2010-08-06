@@ -79,6 +79,7 @@ void msc_close_connection(struct bsc_data *bsc)
 	close(bfd->fd);
 	bsc_unregister_fd(bfd);
 	bfd->fd = -1;
+	bsc->msc_link_down = 1;
 	release_bsc_resources(bsc);
 	bsc_del_timer(&bsc->ping_timeout);
 	bsc_del_timer(&bsc->pong_timeout);
