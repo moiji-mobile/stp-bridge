@@ -38,7 +38,6 @@ AC_ARG_ENABLE([uniporte], [AS_HELP_STRING([--enable-uniporte], [Build with unipo
 AC_OUTPUT(
     include/Makefile
     include/mgcp/Makefile
-    include/openbsc_nat/Makefile
     src/Makefile
     tests/Makefile
     tests/mtp/Makefile
