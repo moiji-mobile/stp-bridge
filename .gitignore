@@ -1,0 +1,27 @@
+#autofoo
+.libs
+.deps
+cellmgr_config.h*
+Makefile
+Makefile.in
+*.tar.*
+version
+clocal.m4
+utom4te.cache/
+config.log
+config.status
+configure
+depcomp
+install-sh
+missing
+stamp-h1
+
+# compiled stuff
+*.o
+*.sw?
+
+# binaries
+cellmgr_ng
+mgcp_mgw
+patching_test
+mtp_parse_test
