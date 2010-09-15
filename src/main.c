@@ -53,6 +53,13 @@
 #endif
 #include <getopt.h>
 
+#undef PACKAGE_NAME
+#undef PACKAGE_VERSION
+#undef PACKAGE_BUGREPORT
+#undef PACKAGE_TARNAME
+#undef PACKAGE_STRING
+#include <cellmgr_config.h>
+
 static struct log_target *stderr_target;
 static int dpc = 1;
 static int opc = 0;
@@ -67,7 +74,7 @@ static struct timer_list flood_timer;
 
 static struct vty_app_info vty_info = {
 	.name 		= "Cellmgr-ng",
-	.version	= "0.0.1",
+	.version	= VERSION,
 	.go_parent_cb	= NULL,
 };
 
@@ -748,6 +755,7 @@ static void print_help()
 	printf("  -p --pcap=FILE. Write MSUs to the PCAP file.\n");
 	printf("  -c --once. Send the SLTM msg only once.\n");
 	printf("  -f --flood. Send flood of paging requests to the BSC.\n");
+	printf("  -v --version. Print the version number\n");
 }
 
 static void handle_options(int argc, char **argv)
@@ -759,10 +767,11 @@ static void handle_options(int argc, char **argv)
 			{"config", 1, 0, 'c'},
 			{"pcap", 1, 0, 'p'},
 			{"flood", 0, 0, 'f'},
+			{"version", 0, 0, 0},
 			{0, 0, 0, 0},
 		};
 
-		c = getopt_long(argc, argv, "hc:p:f",
+		c = getopt_long(argc, argv, "hc:p:fv",
 				long_options, &option_index);
 		if (c == -1)
 			break;
@@ -787,6 +796,10 @@ static void handle_options(int argc, char **argv)
 			break;
 		case 'f':
 			flood = 1;
+			break;
+		case 'v':
+			printf("This is %s version %s.\n", PACKAGE, VERSION);
+			exit(0);
 			break;
 		default:
 			fprintf(stderr, "Unknown option.\n");

@@ -35,6 +35,8 @@ AC_ARG_ENABLE([uniporte], [AS_HELP_STRING([--enable-uniporte], [Build with unipo
        AC_SUBST(UNIPORTE, [-DNO_UNIPORTE])
    ])
 
+AM_CONFIG_HEADER(cellmgr_config.h)
+
 AC_OUTPUT(
     include/Makefile
     include/mgcp/Makefile
