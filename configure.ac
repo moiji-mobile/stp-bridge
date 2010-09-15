@@ -1,7 +1,9 @@
 dnl Process this file with autoconf to produce a configure script
-AC_INIT
+AC_INIT([cellmgr_ng],
+	m4_esyscmd([./git-version-gen .tarball-version]),
+	[openbsc-devel@lists.openbsc.org])
 
-AM_INIT_AUTOMAKE(cellmgr_ng, 0.0.1)
+AM_INIT_AUTOMAKE([dist-bzip2])
 
 dnl kernel style compile messages
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
