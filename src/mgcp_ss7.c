@@ -832,6 +832,15 @@ DEFUN(cfg_mgcp_vad, cfg_mgcp_vad_cmd,
 	return CMD_SUCCESS;
 }
 
+DEFUN(cfg_mgcp_realloc, cfg_mgcp_realloc_cmd,
+      "force-realloc (0|1)",
+      "Force the reallocation of an endpoint\n"
+      "Disable\n" "Enable\n")
+{
+	g_cfg->force_realloc = atoi(argv[0]);
+	return CMD_SUCCESS;
+}
+
 static void mgcp_mgw_vty_init(void)
 {
 	cmd_init(1);
@@ -840,6 +849,7 @@ static void mgcp_mgw_vty_init(void)
 	mgcp_vty_init();
 
 	install_element(MGCP_NODE, &cfg_mgcp_vad_cmd);
+	install_element(MGCP_NODE, &cfg_mgcp_realloc_cmd);
 }
 
 
