@@ -62,6 +62,7 @@ static int exit_on_failure = 0;
 #define FROM_MGW_PORT(no) (no+1)
 
 static struct mgcp_ss7 *s_ss7;
+static struct mgcp_config *g_cfg;
 static int s_vad_enabled = 1;
 
 struct mgcp_ss7_endpoint {
@@ -757,7 +758,6 @@ static void handle_options(int argc, char **argv)
 
 int main(int argc, char **argv)
 {
-	struct mgcp_config *cfg;
 	struct mgcp_ss7 *mgcp;
 	int rc;
 
@@ -780,14 +780,14 @@ int main(int argc, char **argv)
 
 	mgcp_mgw_vty_init();
 
-	cfg = mgcp_config_alloc();
-	if (!cfg) {
+	g_cfg = mgcp_config_alloc();
+	if (!g_cfg) {
 		LOGP(DMGCP, LOGL_ERROR, "Failed to allocate mgcp config.\n");
 		return -1;
 	}
 
-	mgcp_ss7_set_default(cfg);
-	mgcp_vty_set_config(cfg);
+	mgcp_ss7_set_default(g_cfg);
+	mgcp_vty_set_config(g_cfg);
 	if (vty_read_config_file(config_file, NULL) < 0) {
 		fprintf(stderr, "Failed to parse the config file: '%s'\n", config_file);
 		return -1;
@@ -798,10 +798,10 @@ int main(int argc, char **argv)
 		return rc;
 
 	printf("Creating MGCP MGW with endpoints: %d ip: %s mgw: %s rtp-base: %d payload: %d\n",
-		cfg->number_endpoints, cfg->local_ip, cfg->bts_ip,
-		cfg->rtp_base_port, cfg->audio_payload);
+		g_cfg->number_endpoints, g_cfg->local_ip, g_cfg->bts_ip,
+		g_cfg->rtp_base_port, g_cfg->audio_payload);
 
-	mgcp = mgcp_ss7_init(cfg);
+	mgcp = mgcp_ss7_init(g_cfg);
 	if (!mgcp) {
 		fprintf(stderr, "Failed to create MGCP\n");
 		exit(-1);
