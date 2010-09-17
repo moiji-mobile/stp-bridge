@@ -597,6 +597,12 @@ static int reset_cb(struct mgcp_config *cfg)
 	return 0;
 }
 
+static int realloc_cb(struct mgcp_config *cfg, int endp)
+{
+	mgcp_ss7_endp_free((struct mgcp_ss7 *) cfg->data, endp);
+	return 0;
+}
+
 static void mgcp_ss7_set_default(struct mgcp_config *cfg)
 {
 	/* do not attempt to allocate call ids */
@@ -622,6 +628,7 @@ static struct mgcp_ss7 *mgcp_ss7_init(struct mgcp_config *cfg)
 
 	conf->cfg->policy_cb = mgcp_ss7_policy;
 	conf->cfg->reset_cb = reset_cb;
+	conf->cfg->realloc_cb = realloc_cb;
 	conf->cfg->data = conf;
 
 
