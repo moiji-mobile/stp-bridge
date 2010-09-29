@@ -23,6 +23,7 @@
 #include <bsc_data.h>
 
 #include <osmocore/talloc.h>
+#include <osmocore/gsm48.h>
 
 #include <osmocom/vty/command.h>
 #include <osmocom/vty/vty.h>
@@ -61,6 +62,9 @@ static int config_write_cell(struct vty *vty)
 	vty_out(vty, "cellmgr%s", VTY_NEWLINE);
 	vty_out(vty, " mtp dpc %d%s", bsc.dpc, VTY_NEWLINE);
 	vty_out(vty, " mtp opc %d%s", bsc.opc, VTY_NEWLINE);
+	vty_out(vty, " country-code %d%s", bsc.mcc, VTY_NEWLINE);
+	vty_out(vty, " network-code %d%s", bsc.mnc, VTY_NEWLINE);
+	vty_out(vty, " location-area-code %d%s", bsc.lac, VTY_NEWLINE);
 	if (bsc.udp_ip)
 		vty_out(vty, " udp dest ip %s%s", bsc.udp_ip, VTY_NEWLINE);
 	vty_out(vty, " udp dest port %d%s", bsc.udp_port, VTY_NEWLINE);
@@ -212,6 +216,38 @@ DEFUN(cfg_msc_time, cfg_msc_time_cmd,
 	return CMD_SUCCESS;
 }
 
+static void update_lai(struct bsc_data *bsc)
+{
+	gsm48_generate_lai(&bsc->lai, bsc->mcc, bsc->mnc, bsc->lac);
+}
+
+DEFUN(cfg_mnc, cfg_mnc_cmd,
+      "network-code NR",
+      "Set the Mobile Network Code\n" "Number\n")
+{
+	bsc.mnc = atoi(argv[0]);
+	update_lai(&bsc);
+	return CMD_SUCCESS;
+}
+
+DEFUN(cfg_mcc, cfg_mcc_cmd,
+      "country-code NR",
+      "Set the Mobile Country Code\n" "Number\n")
+{
+	bsc.mcc = atoi(argv[0]);
+	update_lai(&bsc);
+	return CMD_SUCCESS;
+}
+
+DEFUN(cfg_lac, cfg_lac_cmd,
+      "location-area-code NR",
+      "Set the Location Area Code\n" "Number\n")
+{
+	bsc.lac = atoi(argv[0]);
+	update_lai(&bsc);
+	return CMD_SUCCESS;
+}
+
 void cell_vty_init(void)
 {
 	cmd_init(1);
@@ -234,6 +270,9 @@ void cell_vty_init(void)
 	install_element(CELLMGR_NODE, &cfg_ping_time_cmd);
 	install_element(CELLMGR_NODE, &cfg_pong_time_cmd);
 	install_element(CELLMGR_NODE, &cfg_msc_time_cmd);
+	install_element(CELLMGR_NODE, &cfg_mcc_cmd);
+	install_element(CELLMGR_NODE, &cfg_mnc_cmd);
+	install_element(CELLMGR_NODE, &cfg_lac_cmd);
 }
 
 const char *openbsc_copyright = "";

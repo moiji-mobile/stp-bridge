@@ -28,6 +28,8 @@
 #include <osmocore/timer.h>
 #include <osmocore/write_queue.h>
 
+#include <osmocore/protocol/gsm_04_08.h>
+
 #include <osmocom/sccp/sccp.h>
 
 
@@ -107,6 +109,12 @@ struct bsc_data {
 	int udp_port;
 	char *udp_ip;
 	int once;
+
+	/* LAC of the cell */
+	struct gsm48_loc_area_id lai;
+	uint16_t mcc;
+	uint16_t mnc;
+	uint16_t lac;
 };
 
 /* bsc related functions */
