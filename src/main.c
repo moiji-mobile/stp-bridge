@@ -28,9 +28,9 @@
 #include <bsc_data.h>
 #include <snmp_mtp.h>
 #include <cellmgr_debug.h>
+#include <bsc_sccp.h>
 
 #include <osmocore/talloc.h>
-#include <osmocore/protocol/gsm_08_08.h>
 
 #include <osmocom/vty/vty.h>
 #include <osmocom/vty/telnet_interface.h>
@@ -63,33 +63,6 @@ static struct log_target *stderr_target;
 static char *config = "cellmgr_ng.cfg";
 static int flood = 0;
 static struct timer_list flood_timer;
-
-/*
- * One SCCP connection.
- * Use for connection tracking and fixups...
- */
-struct active_sccp_con {
-	struct llist_head entry;
-
-	struct sccp_source_reference src_ref;
-	struct sccp_source_reference dst_ref;
-
-	int has_dst_ref;
-
-	/* fixup stuff */
-
-	/* We get a RLSD from the MSC and need to send a RLC */
-	int released_from_msc;
-
-	/* timeout for waiting for the RLC */
-	struct timer_list rlc_timeout;
-
-	/* how often did we send a RLSD this */
-	unsigned int rls_tries;
-
-	/* sls id */
-	int sls;
-};
 
 struct bsc_data bsc;
 extern void cell_vty_init(void);
