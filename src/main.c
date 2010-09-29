@@ -33,6 +33,7 @@
 #include <osmocore/protocol/gsm_08_08.h>
 
 #include <osmocom/vty/vty.h>
+#include <osmocom/vty/telnet_interface.h>
 
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -808,6 +809,7 @@ static void start_rest(void *start)
 
 int main(int argc, char **argv)
 {
+	int rc;
 	INIT_LLIST_HEAD(&bsc.sccp_connections);
 
 	bsc.dpc = 1;
@@ -854,6 +856,10 @@ int main(int argc, char **argv)
 		fprintf(stderr, "Failed to read the VTY config.\n");
 		return -1;
 	}
+
+	rc = telnet_init(NULL, NULL, 4242);
+	if (rc < 0)
+		return rc;
 
 	bsc.link.the_link = mtp_link_alloc();
 	bsc.link.the_link->dpc = bsc.dpc;
