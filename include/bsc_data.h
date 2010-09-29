@@ -100,6 +100,13 @@ struct bsc_data {
 
 	/* mgcp messgaes */
 	struct write_queue mgcp_agent;
+
+	int dpc;
+	int opc;
+	int src_port;
+	int udp_port;
+	char *udp_ip;
+	int once;
 };
 
 /* bsc related functions */

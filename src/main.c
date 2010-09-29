@@ -32,7 +32,6 @@
 #include <osmocore/talloc.h>
 #include <osmocore/protocol/gsm_08_08.h>
 
-#include <osmocom/vty/command.h>
 #include <osmocom/vty/vty.h>
 
 #include <sys/stat.h>
@@ -45,8 +44,6 @@
 #include <string.h>
 #include <assert.h>
 #include <unistd.h>
-
-#include <netdb.h>
 
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
@@ -61,22 +58,10 @@
 #include <cellmgr_config.h>
 
 static struct log_target *stderr_target;
-static int dpc = 1;
-static int opc = 0;
 
 static char *config = "cellmgr_ng.cfg";
-static int udp_port = 3456;
-static char *udp_ip = NULL;
-static int src_port = 1313;
-static int once = 0;
 static int flood = 0;
 static struct timer_list flood_timer;
-
-static struct vty_app_info vty_info = {
-	.name 		= "Cellmgr-ng",
-	.version	= VERSION,
-	.go_parent_cb	= NULL,
-};
 
 /*
  * One SCCP connection.
@@ -105,7 +90,8 @@ struct active_sccp_con {
 	int sls;
 };
 
-static struct bsc_data bsc;
+struct bsc_data bsc;
+extern void cell_vty_init(void);
 
 static void send_reset_ack(struct mtp_link *link, int sls);
 static void bsc_resources_released(struct bsc_data *bsc);
@@ -113,7 +99,6 @@ static void handle_local_sccp(struct mtp_link *link, struct msgb *inp, struct sc
 static void clear_connections(struct bsc_data *bsc);
 static void send_local_rlsd(struct mtp_link *link, struct sccp_parse_result *res);
 static void start_flood();
-static void cell_vty_init(void);
 
 int link_c7_init(struct link_data *data) __attribute__((__weak__));
 
@@ -825,6 +810,12 @@ int main(int argc, char **argv)
 {
 	INIT_LLIST_HEAD(&bsc.sccp_connections);
 
+	bsc.dpc = 1;
+	bsc.opc = 0;
+	bsc.udp_port = 3456;
+	bsc.udp_ip = NULL;
+	bsc.src_port = 1313;
+
 	mtp_link_init();
 	thread_init();
 
@@ -865,22 +856,22 @@ int main(int argc, char **argv)
 	}
 
 	bsc.link.the_link = mtp_link_alloc();
-	bsc.link.the_link->dpc = dpc;
-	bsc.link.the_link->opc = opc;
+	bsc.link.the_link->dpc = bsc.dpc;
+	bsc.link.the_link->opc = bsc.opc;
 	bsc.link.the_link->link = 0;
-	bsc.link.the_link->sltm_once = once;
+	bsc.link.the_link->sltm_once = bsc.once;
 	bsc.link.bsc = &bsc;
 
-	if (udp_ip) {
+	if (bsc.udp_ip) {
 		LOGP(DINP, LOGL_NOTICE, "Using UDP MTP mode.\n");
 
 		/* setup SNMP first, it is blocking */
-		bsc.link.udp.session = snmp_mtp_session_create(udp_ip);
+		bsc.link.udp.session = snmp_mtp_session_create(bsc.udp_ip);
 		if (!bsc.link.udp.session)
 			return -1;
 
 		/* now connect to the transport */
-		if (link_udp_init(&bsc.link, src_port, udp_ip, udp_port) != 0)
+		if (link_udp_init(&bsc.link, bsc.src_port, bsc.udp_ip, bsc.udp_port) != 0)
 			return -1;
 
 		/* 
@@ -914,182 +905,3 @@ int main(int argc, char **argv)
 	return 0;
 }
 
-/* vty code */
-enum cellmgr_node {
-	CELLMGR_NODE = _LAST_OSMOVTY_NODE,
-};
-
-static struct cmd_node cell_node = {
-	CELLMGR_NODE,
-	"%s(cellmgr)#",
-	1,
-};
-
-static int config_write_cell()
-{
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_cell, cfg_cell_cmd,
-      "cellmgr", "Configure the Cellmgr")
-{
-	vty->node = CELLMGR_NODE;
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_net_dpc, cfg_net_dpc_cmd,
-      "mtp dpc DPC_NR",
-      "Set the DPC to be used.")
-{
-	dpc = atoi(argv[0]);
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_net_opc, cfg_net_opc_cmd,
-      "mtp opc OPC_NR",
-      "Set the OPC to be used.")
-{
-	opc = atoi(argv[0]);
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_udp_dst_ip, cfg_udp_dst_ip_cmd,
-      "udp dest ip IP",
-      "Set the IP when UDP mode is supposed to be used.")
-{
-	struct hostent *hosts;
-	struct in_addr *addr;
-
-	hosts = gethostbyname(argv[0]);
-	if (!hosts || hosts->h_length < 1 || hosts->h_addrtype != AF_INET) {
-		vty_out(vty, "Failed to resolve '%s'%s", argv[0], VTY_NEWLINE);
-		return CMD_WARNING;
-	}
-
-	addr = (struct in_addr *) hosts->h_addr_list[0];
-	udp_ip = talloc_strdup(NULL, inet_ntoa(*addr));
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_udp_dst_port, cfg_udp_dst_port_cmd,
-      "udp dest port PORT_NR",
-      "If UDP mode is used specify the UDP dest port")
-{
-	udp_port = atoi(argv[0]);
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_udp_src_port, cfg_udp_src_port_cmd,
-      "udp src port PORT_NR",
-      "Set the UDP source port to be used.")
-{
-	src_port = atoi(argv[0]);
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_udp_reset, cfg_udp_reset_cmd,
-      "udp reset TIMEOUT",
-      "Set the timeout to take the link down")
-{
-	bsc.link.udp.reset_timeout = atoi(argv[0]);
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_sltm_once, cfg_sltm_once_cmd,
-      "mtp sltm once (0|1)",
-      "Send SLTMs until the link is established.")
-{
-	once = !!atoi(argv[0]);
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_msc_ip, cfg_msc_ip_cmd,
-      "msc ip IP",
-      "Set the MSC IP")
-{
-	struct hostent *hosts;
-	struct in_addr *addr;
-
-	hosts = gethostbyname(argv[0]);
-	if (!hosts || hosts->h_length < 1 || hosts->h_addrtype != AF_INET) {
-		vty_out(vty, "Failed to resolve '%s'%s", argv[0], VTY_NEWLINE);
-		return CMD_WARNING;
-	}
-
-	addr = (struct in_addr *) hosts->h_addr_list[0];
-
-	bsc.msc_address = talloc_strdup(NULL, inet_ntoa(*addr));
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_msc_ip_dscp, cfg_msc_ip_dscp_cmd,
-      "msc ip-dscp <0-255>",
-      "Set the IP DSCP on the A-link\n"
-      "Set the DSCP in IP packets to the MSC")
-{
-	bsc.msc_ip_dscp = atoi(argv[0]);
-	return CMD_SUCCESS;
-}
-
-ALIAS_DEPRECATED(cfg_msc_ip_dscp, cfg_msc_ip_tos_cmd,
-      "msc ip-tos <0-255>",
-      "Set the IP DSCP on the A-link\n"
-      "Set the DSCP in IP packets to the MSC")
-
-DEFUN(cfg_msc_token, cfg_msc_token_cmd,
-      "msc token TOKEN",
-      "Set the Token to be used for the MSC")
-{
-	bsc.token = talloc_strdup(NULL, argv[0]);
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_ping_time, cfg_ping_time_cmd,
-      "timeout ping NR",
-      "Set the PING interval. Negative to disable it")
-{
-	bsc.ping_time = atoi(argv[0]);
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_pong_time, cfg_pong_time_cmd,
-      "timeout pong NR",
-      "Set the PING interval. Negative to disable it")
-{
-	bsc.pong_time = atoi(argv[0]);
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_msc_time, cfg_msc_time_cmd,
-      "timeout msc NR",
-      "Set the MSC connect timeout")
-{
-	bsc.msc_time = atoi(argv[0]);
-	return CMD_SUCCESS;
-}
-
-static void cell_vty_init(void)
-{
-	cmd_init(1);
-	vty_init(&vty_info);
-
-	install_element(CONFIG_NODE, &cfg_cell_cmd);
-	install_node(&cell_node, config_write_cell);
-
-	install_element(CELLMGR_NODE, &cfg_net_dpc_cmd);
-	install_element(CELLMGR_NODE, &cfg_net_opc_cmd);
-	install_element(CELLMGR_NODE, &cfg_udp_dst_ip_cmd);
-	install_element(CELLMGR_NODE, &cfg_udp_dst_port_cmd);
-	install_element(CELLMGR_NODE, &cfg_udp_src_port_cmd);
-	install_element(CELLMGR_NODE, &cfg_udp_reset_cmd);
-	install_element(CELLMGR_NODE, &cfg_sltm_once_cmd);
-	install_element(CELLMGR_NODE, &cfg_msc_ip_cmd);
-	install_element(CELLMGR_NODE, &cfg_msc_token_cmd);
-	install_element(CELLMGR_NODE, &cfg_msc_ip_dscp_cmd);
-	install_element(CELLMGR_NODE, &cfg_msc_ip_tos_cmd);
-	install_element(CELLMGR_NODE, &cfg_ping_time_cmd);
-	install_element(CELLMGR_NODE, &cfg_pong_time_cmd);
-	install_element(CELLMGR_NODE, &cfg_msc_time_cmd);
-}
-
-const char *openbsc_copyright = "";

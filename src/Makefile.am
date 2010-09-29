@@ -11,6 +11,6 @@ mgcp_mgw_LDADD = $(LAFORGE_LIBS) $(NEXUSWARE_C7_LIBS) $(NEXUSWARE_UNIPORTE_LIBS)
 
 cellmgr_ng_SOURCES = main.c mtp_layer3.c thread.c input/ipaccess.c pcap.c \
 		     bss_patch.c bssap_sccp.c \
-		     msc_conn.c link_udp.c snmp_mtp.c debug.c
+		     msc_conn.c link_udp.c snmp_mtp.c debug.c vty_interface.c
 cellmgr_ng_LDADD = $(LIBOSMOCORE_LIBS) $(LIBOSMOSCCP_LIBS) $(LIBOSMOVTY_LIBS) $(NEXUSWARE_C7_LIBS) \
 		   -lpthread -lnetsnmp -lcrypto
