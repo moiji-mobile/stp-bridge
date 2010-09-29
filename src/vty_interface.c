@@ -56,8 +56,21 @@ static struct cmd_node cell_node = {
 	1,
 };
 
-static int config_write_cell()
+static int config_write_cell(struct vty *vty)
 {
+	vty_out(vty, "cellmgr%s", VTY_NEWLINE);
+	vty_out(vty, " mtp dpc %d%s", bsc.dpc, VTY_NEWLINE);
+	vty_out(vty, " mtp opc %d%s", bsc.opc, VTY_NEWLINE);
+	if (bsc.udp_ip)
+		vty_out(vty, " udp dest ip %s%s", bsc.udp_ip, VTY_NEWLINE);
+	vty_out(vty, " udp dest port %d%s", bsc.udp_port, VTY_NEWLINE);
+	vty_out(vty, " udp src port %d%s", bsc.src_port, VTY_NEWLINE);
+	vty_out(vty, " udp reset %d%s", bsc.link.udp.reset_timeout, VTY_NEWLINE);
+	vty_out(vty, " mtp sltm once %d%s", bsc.once, VTY_NEWLINE);
+	vty_out(vty, " msc ip %s%s", bsc.msc_address, VTY_NEWLINE);
+	vty_out(vty, " msc ip-dscp %d%s", bsc.msc_ip_dscp, VTY_NEWLINE);
+	vty_out(vty, " msc token %s%s", bsc.token, VTY_NEWLINE);
+
 	return CMD_SUCCESS;
 }
 
