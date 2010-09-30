@@ -22,7 +22,14 @@
 #ifndef bsc_sccp_h
 #define bsc_sccp_h
 
+#include <inttypes.h>
+
+#include <osmocore/linuxlist.h>
+#include <osmocore/timer.h>
+
 #include <osmocore/protocol/gsm_08_08.h>
+
+#include <osmocom/sccp/sccp.h>
 
 /*
  * One SCCP connection.
@@ -50,5 +57,10 @@ struct active_sccp_con {
 	/* sls id */
 	int sls;
 };
+
+struct active_sccp_con *find_con_by_src_ref(struct sccp_source_reference *src_ref);
+struct active_sccp_con *find_con_by_src_dest_ref(struct sccp_source_reference *src_ref,
+						 struct sccp_source_reference *dst_ref);
+unsigned int sls_for_src_ref(struct sccp_source_reference *ref);
 
 #endif

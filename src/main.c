@@ -382,47 +382,6 @@ static struct active_sccp_con *find_con_by_dest_ref(struct sccp_source_reference
 	return NULL;
 }
 
-static struct active_sccp_con *find_con_by_src_ref(struct sccp_source_reference *src_ref)
-{
-	struct active_sccp_con *con;
-
-	/* it is quite normal to not find this one */
-	if (!src_ref)
-		return NULL;
-
-	llist_for_each_entry(con, &bsc.sccp_connections, entry) {
-		if (memcmp(&con->src_ref, src_ref, sizeof(*src_ref)) == 0)
-			return con;
-	}
-
-	return NULL;
-}
-
-static struct active_sccp_con *find_con_by_src_dest_ref(struct sccp_source_reference *src_ref,
-							struct sccp_source_reference *dst_ref)
-{
-	struct active_sccp_con *con;
-
-	llist_for_each_entry(con, &bsc.sccp_connections, entry) {
-		if (memcmp(src_ref, &con->src_ref, sizeof(*src_ref)) == 0 &&
-		    memcmp(dst_ref, &con->dst_ref, sizeof(*dst_ref)) == 0) {
-			return con;
-		}
-	}
-
-	return NULL;
-}
-
-unsigned int sls_for_src_ref(struct sccp_source_reference *ref)
-{
-	struct active_sccp_con *con;
-
-	con = find_con_by_src_ref(ref);
-	if (!con)
-		return 13;
-	return con->sls;
-}
-
 static void send_rlc_to_bsc(unsigned int sls, struct sccp_source_reference *src, struct sccp_source_reference *dst)
 {
 	struct msgb *msg;
