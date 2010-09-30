@@ -23,9 +23,32 @@
 #include "bsc_sccp.h"
 #include "bsc_data.h"
 
+#include <cellmgr_debug.h>
+
+#include <osmocore/talloc.h>
+
 #include <string.h>
 
 extern struct bsc_data bsc;
+
+struct active_sccp_con *find_con_by_dest_ref(struct sccp_source_reference *ref)
+{
+	struct active_sccp_con *con;
+
+	if (!ref) {
+		LOGP(DINP, LOGL_ERROR, "Dest Reference is NULL. No connection found.\n");
+		return NULL;
+	}
+
+	llist_for_each_entry(con, &bsc.sccp_connections, entry) {
+		if (memcmp(&con->dst_ref, ref, sizeof(*ref)) == 0)
+			return con;
+	}
+
+	LOGP(DINP, LOGL_ERROR, "No connection fond with: 0x%x as dest\n", sccp_src_ref_to_int(ref));
+	return NULL;
+}
+
 
 struct active_sccp_con *find_con_by_src_ref(struct sccp_source_reference *src_ref)
 {
@@ -66,5 +89,15 @@ unsigned int sls_for_src_ref(struct sccp_source_reference *ref)
 	if (!con)
 		return 13;
 	return con->sls;
+}
+
+/*
+ * remove data
+ */
+void free_con(struct active_sccp_con *con)
+{
+	llist_del(&con->entry);
+	bsc_del_timer(&con->rlc_timeout);
+	talloc_free(con);
 }
 

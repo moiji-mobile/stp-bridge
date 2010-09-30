@@ -58,6 +58,8 @@ struct active_sccp_con {
 	int sls;
 };
 
+void free_con(struct active_sccp_con *con);
+struct active_sccp_con *find_con_by_dest_ref(struct sccp_source_reference *ref);
 struct active_sccp_con *find_con_by_src_ref(struct sccp_source_reference *src_ref);
 struct active_sccp_con *find_con_by_src_dest_ref(struct sccp_source_reference *src_ref,
 						 struct sccp_source_reference *dst_ref);
