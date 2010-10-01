@@ -281,7 +281,7 @@ error:
 	return -1;
 }
 
-static void setnonblocking(struct bsc_fd *fd)
+static int setnonblocking(struct bsc_fd *fd)
 {
 	int flags;
 
@@ -290,7 +290,7 @@ static void setnonblocking(struct bsc_fd *fd)
 		perror("fcntl get failed");
 		close(fd->fd);
 		fd->fd = -1;
-		return;
+		return -1;
 	}
 
 	flags |= O_NONBLOCK;
@@ -299,8 +299,10 @@ static void setnonblocking(struct bsc_fd *fd)
 		perror("fcntl get failed");
 		close(fd->fd);
 		fd->fd = -1;
-		return;
+		return -1;
 	}
+
+	return 0;
 }
 
 static int connect_to_msc(struct bsc_fd *fd, const char *ip, int port, int tos)
@@ -318,7 +320,8 @@ static int connect_to_msc(struct bsc_fd *fd, const char *ip, int port, int tos)
 	}
 
 	/* make it non blocking */
-	setnonblocking(fd);
+	if (setnonblocking(fd) != 0)
+		return -1;
 
 	memset(&sin, 0, sizeof(sin));
 	sin.sin_family = AF_INET;
