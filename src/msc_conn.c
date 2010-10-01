@@ -84,6 +84,7 @@ void msc_close_connection(struct bsc_data *bsc)
 	release_bsc_resources(bsc);
 	bsc_del_timer(&bsc->ping_timeout);
 	bsc_del_timer(&bsc->pong_timeout);
+	bsc_del_timer(&bsc->msc_timeout);
 	msc_schedule_reconnect(bsc);
 }
 
