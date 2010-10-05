@@ -24,4 +24,6 @@
 
 int bsc_ussd_handle_out_msg(struct bsc_data *bsc, struct sccp_parse_result *result, struct msgb *msg);
 
+int bsc_ussd_handle_in_msg(struct mtp_link *link, struct sccp_parse_result *res, struct msgb *msg);
+
 #endif
