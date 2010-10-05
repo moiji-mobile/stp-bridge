@@ -63,6 +63,21 @@ void mtp_link_slta_recv(struct mtp_link *link)
 	}
 }
 
+int send_or_queue_bsc_msg(struct mtp_link *link, int sls, struct msgb *msg)
+{
+	if (link->sltm_pending) {
+		LOGP(DMSC, LOGL_NOTICE, "Queueing msg for pending SLTM.\n");
+		msg->l3h = (uint8_t *) sls;
+		msgb_enqueue(&link->pending_msgs, msg);
+		return 1;
+	}
+
+	if (mtp_link_submit_sccp_data(link, sls, msg->l2h, msgb_l2len(msg)) != 0)
+		LOGP(DMSC, LOGL_ERROR, "Could not forward SCCP message.\n");
+	return 0;
+}
+
+
 void msc_clear_queue(struct bsc_data *data)
 {
 	struct msgb *msg;
@@ -210,15 +225,9 @@ static int ipaccess_a_fd_cb(struct bsc_fd *bfd)
 			bss_rewrite_header_to_bsc(msg, link->opc, link->dpc);
 
 			/* we can not forward it right now */
-			if (link->sltm_pending) {
-				LOGP(DMSC, LOGL_NOTICE, "Queueing msg for pending SLTM.\n");
-				msg->l3h = (uint8_t *) sls;
-				msgb_enqueue(&link->pending_msgs, msg);
+			if (send_or_queue_bsc_msg(link, sls, msg) == 1)
 				return 0;
-			}
 
-			if (mtp_link_submit_sccp_data(link, sls, msg->l2h, msgb_l2len(msg)) != 0)
-				LOGP(DMSC, LOGL_ERROR, "Could not forward SCCP message.\n");
 		}
 	} else if (hh->proto == NAT_MUX) {
 		mgcp_forward(bsc, msg->l2h, msgb_l2len(msg));
