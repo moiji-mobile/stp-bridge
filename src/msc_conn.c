@@ -21,6 +21,7 @@
  */
 
 #include <bsc_data.h>
+#include <bsc_ussd.h>
 #include <bss_patch.h>
 #include <bssap_sccp.h>
 #include <ipaccess.h>
@@ -202,6 +203,8 @@ static int ipaccess_a_fd_cb(struct bsc_fd *bfd)
 
 			update_con_state(rc, &result, msg, 1, 0);
 			sls = sls_for_src_ref(result.destination_local_reference);
+
+			/* Check for Location Update Accept */
 
 			/* patch a possible PC */
 			bss_rewrite_header_to_bsc(msg, link->opc, link->dpc);
@@ -592,6 +595,8 @@ void msc_send_msg(struct bsc_data *bsc, int rc, struct sccp_parse_result *result
 		LOGP(DMSC, LOGL_ERROR, "No connection to the MSC. dropping\n");
 		return;
 	}
+
+	bsc_ussd_handle_out_msg(bsc, result, _msg);
 
 	msg = msgb_alloc_headroom(4096, 128, "SCCP to MSC");
 	if (!msg) {

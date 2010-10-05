@@ -22,4 +22,6 @@
 #ifndef bsc_ussd_h
 #define bsc_ussd_h
 
+int bsc_ussd_handle_out_msg(struct bsc_data *bsc, struct sccp_parse_result *result, struct msgb *msg);
+
 #endif

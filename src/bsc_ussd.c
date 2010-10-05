@@ -21,3 +21,19 @@
  */
 
 #include <bsc_data.h>
+
+/*
+ * Check the msg and identify a Location Updating Request and see if the
+ * LAC is different to this one and then mark the CR message.
+ */
+int bsc_ussd_handle_out_msg(struct bsc_data *bsc, struct sccp_parse_result *result,
+			    struct msgb *msg)
+{
+	/* Only search for this in the CR message */
+	if (sccp_determine_msg_type(msg) != SCCP_MSG_TYPE_CR)
+		return 0;
+
+	/* now check the kind of GSM message */
+
+	return 0;
+}
