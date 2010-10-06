@@ -41,7 +41,7 @@ int bsc_ussd_handle_out_msg(struct bsc_data *bsc, struct sccp_parse_result *resu
 /*
  * Check the message if it contains a location update request...
  */
-int bsc_ussd_handle_in_msg(struct mtp_link *link, struct sccp_parse_result *res,
+int bsc_ussd_handle_in_msg(struct bsc_data *bsc, struct sccp_parse_result *res,
 			   struct msgb *msg)
 {
 	return 0;

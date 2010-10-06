@@ -220,7 +220,7 @@ static int ipaccess_a_fd_cb(struct bsc_fd *bfd)
 			sls = sls_for_src_ref(result.destination_local_reference);
 
 			/* Check for Location Update Accept */
-			bsc_ussd_handle_in_msg(link, &result, msg);
+			bsc_ussd_handle_in_msg(bsc, &result, msg);
 
 			/* patch a possible PC */
 			bss_rewrite_header_to_bsc(msg, link->opc, link->dpc);
