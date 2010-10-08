@@ -291,9 +291,9 @@ static int mtp_link_sign_msg(struct mtp_link *link, struct mtp_level_3_hdr *hdr,
 	struct msgb *msg;
 	struct mtp_level_3_cmn *cmn;
 
-	if (hdr->spare != 0 || hdr->ni != MTP_NI_NATION_NET || l3_len < 1) {
-		LOGP(DINP, LOGL_ERROR, "Unhandled data (%d, %d, %d)\n",
-		     hdr->spare, hdr->ni, l3_len);
+	if (hdr->ni != MTP_NI_NATION_NET || l3_len < 1) {
+		LOGP(DINP, LOGL_ERROR, "Unhandled data (ni: %d len: %d)\n",
+		     hdr->ni, l3_len);
 		return -1;
 	}
 
@@ -334,9 +334,9 @@ static int mtp_link_regular_msg(struct mtp_link *link, struct mtp_level_3_hdr *h
 	struct msgb *out;
 	struct mtp_level_3_mng *mng;
 
-	if (hdr->spare != 0 || hdr->ni != MTP_NI_NATION_NET || l3_len < 2) {
-		LOGP(DINP, LOGL_ERROR, "Unhandled data (%d, %d, %d)\n",
-		     hdr->spare, hdr->ni, l3_len);
+	if (hdr->ni != MTP_NI_NATION_NET || l3_len < 1) {
+		LOGP(DINP, LOGL_ERROR, "Unhandled data (ni: %d len: %d)\n",
+		     hdr->ni, l3_len);
 		return -1;
 	}
 
