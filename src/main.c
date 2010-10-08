@@ -142,7 +142,7 @@ void mtp_link_forward_sccp(struct mtp_link *link, struct msgb *_msg, int sls)
 	}
 
 	/* update the connection state */
-	update_con_state(rc, &result, _msg, 0, sls);
+	update_con_state(link, rc, &result, _msg, 0, sls);
 
 	if (rc == BSS_FILTER_CLEAR_COMPL) {
 		send_local_rlsd(link, &result);
@@ -208,7 +208,7 @@ static void handle_local_sccp(struct mtp_link *link, struct msgb *inpt, struct s
 
 
 	/* Update the state, maybe the connection was released? */
-	update_con_state(0, result, inpt, 0, sls);
+	update_con_state(link, 0, result, inpt, 0, sls);
 	if (llist_empty(&bsc.sccp_connections))
 		bsc_resources_released(&bsc);
 	return;
@@ -423,7 +423,7 @@ static void handle_rlsd(struct sccp_connection_released *rlsd, int from_msc)
  *      1.) We are destroying the connection, we might send a RLC to
  *          the MSC if we are waiting for one.
  */
-void update_con_state(int rc, struct sccp_parse_result *res, struct msgb *msg, int from_msc, int sls)
+void update_con_state(struct mtp_link *link, int rc, struct sccp_parse_result *res, struct msgb *msg, int from_msc, int sls)
 {
 	struct active_sccp_con *con;
 	struct sccp_connection_request *cr;
@@ -459,6 +459,7 @@ void update_con_state(int rc, struct sccp_parse_result *res, struct msgb *msg, i
 
 		con->src_ref = cr->source_local_reference;
 		con->sls = sls;
+		con->link = link;
 		llist_add_tail(&con->entry, &bsc.sccp_connections);
 		LOGP(DINP, LOGL_DEBUG, "Adding CR: local ref: 0x%x\n", sccp_src_ref_to_int(&con->src_ref));
 		break;

@@ -207,7 +207,7 @@ static int ipaccess_a_fd_cb(struct bsc_fd *bfd)
 			LOGP(DMSC, LOGL_NOTICE, "Filtering reset ack from the MSC\n");
 		} else if (rc == BSS_FILTER_RLSD) {
 			LOGP(DMSC, LOGL_DEBUG, "Filtering RLSD from the MSC\n");
-			update_con_state(rc, &result, msg, 1, 0);
+			update_con_state(NULL, rc, &result, msg, 1, 0);
 		} else if (rc == BSS_FILTER_RLC) {
 			/* if we receive this we have forwarded a RLSD to the network */
 			LOGP(DMSC, LOGL_ERROR, "RLC from the network. BAD!\n");
@@ -216,7 +216,7 @@ static int ipaccess_a_fd_cb(struct bsc_fd *bfd)
 		} else if (link->sccp_up) {
 			unsigned int sls;
 
-			update_con_state(rc, &result, msg, 1, 0);
+			update_con_state(NULL, rc, &result, msg, 1, 0);
 			sls = sls_for_src_ref(result.destination_local_reference);
 
 			/* Check for Location Update Accept */
