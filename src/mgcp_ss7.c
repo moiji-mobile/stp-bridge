@@ -433,12 +433,9 @@ static int ss7_modify_endpoint(struct mgcp_ss7 *ss7, int endp_no, struct mgcp_ss
 	mgcp_ss7_exec(ss7, MGCP_SS7_MUTE_STATUS, endp_no, mg_endp->conn_mode);
 
 	/*
-	 * this is a bad assumption of the network. We assume
-	 * to have the remote addr now.
+	 * Just assume that we have the data now.
 	 */
-	if (mg_endp->conn_mode == MGCP_CONN_SEND_ONLY ||
-	    mg_endp->conn_mode == MGCP_CONN_RECV_SEND)
-		mgcp_send_dummy(mg_endp);
+	mgcp_send_dummy(mg_endp);
 
 	/* update the remote end */
 	return MGCP_POLICY_CONT;
