@@ -61,6 +61,19 @@ static void patch_ass_cmpl(struct msgb *msg, int length)
 	struct tlv_parsed tp;
 	uint8_t *data;
 
+	if (length == 1) {
+		LOGP(DMSC, LOGL_ERROR, "Hacking the Assignment Complete.\n");
+		msgb_v_put(msg, 0x21);
+		msgb_v_put(msg, 0x09);
+		msgb_v_put(msg, 0x2c);
+		msgb_v_put(msg, 0x02);
+		msgb_v_put(msg, 0x40);
+		msgb_v_put(msg, 0x25);
+		msg->l3h[-1] = 7;
+		msg->l3h[-3] = 9;
+		return;
+	}
+
 	tlv_parse(&tp, gsm0808_att_tlvdef(), msg->l3h + 1, length - 1, 0, 0);
 	if (!TLVP_PRESENT(&tp, GSM0808_IE_CHOSEN_CHANNEL)) {
 		LOGP(DMSC, LOGL_ERROR, "Chosen Channel not in the MSG.\n");
