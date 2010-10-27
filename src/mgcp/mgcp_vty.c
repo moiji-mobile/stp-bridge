@@ -49,6 +49,7 @@ static struct cmd_node mgcp_node = {
 	1,
 };
 
+extern void mgcp_write_extra(struct vty *vty);
 static int config_write_mgcp(struct vty *vty)
 {
 	vty_out(vty, "mgcp%s", VTY_NEWLINE);
@@ -66,6 +67,7 @@ static int config_write_mgcp(struct vty *vty)
 		vty_out(vty, "  sdp audio payload name %s%s", g_cfg->audio_name, VTY_NEWLINE);
 	vty_out(vty, "  loop %u%s", !!g_cfg->audio_loop, VTY_NEWLINE);
 	vty_out(vty, "  number endpoints %u%s", g_cfg->number_endpoints - 1, VTY_NEWLINE);
+	mgcp_write_extra(vty);
 
 	return CMD_SUCCESS;
 }

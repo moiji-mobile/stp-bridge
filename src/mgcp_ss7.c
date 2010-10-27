@@ -847,6 +847,12 @@ DEFUN(cfg_mgcp_realloc, cfg_mgcp_realloc_cmd,
 	return CMD_SUCCESS;
 }
 
+void mgcp_write_extra(struct vty *vty)
+{
+	vty_out(vty, "  force-realloc %d%s", g_cfg->force_realloc, VTY_NEWLINE);
+	vty_out(vty, "  vad %s%s", s_vad_enabled ? "enabled" : "disabled", VTY_NEWLINE);
+}
+
 static void mgcp_mgw_vty_init(void)
 {
 	cmd_init(1);
