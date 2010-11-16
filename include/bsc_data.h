@@ -115,6 +115,8 @@ struct bsc_data {
 	uint16_t mcc;
 	uint16_t mnc;
 	uint16_t lac;
+
+	int forward_only;
 };
 
 /* bsc related functions */

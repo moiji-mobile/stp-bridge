@@ -201,6 +201,15 @@ static int ipaccess_a_fd_cb(struct bsc_fd *bfd)
 	} else if (hh->proto == IPAC_PROTO_SCCP) {
 		struct sccp_parse_result result;
 		int rc;
+
+		/* we can not forward it right now */
+		if (bsc->forward_only && link->sccp_up) {
+			if (send_or_queue_bsc_msg(link, 13, msg) != 1)
+				msgb_free(msg);
+			return 0;
+		}
+
+
 		rc = bss_patch_filter_msg(msg, &result);
 
 		if (rc == BSS_FILTER_RESET_ACK) {

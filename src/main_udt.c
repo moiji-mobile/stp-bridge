@@ -254,6 +254,7 @@ int main(int argc, char **argv)
 	bsc.ping_time = 20;
 	bsc.pong_time = 5;
 	bsc.msc_time = 20;
+	bsc.forward_only = 1;
 
 	handle_options(argc, argv);
 
