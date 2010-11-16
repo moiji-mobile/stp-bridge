@@ -703,7 +703,7 @@ static void start_rest(void *start)
 {
 	bsc.setup = 1;
 
-	if (msc_init(&bsc) != 0) {
+	if (msc_init(&bsc, 1) != 0) {
 		fprintf(stderr, "Failed to init MSC part.\n");
 		exit(3);
 	}

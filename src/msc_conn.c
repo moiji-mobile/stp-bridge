@@ -519,7 +519,7 @@ static int mgcp_create_port(struct bsc_data *bsc)
 	return 0;
 }
 
-int msc_init(struct bsc_data *bsc)
+int msc_init(struct bsc_data *bsc, int mgcp)
 {
 	write_queue_init(&bsc->msc_connection, 100);
 	bsc->reconnect_timer.cb = msc_reconnect;
@@ -536,7 +536,7 @@ int msc_init(struct bsc_data *bsc)
 	bsc->pong_timeout.data = bsc;
 
 	/* create MGCP port */
-	if (mgcp_create_port(bsc) != 0)
+	if (mgcp && mgcp_create_port(bsc) != 0)
 		return -1;
 
 	/* now connect to the BSC */
@@ -595,6 +595,11 @@ static void msc_send_id_response(struct bsc_data *bsc)
 		       IPAC_IDTAG_UNITNAME, (uint8_t *) bsc->token);
 
 	msc_send(bsc, msg, IPAC_PROTO_IPACCESS);
+}
+
+void msc_send_direct(struct bsc_data *bsc, struct msgb *msg)
+{
+	return msc_send(bsc, msg, IPAC_PROTO_SCCP);
 }
 
 void msc_send_msg(struct bsc_data *bsc, int rc, struct sccp_parse_result *result, struct msgb *_msg)

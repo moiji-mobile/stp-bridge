@@ -25,3 +25,4 @@ cellmgr_ng
 mgcp_mgw
 patching_test
 mtp_parse_test
+udt_relay
