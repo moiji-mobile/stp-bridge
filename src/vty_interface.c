@@ -64,6 +64,7 @@ static int config_write_cell(struct vty *vty)
 	vty_out(vty, " mtp opc %d%s", bsc.opc, VTY_NEWLINE);
 	vty_out(vty, " mtp ni %d%s", bsc.ni_ni, VTY_NEWLINE);
 	vty_out(vty, " mtp spare %d%s", bsc.ni_spare, VTY_NEWLINE);
+	vty_out(vty, " mtp sltm once %d%s", bsc.once, VTY_NEWLINE);
 	vty_out(vty, " country-code %d%s", bsc.mcc, VTY_NEWLINE);
 	vty_out(vty, " network-code %d%s", bsc.mnc, VTY_NEWLINE);
 	vty_out(vty, " location-area-code %d%s", bsc.lac, VTY_NEWLINE);
@@ -72,7 +73,6 @@ static int config_write_cell(struct vty *vty)
 	vty_out(vty, " udp dest port %d%s", bsc.udp_port, VTY_NEWLINE);
 	vty_out(vty, " udp src port %d%s", bsc.src_port, VTY_NEWLINE);
 	vty_out(vty, " udp reset %d%s", bsc.link.udp.reset_timeout, VTY_NEWLINE);
-	vty_out(vty, " mtp sltm once %d%s", bsc.once, VTY_NEWLINE);
 	vty_out(vty, " msc ip %s%s", bsc.msc_address, VTY_NEWLINE);
 	vty_out(vty, " msc ip-dscp %d%s", bsc.msc_ip_dscp, VTY_NEWLINE);
 	vty_out(vty, " msc token %s%s", bsc.token, VTY_NEWLINE);
