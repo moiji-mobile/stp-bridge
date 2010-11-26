@@ -46,6 +46,7 @@ static struct msgb *mtp_msg_alloc(struct mtp_link *link)
 	hdr = (struct mtp_level_3_hdr *) msg->l2h;
 	hdr->addr = MTP_ADDR(0x0, link->dpc, link->opc);
 	hdr->ni = link->ni;
+	hdr->spare = link->spare;
 	return msg;
 }
 

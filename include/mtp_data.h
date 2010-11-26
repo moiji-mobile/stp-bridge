@@ -39,6 +39,7 @@ struct mtp_link {
 	/* routing info.. */
 	int dpc, opc;
 	int ni;
+	int spare;
 
 	/* internal state */
 	/* the MTP1 link is up */
