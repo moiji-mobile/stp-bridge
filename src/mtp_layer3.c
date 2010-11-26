@@ -45,7 +45,7 @@ static struct msgb *mtp_msg_alloc(struct mtp_link *link)
 	msg->l2h = msgb_put(msg, sizeof(*hdr));
 	hdr = (struct mtp_level_3_hdr *) msg->l2h;
 	hdr->addr = MTP_ADDR(0x0, link->dpc, link->opc);
-	hdr->ni = MTP_NI_NATION_NET;
+	hdr->ni = link->ni;
 	return msg;
 }
 
@@ -253,6 +253,7 @@ struct mtp_link *mtp_link_alloc(void)
 	if (!link)
 		return NULL;
 
+	link->ni = MTP_NI_NATION_NET;
 	link->t1_timer.data = link;
 	link->t1_timer.cb = mtp_sltm_t1_timeout;
 	link->t2_timer.data = link;
@@ -287,7 +288,7 @@ static int mtp_link_sign_msg(struct mtp_link *link, struct mtp_level_3_hdr *hdr,
 	struct msgb *msg;
 	struct mtp_level_3_cmn *cmn;
 
-	if (hdr->ni != MTP_NI_NATION_NET || l3_len < 1) {
+	if (hdr->ni != link->ni || l3_len < 1) {
 		LOGP(DINP, LOGL_ERROR, "Unhandled data (ni: %d len: %d)\n",
 		     hdr->ni, l3_len);
 		return -1;
@@ -330,7 +331,7 @@ static int mtp_link_regular_msg(struct mtp_link *link, struct mtp_level_3_hdr *h
 	struct msgb *out;
 	struct mtp_level_3_mng *mng;
 
-	if (hdr->ni != MTP_NI_NATION_NET || l3_len < 1) {
+	if (hdr->ni != link->ni || l3_len < 1) {
 		LOGP(DINP, LOGL_ERROR, "Unhandled data (ni: %d len: %d)\n",
 		     hdr->ni, l3_len);
 		return -1;
