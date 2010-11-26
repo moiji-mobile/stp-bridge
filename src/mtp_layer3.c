@@ -45,6 +45,7 @@ static struct msgb *mtp_msg_alloc(struct mtp_link *link)
 	msg->l2h = msgb_put(msg, sizeof(*hdr));
 	hdr = (struct mtp_level_3_hdr *) msg->l2h;
 	hdr->addr = MTP_ADDR(0x0, link->dpc, link->opc);
+	hdr->ni = MTP_NI_NATION_NET;
 	return msg;
 }
 
@@ -59,7 +60,6 @@ static struct msgb *mtp_create_sltm(struct mtp_link *link)
 		return NULL;
 
 	hdr = (struct mtp_level_3_hdr *) msg->l2h;
-	hdr->ni = MTP_NI_NATION_NET;
 	hdr->ser_ind = MTP_SI_MNT_REG_MSG;
 
 	mng = (struct mtp_level_3_mng *) msgb_put(msg, sizeof(*mng));
@@ -86,7 +86,6 @@ static struct msgb *mtp_create_slta(struct mtp_link *link, struct mtp_level_3_mn
 		return NULL;
 
 	hdr = (struct mtp_level_3_hdr *) out->l2h;
-	hdr->ni = MTP_NI_NATION_NET;
 	hdr->ser_ind = MTP_SI_MNT_REG_MSG;
 	mng = (struct mtp_level_3_mng *) msgb_put(out, sizeof(*mng));
 	mng->cmn.h0 = MTP_TST_MSG_GRP;
@@ -108,7 +107,6 @@ static struct msgb *mtp_tfp_alloc(struct mtp_link *link, int apoc)
 		return NULL;
 
 	hdr = (struct mtp_level_3_hdr *) out->l2h;
-	hdr->ni = MTP_NI_NATION_NET;
 	hdr->ser_ind = MTP_SI_MNT_SNM_MSG;
 	prb = (struct mtp_level_3_prohib *) msgb_put(out, sizeof(*prb));
 	prb->cmn.h0 = MTP_PROHIBIT_MSG_GRP;
@@ -127,7 +125,6 @@ static struct msgb *mtp_tra_alloc(struct mtp_link *link)
 		return NULL;
 
 	hdr = (struct mtp_level_3_hdr *) out->l2h;
-	hdr->ni = MTP_NI_NATION_NET;
 	hdr->ser_ind = MTP_SI_MNT_SNM_MSG;
 	cmn = (struct mtp_level_3_cmn *) msgb_put(out, sizeof(*cmn));
 	cmn->h0 = MTP_TRF_RESTR_MSG_GRP;
@@ -149,7 +146,6 @@ static struct msgb *mtp_sccp_alloc_ssa(struct mtp_link *link, int sls)
 		return NULL;
 
 	hdr = (struct mtp_level_3_hdr *) out->l2h;
-	hdr->ni = MTP_NI_NATION_NET;
 	hdr->ser_ind = MTP_SI_MNT_SCCP;
 
 	/* this appears to be round robin or such.. */
@@ -495,7 +491,6 @@ int mtp_link_submit_sccp_data(struct mtp_link *link, int sls, const uint8_t *dat
 		return -1;
 
 	hdr = (struct mtp_level_3_hdr *) msg->l2h;
-	hdr->ni = MTP_NI_NATION_NET;
 	hdr->ser_ind = MTP_SI_MNT_SCCP;
 
 	hdr->addr = MTP_ADDR(sls % 16, link->dpc, link->opc);
