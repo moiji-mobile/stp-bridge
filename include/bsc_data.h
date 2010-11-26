@@ -110,6 +110,10 @@ struct bsc_data {
 	char *udp_ip;
 	int once;
 
+	/* the network header to use */
+	int ni_ni;
+	int ni_spare;
+
 	/* LAC of the cell */
 	struct gsm48_loc_area_id lai;
 	uint16_t mcc;

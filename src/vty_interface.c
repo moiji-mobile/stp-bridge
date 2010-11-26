@@ -62,6 +62,8 @@ static int config_write_cell(struct vty *vty)
 	vty_out(vty, "cellmgr%s", VTY_NEWLINE);
 	vty_out(vty, " mtp dpc %d%s", bsc.dpc, VTY_NEWLINE);
 	vty_out(vty, " mtp opc %d%s", bsc.opc, VTY_NEWLINE);
+	vty_out(vty, " mtp ni %d%s", bsc.ni_ni, VTY_NEWLINE);
+	vty_out(vty, " mtp spare %d%s", bsc.ni_spare, VTY_NEWLINE);
 	vty_out(vty, " country-code %d%s", bsc.mcc, VTY_NEWLINE);
 	vty_out(vty, " network-code %d%s", bsc.mnc, VTY_NEWLINE);
 	vty_out(vty, " location-area-code %d%s", bsc.lac, VTY_NEWLINE);
@@ -100,6 +102,23 @@ DEFUN(cfg_net_opc, cfg_net_opc_cmd,
 	bsc.opc = atoi(argv[0]);
 	return CMD_SUCCESS;
 }
+
+DEFUN(cfg_net_mtp_ni, cfg_net_mtp_ni_cmd,
+      "mtp ni NR",
+      "Set the MTP NI to be used.\n" "NR")
+{
+	bsc.ni_ni = atoi(argv[0]);
+	return CMD_SUCCESS;
+}
+
+DEFUN(cfg_net_mtp_spare, cfg_net_mtp_spare_cmd,
+      "mtp spare NR",
+      "Set the MTP Spare to be used.\n" "NR")
+{
+	bsc.ni_spare = atoi(argv[0]);
+	return CMD_SUCCESS;
+}
+
 
 DEFUN(cfg_udp_dst_ip, cfg_udp_dst_ip_cmd,
       "udp dest ip IP",
@@ -258,6 +277,8 @@ void cell_vty_init(void)
 
 	install_element(CELLMGR_NODE, &cfg_net_dpc_cmd);
 	install_element(CELLMGR_NODE, &cfg_net_opc_cmd);
+	install_element(CELLMGR_NODE, &cfg_net_mtp_ni_cmd);
+	install_element(CELLMGR_NODE, &cfg_net_mtp_spare_cmd);
 	install_element(CELLMGR_NODE, &cfg_udp_dst_ip_cmd);
 	install_element(CELLMGR_NODE, &cfg_udp_dst_port_cmd);
 	install_element(CELLMGR_NODE, &cfg_udp_src_port_cmd);
