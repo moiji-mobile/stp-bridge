@@ -65,6 +65,18 @@ static struct mgcp_ss7 *s_ss7;
 static struct mgcp_config *g_cfg;
 static int s_vad_enabled = 1;
 
+/* gain settings */
+int s_digital_inp_gain = 31;
+int s_digital_out_gain = 31;
+int s_upstr_agc_enbl = 0;
+int s_upstr_adp_rate =  100;
+int s_upstr_max_gain = 46;
+int s_upstr_target_lvl = 20;
+int s_dwnstr_agc_enbl = 0;
+int s_dwnstr_adp_rate = 100;
+int s_dwnstr_max_gain = 46;
+int s_dwnstr_target_lvl = 20;
+
 struct mgcp_ss7_endpoint {
 	unsigned int port;
 	int block;
@@ -339,6 +351,28 @@ static void allocate_endp(struct mgcp_ss7 *ss7, int endp_no)
 		fprintf(stderr, "Failed to allocate the port: %d\n", endp_no);
 		return;
 	}
+
+	/* Gain settings, apply before switching the port to voice */
+	MtnSaSetManObject(mgw_port, ChannelType_PORT,
+			  ManObj_C_VOICE_INPUT_DIGITAL_GAIN, s_digital_inp_gain, 0);
+	MtnSaSetManObject(mgw_port, ChannelType_PORT,
+			  ManObj_C_VOICE_OUTPUT_DIGITAL_GAIN, s_digital_out_gain, 0);
+	MtnSaSetManObject(mgw_port, ChannelType_PORT,
+			  ManObj_C_US_AGC_ENABLE, s_upstr_agc_enbl, 0);
+	MtnSaSetManObject(mgw_port, ChannelType_PORT,
+			  ManObj_C_DS_AGC_ENABLE, s_dwnstr_agc_enbl, 0);
+	MtnSaSetManObject(mgw_port, ChannelType_PORT,
+			  ManObj_C_US_ADAPTION_RATE, s_upstr_adp_rate, 0);
+	MtnSaSetManObject(mgw_port, ChannelType_PORT,
+			  ManObj_C_DS_ADAPTION_RATE, s_dwnstr_adp_rate, 0);
+	MtnSaSetManObject(mgw_port, ChannelType_PORT,
+			  ManObj_G_US_MAX_APPLIED_GAIN, s_upstr_max_gain, 0);
+	MtnSaSetManObject(mgw_port, ChannelType_PORT,
+			  ManObj_G_DS_MAX_APPLIED_GAIN, s_dwnstr_max_gain, 0);
+	MtnSaSetManObject(mgw_port, ChannelType_PORT,
+			  ManObj_C_US_TARGET_LEVEL, s_upstr_target_lvl, 0);
+	MtnSaSetManObject(mgw_port, ChannelType_PORT,
+			  ManObj_C_US_TARGET_LEVEL, s_dwnstr_target_lvl, 0);
 
 	/* Select AMR 5.9, Payload 98, no CRC, hardcoded */
 	MtnSaApplyProfile(mgw_port, ProfileType_VOICE, 0);
@@ -847,10 +881,110 @@ DEFUN(cfg_mgcp_realloc, cfg_mgcp_realloc_cmd,
 	return CMD_SUCCESS;
 }
 
+DEFUN(cfg_mgcp_inp_dig_gain, cfg_mgcp_inp_dig_gain_cmd,
+      "input-digital-gain <0-62>",
+      "Static Digital Input Gain\n"
+      "Gain value")
+{
+	s_digital_inp_gain = atoi(argv[0]);
+	return CMD_SUCCESS;
+}
+
+DEFUN(cfg_mgcp_out_dig_gain, cfg_mgcp_out_dig_gain_cmd,
+      "outut-digital-gain <0-62>",
+      "Static Digital Output Gain\n"
+      "Gain value")
+{
+	s_digital_out_gain = atoi(argv[0]);
+	return CMD_SUCCESS;
+}
+
+DEFUN(cfg_mgcp_upstr_agc, cfg_mgcp_upstr_agc_cmd,
+      "upstream-automatic-gain (0|1)",
+      "Enable automatic gain control on upstream\n"
+      "Disable\n" "Enabled\n")
+{
+	s_upstr_agc_enbl = argv[0][0] == '1';
+	return CMD_SUCCESS;
+}
+
+DEFUN(cfg_mgc_upstr_adp, cfg_mgcp_upstr_adp_cmd,
+      "upstream-adaption-rate <1-128>",
+      "Set the adaption rate in (dB/sec) * 10\n"
+      "Range\n")
+{
+	s_upstr_adp_rate = atoi(argv[0]);
+	return CMD_SUCCESS;
+}
+
+DEFUN(cfg_mgcp_upstr_max_gain, cfg_mgcp_upstr_max_gain_cmd,
+      "upstream-max-applied-gain <0-49>",
+      "Maximum applied gain from -31db to 18db\n"
+      "Gain level\n")
+{
+	s_upstr_max_gain = atoi(argv[0]);
+	return CMD_SUCCESS;
+}
+
+DEFUN(cfg_mgcp_upstr_target, cfg_mgcp_upstr_target_cmd,
+      "upstream-target-level <6-37>",
+      "Set the desired level in db\n"
+      "Desired lievel\n")
+{
+	s_upstr_target_lvl = atoi(argv[0]);
+	return CMD_SUCCESS;
+}
+
+DEFUN(cfg_mgcp_dwnstr_agc, cfg_mgcp_dwnstr_agc_cmd,
+      "downstream-automatic-gain (0|1)",
+      "Enable automatic gain control on downstream\n"
+      "Disable\n" "Enabled\n")
+{
+	s_dwnstr_agc_enbl = argv[0][0] == '1';
+	return CMD_SUCCESS;
+}
+
+DEFUN(cfg_mgc_dwnstr_adp, cfg_mgcp_dwnstr_adp_cmd,
+      "downstream-adaption-rate <1-128>",
+      "Set the adaption rate in (dB/sec) * 10\n"
+      "Range\n")
+{
+	s_dwnstr_adp_rate = atoi(argv[0]);
+	return CMD_SUCCESS;
+}
+
+DEFUN(cfg_mgcp_dwnstr_max_gain, cfg_mgcp_dwnstr_max_gain_cmd,
+      "downstream-max-applied-gain <0-49>",
+      "Maximum applied gain from -31db to 18db\n"
+      "Gain level\n")
+{
+	s_dwnstr_max_gain = atoi(argv[0]);
+	return CMD_SUCCESS;
+}
+
+DEFUN(cfg_mgcp_dwnstr_target, cfg_mgcp_dwnstr_target_cmd,
+      "downstream-target-level <6-37>",
+      "Set the desired level in db\n"
+      "Desired lievel\n")
+{
+	s_dwnstr_target_lvl = atoi(argv[0]);
+	return CMD_SUCCESS;
+}
+
 void mgcp_write_extra(struct vty *vty)
 {
 	vty_out(vty, "  force-realloc %d%s", g_cfg->force_realloc, VTY_NEWLINE);
 	vty_out(vty, "  vad %s%s", s_vad_enabled ? "enabled" : "disabled", VTY_NEWLINE);
+	vty_out(vty, "  input-digital-gain %d%s", s_digital_inp_gain, VTY_NEWLINE);
+	vty_out(vty, "  output-digital-gain %d%s", s_digital_out_gain, VTY_NEWLINE);
+	vty_out(vty, "  upstream-automatic-gain %d%s", s_upstr_agc_enbl, VTY_NEWLINE);
+	vty_out(vty, "  upstream-adaption-rate %d%s", s_upstr_adp_rate, VTY_NEWLINE);
+	vty_out(vty, "  upstream-max-applied-gain %d%s", s_upstr_max_gain, VTY_NEWLINE);
+	vty_out(vty, "  upstream-target-level %d%s", s_upstr_target_lvl, VTY_NEWLINE);
+	vty_out(vty, "  downstream-automatic-gain %d%s", s_dwnstr_agc_enbl, VTY_NEWLINE);
+	vty_out(vty, "  downstream-adaption-rate %d%s", s_dwnstr_adp_rate, VTY_NEWLINE);
+	vty_out(vty, "  downstream-max-applied-gain %d%s", s_dwnstr_max_gain, VTY_NEWLINE);
+	vty_out(vty, "  downstream-target-level %d%s", s_dwnstr_target_lvl, VTY_NEWLINE);
 }
 
 static void mgcp_mgw_vty_init(void)
@@ -862,6 +996,16 @@ static void mgcp_mgw_vty_init(void)
 
 	install_element(MGCP_NODE, &cfg_mgcp_vad_cmd);
 	install_element(MGCP_NODE, &cfg_mgcp_realloc_cmd);
+	install_element(MGCP_NODE, &cfg_mgcp_inp_dig_gain_cmd);
+	install_element(MGCP_NODE, &cfg_mgcp_out_dig_gain_cmd);
+	install_element(MGCP_NODE, &cfg_mgcp_upstr_agc_cmd);
+	install_element(MGCP_NODE, &cfg_mgcp_upstr_adp_cmd);
+	install_element(MGCP_NODE, &cfg_mgcp_upstr_max_gain_cmd);
+	install_element(MGCP_NODE, &cfg_mgcp_upstr_target_cmd);
+	install_element(MGCP_NODE, &cfg_mgcp_dwnstr_agc_cmd);
+	install_element(MGCP_NODE, &cfg_mgcp_dwnstr_adp_cmd);
+	install_element(MGCP_NODE, &cfg_mgcp_dwnstr_max_gain_cmd);
+	install_element(MGCP_NODE, &cfg_mgcp_dwnstr_target_cmd);
 }
 
 
