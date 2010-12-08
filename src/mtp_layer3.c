@@ -469,6 +469,9 @@ int mtp_link_data(struct mtp_link *link, struct msgb *msg)
 	case MTP_SI_MNT_SCCP:
 		rc = mtp_link_sccp_data(link, hdr, msg, l3_len);
 		break;
+	case MTP_SI_MNT_ISUP:
+		LOGP(DINP, LOGL_ERROR, "ISUP handling not implemented.\n");
+		break;
 	default:
 		fprintf(stderr, "Unhandled: %u\n", hdr->ser_ind);
 		break;

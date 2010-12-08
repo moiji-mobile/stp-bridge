@@ -36,6 +36,7 @@
 #define MTP_SI_MNT_SNM_MSG	0x00
 #define MTP_SI_MNT_REG_MSG	0x01
 #define MTP_SI_MNT_SCCP		0x03
+#define MTP_SI_MNT_ISUP		0x05
 
 /*
  * h0 contains the group, h1 the semantic of it
