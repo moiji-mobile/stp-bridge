@@ -323,7 +323,7 @@ static int mtp_link_sign_msg(struct mtp_link *link, struct mtp_level_3_hdr *hdr,
 		break;
 	}
 
-	abort();
+	LOGP(DINP, LOGL_ERROR, "Unknown message:%d/%d %s\n", cmn->h0, cmn->h1, hexdump(&hdr->data[0], l3_len));
 	return -1;
 }
 
