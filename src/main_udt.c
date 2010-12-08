@@ -337,13 +337,13 @@ void release_bsc_resources(struct bsc_data *bsc)
 struct msgb *create_sccp_rlc(struct sccp_source_reference *src_ref,
 			     struct sccp_source_reference *dst)
 {
-	abort();
+	LOGP(DMSC, LOGL_NOTICE, "Refusing to create connection handling.\n");
 	return NULL;
 }
 
 struct msgb *create_reset()
 {
-	abort();
+	LOGP(DMSC, LOGL_NOTICE, "Refusing to create a GSM0808 reset message.\n");
 	return NULL;
 }
 
