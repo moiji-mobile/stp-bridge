@@ -21,6 +21,7 @@
  */
 
 #include <mtp_data.h>
+#include <mtp_level3.h>
 #include <mtp_pcap.h>
 #include <thread.h>
 #include <bsc_data.h>
@@ -228,6 +229,8 @@ int main(int argc, char **argv)
 	bsc.udp_port = 3456;
 	bsc.udp_ip = NULL;
 	bsc.src_port = 1313;
+	bsc.ni_ni = MTP_NI_NATION_NET;
+	bsc.ni_spare = 0;
 
 	mtp_link_init();
 	thread_init();
@@ -278,6 +281,8 @@ int main(int argc, char **argv)
 	bsc.link.the_link->opc = bsc.opc;
 	bsc.link.the_link->link = 0;
 	bsc.link.the_link->sltm_once = bsc.once;
+	bsc.link.the_link->ni = bsc.ni_ni;
+	bsc.link.the_link->spare = bsc.ni_spare;
 	bsc.link.bsc = &bsc;
 
 	if (bsc.udp_ip) {
