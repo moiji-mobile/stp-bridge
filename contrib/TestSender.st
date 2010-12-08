@@ -18,6 +18,12 @@ Eval [
     datagram data: msg.
     socket nextPut: datagram.
 
+    "TFP"
+    msg := #(2 0 0 1 0 0 0 0 0 0 0 8
+             192 232 197 7 0 20 62 2) asByteArray.
+    datagram data: msg.
+    socket nextPut: datagram.
+
     "TRA"
     msg := #(2 0 0 1 0 0 0 0 0 0 0 6 192 232 197 7 0 23) asByteArray.
     datagram data: msg.

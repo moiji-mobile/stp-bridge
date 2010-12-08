@@ -288,6 +288,7 @@ static int mtp_link_sign_msg(struct mtp_link *link, struct mtp_level_3_hdr *hdr,
 {
 	struct msgb *msg;
 	struct mtp_level_3_cmn *cmn;
+	uint16_t *apc;
 
 	if (hdr->ni != link->ni || l3_len < 1) {
 		LOGP(DINP, LOGL_ERROR, "Unhandled data (ni: %d len: %d)\n",
@@ -317,6 +318,21 @@ static int mtp_link_sign_msg(struct mtp_link *link, struct mtp_level_3_hdr *hdr,
 				return -1;
 
 			mtp_link_submit(link, msg);
+			return 0;
+			break;
+		}
+		break;
+	case MTP_PROHIBIT_MSG_GRP:
+		switch (cmn->h1) {
+		case MTP_PROHIBIT_MSG_SIG:
+			if (l3_len < 3) {
+				LOGP(DINP, LOGL_ERROR, "TFP is too short.\n");
+				return -1;
+			}
+
+			apc = (uint16_t *) &hdr->data[1];
+			LOGP(DINP, LOGL_INFO,
+			     "TFP for the affected point code: %d\n", *apc);
 			return 0;
 			break;
 		}
