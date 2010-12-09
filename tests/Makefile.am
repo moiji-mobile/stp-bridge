@@ -1,1 +1,1 @@
-SUBDIRS = mtp patching
+SUBDIRS = mtp patching isup
