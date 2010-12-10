@@ -21,8 +21,46 @@
 
 #include <isup_types.h>
 #include <cellmgr_debug.h>
+#include <mtp_data.h>
 
 #include <osmocore/msgb.h>
+#include <osmocore/tlv.h>
+
+static struct msgb *isup_gra_alloc(int cic, int range)
+{
+	struct isup_msg_hdr *hdr;
+	struct msgb *msg;
+	int bits, len;
+
+	msg = msgb_alloc_headroom(4096, 128, "ISUP GRA");
+	if (!msg) {
+		LOGP(DISUP, LOGL_ERROR, "Allocation of GRA message failed.\n");
+		return NULL;
+	}
+
+	msg->l2h = msgb_put(msg, sizeof(*hdr));
+
+	/* write the ISUP header */
+	hdr = (struct isup_msg_hdr *) msg->l2h;
+	hdr->cic = cic;
+	hdr->msg_type = ISUP_MSG_GRA;
+
+	/*
+	 * place the pointers here.
+	 * 1.) place the variable start after us
+	 * 2.) place the length
+	 */
+	msgb_v_put(msg, 1);
+
+	bits = range + 1;
+	len = (bits / 8) + 1;
+	msgb_v_put(msg, len + 1);
+	msgb_v_put(msg, range);
+
+	msgb_put(msg, len);
+
+	return msg;
+}
 
 /* this message contains the range */
 int isup_parse_grs(const uint8_t *data, uint8_t in_length)
@@ -53,17 +91,22 @@ int isup_parse_grs(const uint8_t *data, uint8_t in_length)
 
 
 /* Handle incoming ISUP data */
-static int handle_circuit_reset_grs(struct mtp_link *link, int sls,
+static int handle_circuit_reset_grs(struct mtp_link *link, int sls, int cic,
 				    const uint8_t *data, int size)
 {
+	struct msgb *resp;
 	int range;
 
 	range = isup_parse_grs(data, size);
 	if (range < 0)
 		return -1;
 
-	printf("ASKED to reset range: %d\n", range);
+	resp = isup_gra_alloc(cic, range);
+	if (!resp)
+		return -1;
 
+	mtp_link_submit_isup_data(link, sls, resp->l2h, msgb_l2len(resp));
+	msgb_free(resp);
 	return 0;
 }
 
@@ -83,7 +126,7 @@ int mtp_link_forward_isup(struct mtp_link *link, struct msgb *msg, int sls)
 
 	switch (hdr->msg_type) {
 	case ISUP_MSG_GRS:
-		rc = handle_circuit_reset_grs(link, sls, hdr->data, payload_size);
+		rc = handle_circuit_reset_grs(link, sls, hdr->cic, hdr->data, payload_size);
 		break;
 	default:
 		LOGP(DISUP, LOGL_NOTICE, "ISUP msg not handled: 0x%x\n", hdr->msg_type);

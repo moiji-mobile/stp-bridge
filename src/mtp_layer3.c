@@ -34,6 +34,8 @@
 
 static void *tall_mtp_ctx = NULL;
 
+static int mtp_int_submit(struct mtp_link *link, int sls, int type, const uint8_t *data, unsigned int length);
+
 static struct msgb *mtp_msg_alloc(struct mtp_link *link)
 {
 	struct mtp_level_3_hdr *hdr;
@@ -500,21 +502,34 @@ int mtp_link_data(struct mtp_link *link, struct msgb *msg)
 
 int mtp_link_submit_sccp_data(struct mtp_link *link, int sls, const uint8_t *data, unsigned int length)
 {
-	uint8_t *put_ptr;
-	struct mtp_level_3_hdr *hdr;
-	struct msgb *msg;
 
 	if (!link->sccp_up) {
 		LOGP(DINP, LOGL_ERROR, "SCCP msg after TRA and before SSA. Dropping it.\n");
 		return -1;
 	}
 
+	return mtp_int_submit(link, sls, MTP_SI_MNT_SCCP, data, length);
+}
+
+int mtp_link_submit_isup_data(struct mtp_link *link, int sls,
+			      const uint8_t *data, unsigned int length)
+{
+	return mtp_int_submit(link, sls, MTP_SI_MNT_ISUP, data, length);
+}
+
+static int mtp_int_submit(struct mtp_link *link, int sls, int type,
+			  const uint8_t *data, unsigned int length)
+{
+	uint8_t *put_ptr;
+	struct mtp_level_3_hdr *hdr;
+	struct msgb *msg;
+
 	msg = mtp_msg_alloc(link);
 	if (!msg)
 		return -1;
 
 	hdr = (struct mtp_level_3_hdr *) msg->l2h;
-	hdr->ser_ind = MTP_SI_MNT_SCCP;
+	hdr->ser_ind = type;
 
 	hdr->addr = MTP_ADDR(sls % 16, link->dpc, link->opc);
 

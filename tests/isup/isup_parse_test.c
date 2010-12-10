@@ -61,3 +61,6 @@ int main(int argc, char **argv)
 	printf("All tests passed.\n");
 	return 0;
 }
+
+/* stubs */
+int mtp_link_submit_isup_data() {return -1;}
