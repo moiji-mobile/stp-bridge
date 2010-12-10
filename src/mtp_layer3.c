@@ -321,6 +321,9 @@ static int mtp_link_sign_msg(struct mtp_link *link, struct mtp_level_3_hdr *hdr,
 				return -1;
 
 			mtp_link_submit(link, msg);
+			link->sccp_up = 1;
+			link->was_up = 1;
+			LOGP(DINP, LOGL_INFO, "SCCP traffic allowed. %p\n", link);
 			return 0;
 			break;
 		}
@@ -405,6 +408,7 @@ static int mtp_link_sccp_data(struct mtp_link *link, struct mtp_level_3_hdr *hdr
 {
 	struct msgb *out;
 	struct sccp_con_ctrl_prt_mgt *prt;
+	struct sccp_parse_result sccp;
 
 	msg->l2h = &hdr->data[0];
 	if (msgb_l2len(msg) != l3_len) {
@@ -412,33 +416,24 @@ static int mtp_link_sccp_data(struct mtp_link *link, struct mtp_level_3_hdr *hdr
 		return -1;
 	}
 
+	if (!link->sccp_up) {
+		LOGP(DINP, LOGL_ERROR, "SCCP traffic is not allowed.\n");
+		return -1;
+	}
 
-	if (link->sccp_up) {
-		mtp_link_forward_sccp(link, msg, MTP_LINK_SLS(hdr->addr));
-		return 0;
-	} else {
-		struct sccp_parse_result sccp;
-		memset(&sccp, 0, sizeof(sccp));
-		if (sccp_parse_header(msg, &sccp) != 0) {
-			LOGP(DINP, LOGL_ERROR, "Failed to parsed SCCP header.\n");
-			return -1;
-		}
+	memset(&sccp, 0, sizeof(sccp));
+	if (sccp_parse_header(msg, &sccp) != 0) {
+		LOGP(DINP, LOGL_ERROR, "Failed to parsed SCCP header.\n");
+		return -1;
+	}
 
-		if (sccp_determine_msg_type(msg) != SCCP_MSG_TYPE_UDT) {
-			LOGP(DINP, LOGL_ERROR, "Dropping sccp data: 0x%x\n",
-			     sccp_determine_msg_type(msg));
-			return -1;
-		}
-
+	/* check if it is a SST */
+	if (sccp_determine_msg_type(msg) == SCCP_MSG_TYPE_UDT
+	    && msg->l3h[0] == SCCP_SST) {
 		if (msgb_l3len(msg) != 5) {
-			LOGP(DINP, LOGL_ERROR, "SCCP UDT msg of unexpected size: %u\n",
+			LOGP(DINP, LOGL_ERROR,
+			     "SCCP UDT msg of unexpected size: %u\n",
 			     msgb_l3len(msg));
-			return -1;
-		}
-
-		if (msg->l3h[0] != SCCP_SST) {
-			LOGP(DINP, LOGL_ERROR, "Expected SCCP SST but got 0x%x\n",
-			     msg->l3h[0]);
 			return -1;
 		}
 
@@ -453,11 +448,11 @@ static int mtp_link_sccp_data(struct mtp_link *link, struct mtp_level_3_hdr *hdr
 		if (!out)
 			return -1;
 
-		link->sccp_up = 1;
-		link->was_up = 1;
-		LOGP(DINP, LOGL_INFO, "SCCP is established. %p\n", link);
 		mtp_link_submit(link, out);
+		return 0;
 	}
+
+	mtp_link_forward_sccp(link, msg, MTP_LINK_SLS(hdr->addr));
 	return 0;
 }
 
