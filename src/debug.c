@@ -45,6 +45,11 @@ static const struct log_info_cat default_categories[] = {
 		.description = "Media Gateway Control Protocol",
 		.enabled = 1, .loglevel = LOGL_NOTICE,
 	},
+	[DISUP] = {
+		.name = "DISUP",
+		.description = "ISUP",
+		.enabled = 1, .loglevel = LOGL_NOTICE,
+	},
 };
 
 static int filter_fn(const struct log_context *ctx,

@@ -20,44 +20,32 @@
  */
 
 #include <isup_types.h>
+#include <cellmgr_debug.h>
 
-#include <stdlib.h>
-#include <stdio.h>
+/* this message contains the range */
+int isup_parse_grs(const uint8_t *data, uint8_t in_length)
+{
+	uint8_t ptr;
+	uint8_t length;
 
-#define ASSERT(got,want) \
-	if (got != want) { \
-		fprintf(stderr, "Values should be the same 0x%x 0x%x at %s:%d\n", \
-			got, want, __FILE__, __LINE__); \
-		abort(); \
+	if (in_length > 3) {
+		LOGP(DISUP, LOGL_ERROR, "This needs three bytes.\n");
+		return -1;	
 	}
 
-static void test_cic_parsing()
-{
-	static const uint8_t isup_grs[] = {3, 0, 23, 1, 1, 28};
-	struct isup_msg_hdr *hdr;
+	ptr = data[0];
+	if (1 + ptr > in_length) {
+		LOGP(DISUP, LOGL_ERROR, "Pointing outside the packet.\n");
+		return -1;
+	}
 
-	hdr = (struct isup_msg_hdr *) isup_grs;
-	ASSERT(hdr->cic, 3);
-	ASSERT(hdr->msg_type, ISUP_MSG_GRS);
+	length = data[0 + ptr];
+
+	if (1 + ptr + 1 > in_length) {
+		LOGP(DISUP, LOGL_ERROR, "No space for the data.\n");
+		return -1;
+	}
+
+	return data[0 + ptr + 1];
 }
 
-static void test_grs_parsing()
-{
-	static const uint8_t isup_grs[] = {3, 0, 23, 1, 1, 28};
-	struct isup_msg_hdr *hdr;
-	int range;
-
-	hdr = (struct isup_msg_hdr *) isup_grs;
-	range = isup_parse_grs(&hdr->data[0], 3);
-
-	ASSERT(range, 28);
-}
-
-int main(int argc, char **argv)
-{
-	test_cic_parsing();
-	test_grs_parsing();
-
-	printf("All tests passed.\n");
-	return 0;
-}

@@ -34,9 +34,4 @@ Eval [
     msg := #(2 0 0 1 0 0 0 0 0 0 0 6 192 232 197 7 0 23) asByteArray.
     datagram data: msg.
     socket nextPut: datagram.
-
-    "ISUP GSR"
-    msg := #(2 0 0 1 0 0 0 0 0 0 0 11 197 8 197 7 224 3 0 23 1 1 28) asByteArray.
-    datagram data: msg.
-    socket nextPut: datagram.
 ]
