@@ -22,6 +22,8 @@
 #include <isup_types.h>
 #include <cellmgr_debug.h>
 
+#include <osmocore/msgb.h>
+
 /* this message contains the range */
 int isup_parse_grs(const uint8_t *data, uint8_t in_length)
 {
@@ -49,3 +51,44 @@ int isup_parse_grs(const uint8_t *data, uint8_t in_length)
 	return data[0 + ptr + 1];
 }
 
+
+/* Handle incoming ISUP data */
+static int handle_circuit_reset_grs(struct mtp_link *link, int sls,
+				    const uint8_t *data, int size)
+{
+	int range;
+
+	range = isup_parse_grs(data, size);
+	if (range < 0)
+		return -1;
+
+	printf("ASKED to reset range: %d\n", range);
+
+	return 0;
+}
+
+int mtp_link_forward_isup(struct mtp_link *link, struct msgb *msg, int sls)
+{
+	int rc = -1;
+	int payload_size;
+	struct isup_msg_hdr *hdr;
+
+	if (msgb_l3len(msg) < sizeof(*hdr)) {
+		LOGP(DISUP, LOGL_ERROR, "ISUP header is too short.\n");
+		return -1;
+	}
+
+	hdr = (struct isup_msg_hdr *) msg->l3h;
+	payload_size = msgb_l3len(msg) - sizeof(*hdr);
+
+	switch (hdr->msg_type) {
+	case ISUP_MSG_GRS:
+		rc = handle_circuit_reset_grs(link, sls, hdr->data, payload_size);
+		break;
+	default:
+		LOGP(DISUP, LOGL_NOTICE, "ISUP msg not handled: 0x%x\n", hdr->msg_type);
+		break;
+	}
+
+	return rc;
+}

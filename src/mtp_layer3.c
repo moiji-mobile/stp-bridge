@@ -22,6 +22,7 @@
 #include <mtp_data.h>
 #include <mtp_level3.h>
 #include <cellmgr_debug.h>
+#include <isup_types.h>
 
 #include <osmocore/talloc.h>
 
@@ -486,7 +487,8 @@ int mtp_link_data(struct mtp_link *link, struct msgb *msg)
 		rc = mtp_link_sccp_data(link, hdr, msg, l3_len);
 		break;
 	case MTP_SI_MNT_ISUP:
-		LOGP(DINP, LOGL_ERROR, "ISUP handling not implemented.\n");
+		msg->l3h = &hdr->data[0];
+		rc = mtp_link_forward_isup(link, msg, MTP_LINK_SLS(hdr->addr));
 		break;
 	default:
 		fprintf(stderr, "Unhandled: %u\n", hdr->ser_ind);
