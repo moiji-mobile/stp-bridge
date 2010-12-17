@@ -358,13 +358,13 @@ static void allocate_endp(struct mgcp_ss7 *ss7, int endp_no)
 	MtnSaSetManObject(mgw_port, ChannelType_PORT,
 			  ManObj_C_VOICE_OUTPUT_DIGITAL_GAIN, s_digital_out_gain, 0);
 	MtnSaSetManObject(mgw_port, ChannelType_PORT,
-			  ManObj_C_US_AGC_ENABLE, s_upstr_agc_enbl, 0);
+			  ManObj_G_US_AGC_ENABLE, s_upstr_agc_enbl, 0);
 	MtnSaSetManObject(mgw_port, ChannelType_PORT,
-			  ManObj_C_DS_AGC_ENABLE, s_dwnstr_agc_enbl, 0);
+			  ManObj_G_DS_AGC_ENABLE, s_dwnstr_agc_enbl, 0);
 	MtnSaSetManObject(mgw_port, ChannelType_PORT,
-			  ManObj_C_US_ADAPTION_RATE, s_upstr_adp_rate, 0);
+			  ManObj_G_US_ADAPTATION_RATE, s_upstr_adp_rate, 0);
 	MtnSaSetManObject(mgw_port, ChannelType_PORT,
-			  ManObj_C_DS_ADAPTION_RATE, s_dwnstr_adp_rate, 0);
+			  ManObj_G_DS_ADAPTATION_RATE, s_dwnstr_adp_rate, 0);
 	MtnSaSetManObject(mgw_port, ChannelType_PORT,
 			  ManObj_G_US_MAX_APPLIED_GAIN, s_upstr_max_gain, 0);
 	MtnSaSetManObject(mgw_port, ChannelType_PORT,
