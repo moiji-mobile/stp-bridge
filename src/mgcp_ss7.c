@@ -909,7 +909,7 @@ DEFUN(cfg_mgcp_upstr_agc, cfg_mgcp_upstr_agc_cmd,
 }
 
 DEFUN(cfg_mgc_upstr_adp, cfg_mgcp_upstr_adp_cmd,
-      "upstream-adaption-rate <1-128>",
+      "upstream-adaptiton-rate <1-128>",
       "Set the adaption rate in (dB/sec) * 10\n"
       "Range\n")
 {
@@ -945,7 +945,7 @@ DEFUN(cfg_mgcp_dwnstr_agc, cfg_mgcp_dwnstr_agc_cmd,
 }
 
 DEFUN(cfg_mgc_dwnstr_adp, cfg_mgcp_dwnstr_adp_cmd,
-      "downstream-adaption-rate <1-128>",
+      "downstream-adaptation-rate <1-128>",
       "Set the adaption rate in (dB/sec) * 10\n"
       "Range\n")
 {
@@ -978,11 +978,11 @@ void mgcp_write_extra(struct vty *vty)
 	vty_out(vty, "  input-digital-gain %d%s", s_digital_inp_gain, VTY_NEWLINE);
 	vty_out(vty, "  output-digital-gain %d%s", s_digital_out_gain, VTY_NEWLINE);
 	vty_out(vty, "  upstream-automatic-gain %d%s", s_upstr_agc_enbl, VTY_NEWLINE);
-	vty_out(vty, "  upstream-adaption-rate %d%s", s_upstr_adp_rate, VTY_NEWLINE);
+	vty_out(vty, "  upstream-adaptation-rate %d%s", s_upstr_adp_rate, VTY_NEWLINE);
 	vty_out(vty, "  upstream-max-applied-gain %d%s", s_upstr_max_gain, VTY_NEWLINE);
 	vty_out(vty, "  upstream-target-level %d%s", s_upstr_target_lvl, VTY_NEWLINE);
 	vty_out(vty, "  downstream-automatic-gain %d%s", s_dwnstr_agc_enbl, VTY_NEWLINE);
-	vty_out(vty, "  downstream-adaption-rate %d%s", s_dwnstr_adp_rate, VTY_NEWLINE);
+	vty_out(vty, "  downstream-adaptation-rate %d%s", s_dwnstr_adp_rate, VTY_NEWLINE);
 	vty_out(vty, "  downstream-max-applied-gain %d%s", s_dwnstr_max_gain, VTY_NEWLINE);
 	vty_out(vty, "  downstream-target-level %d%s", s_dwnstr_target_lvl, VTY_NEWLINE);
 }
