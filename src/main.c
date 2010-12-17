@@ -62,8 +62,6 @@
 static struct log_target *stderr_target;
 
 static char *config = "cellmgr_ng.cfg";
-static int flood = 0;
-static struct timer_list flood_timer;
 
 struct bsc_data bsc;
 extern void cell_vty_init(void);
@@ -73,7 +71,6 @@ static void bsc_resources_released(struct bsc_data *bsc);
 static void handle_local_sccp(struct mtp_link *link, struct msgb *inp, struct sccp_parse_result *res, int sls);
 static void clear_connections(struct bsc_data *bsc);
 static void send_local_rlsd(struct mtp_link *link, struct sccp_parse_result *res);
-static void start_flood();
 
 int link_c7_init(struct link_data *data) __attribute__((__weak__));
 
@@ -347,9 +344,6 @@ void bsc_link_up(struct link_data *data)
 	}
 
 	mtp_link_reset(data->the_link);
-
-	if (flood)
-		start_flood();
 }
 
 /**
@@ -572,41 +566,6 @@ static void send_reset_ack(struct mtp_link *link, int sls)
 	mtp_link_submit_sccp_data(link, sls, reset_ack, sizeof(reset_ack));
 }
 
-static void start_flood()
-{
-	static unsigned int i = 0;
-	static const uint8_t paging_cmd[] = {
-		0x09, 0x00, 0x03,  0x07, 0x0b, 0x04, 0x43, 0x0a,
-		0x00, 0xfe, 0x04,  0x43, 0x5c, 0x00, 0xfe, 0x10,
-		0x00, 0x0e, 0x52,  0x08, 0x08, 0x29, 0x80, 0x10,
-		0x76, 0x10, 0x77,  0x46, 0x05, 0x1a, 0x01, 0x06 };
-
-	/* change the imsi slightly */
-	if (bsc.link.the_link->sltm_pending) {
-		LOGP(DINP, LOGL_ERROR, "Not sending due clash with SLTM.\n");
-	} else {
-		struct msgb *msg;
-		msg = msgb_alloc_headroom(4096, 128, "paging");
-		if (msg) {
-			LOGP(DINP, LOGL_NOTICE, "Flooding BSC with one paging requests.\n");
-
-			msg->l2h = msgb_put(msg, sizeof(paging_cmd));
-			memcpy(msg->l2h, paging_cmd, msgb_l2len(msg));
-
-			bss_rewrite_header_to_bsc(msg,
-						  bsc.link.the_link->opc,
-						  bsc.link.the_link->dpc);
-			mtp_link_submit_sccp_data(bsc.link.the_link, i++,
-						  msg->l2h, msgb_l2len(msg));
-			msgb_free(msg);
-		}
-	}
-
-	/* try again in five seconds */
-	flood_timer.cb = start_flood;
-	bsc_schedule_timer(&flood_timer, 2, 0);
-}
-
 static void print_usage()
 {
 	printf("Usage: cellmgr_ng\n");
@@ -646,7 +605,6 @@ static void print_help()
 	printf("  -c --config=CFG The config file to use.\n");
 	printf("  -p --pcap=FILE. Write MSUs to the PCAP file.\n");
 	printf("  -c --once. Send the SLTM msg only once.\n");
-	printf("  -f --flood. Send flood of paging requests to the BSC.\n");
 	printf("  -v --version. Print the version number\n");
 }
 
@@ -658,12 +616,11 @@ static void handle_options(int argc, char **argv)
 			{"help", 0, 0, 'h'},
 			{"config", 1, 0, 'c'},
 			{"pcap", 1, 0, 'p'},
-			{"flood", 0, 0, 'f'},
 			{"version", 0, 0, 0},
 			{0, 0, 0, 0},
 		};
 
-		c = getopt_long(argc, argv, "hc:p:fv",
+		c = getopt_long(argc, argv, "hc:p:v",
 				long_options, &option_index);
 		if (c == -1)
 			break;
@@ -685,9 +642,6 @@ static void handle_options(int argc, char **argv)
 			break;
 		case 'c':
 			config = optarg;
-			break;
-		case 'f':
-			flood = 1;
 			break;
 		case 'v':
 			printf("This is %s version %s.\n", PACKAGE, VERSION);
