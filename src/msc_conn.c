@@ -81,11 +81,14 @@ int send_or_queue_bsc_msg(struct mtp_link *link, int sls, struct msgb *msg)
 void msc_clear_queue(struct bsc_data *data)
 {
 	struct msgb *msg;
+	struct link_data *link;
 
 	LOGP(DMSC, LOGL_NOTICE, "Clearing the MSC to BSC queue.\n");
-	while (!llist_empty(&data->link.the_link->pending_msgs)) {
-		msg = msgb_dequeue(&data->link.the_link->pending_msgs);
-		msgb_free(msg);
+	llist_for_each_entry(link, &data->links, entry) {
+		while (!llist_empty(&link->the_link->pending_msgs)) {
+			msg = msgb_dequeue(&link->the_link->pending_msgs);
+			msgb_free(msg);
+		}
 	}
 }
 
@@ -182,7 +185,7 @@ static int ipaccess_a_fd_cb(struct bsc_fd *bfd)
 	hh = (struct ipaccess_head *) msg->data;
 	ipaccess_rcvmsg_base(msg, bfd);
 
-	link = bsc->link.the_link;
+	link = bsc->first_link.the_link;
 
 	/* initialize the networking. This includes sending a GSM08.08 message */
 	if (hh->proto == IPAC_PROTO_IPACCESS) {

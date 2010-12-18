@@ -92,22 +92,6 @@ static void mgcp_reset(struct bsc_data *bsc)
 /*
  * methods called from the MTP Level3 part
  */
-void mtp_link_submit(struct mtp_link *link, struct msgb *msg)
-{
-	bsc.link.write(&bsc.link, msg);
-}
-
-void mtp_link_restart(struct mtp_link *link)
-{
-	LOGP(DINP, LOGL_ERROR, "Need to restart the SS7 link.\n");
-	bsc.link.reset(&bsc.link);
-}
-
-void mtp_link_sccp_down(struct mtp_link *link)
-{
-	msc_clear_queue(&bsc);
-}
-
 void mtp_link_forward_sccp(struct mtp_link *link, struct msgb *_msg, int sls)
 {
 	int rc;
@@ -214,13 +198,15 @@ static void handle_local_sccp(struct mtp_link *link, struct msgb *inpt, struct s
 
 static void clear_connections(struct bsc_data *bsc)
 {
+	struct link_data *link;
 	struct active_sccp_con *tmp, *con;
 
 	llist_for_each_entry_safe(con, tmp, &bsc->sccp_connections, entry) {
 		free_con(con);
 	}
 
-	bsc->link.clear_queue(&bsc->link);
+	llist_for_each_entry(link, &bsc->links, entry)
+		link->clear_queue(link);
 }
 
 void bsc_resources_released(struct bsc_data *bsc)
@@ -236,9 +222,9 @@ static void bsc_reset_timeout(void *_data)
 	/* no reset */
 	if (bsc->reset_count > 0) {
 		LOGP(DINP, LOGL_ERROR, "The BSC did not answer the GSM08.08 reset. Restart MTP\n");
-		mtp_link_stop(bsc->link.the_link);
+		link_stop_all(bsc);
 		clear_connections(bsc);
-		bsc->link.reset(&bsc->link);
+		link_reset_all(bsc);
 		bsc_resources_released(bsc);
 		return;
 	}
@@ -250,7 +236,7 @@ static void bsc_reset_timeout(void *_data)
 	}
 
 	++bsc->reset_count;
-	mtp_link_submit_sccp_data(bsc->link.the_link, 13, msg->l2h, msgb_l2len(msg));
+	mtp_link_submit_sccp_data(bsc->first_link.the_link, 13, msg->l2h, msgb_l2len(msg));
 	msgb_free(msg);
 	bsc_schedule_timer(&bsc->reset_timeout, 20, 0);
 }
@@ -295,7 +281,7 @@ void release_bsc_resources(struct bsc_data *bsc)
 			continue;
 
 		/* wait for the clear commands */
-		mtp_link_submit_sccp_data(bsc->link.the_link, con->sls, msg->l2h, msgb_l2len(msg));
+		mtp_link_submit_sccp_data(con->link, con->sls, msg->l2h, msgb_l2len(msg));
 		msgb_free(msg);
 	}
 
@@ -349,7 +335,9 @@ void bsc_link_up(struct link_data *data)
 /**
  * update the connection state and helpers below
  */
-static void send_rlc_to_bsc(unsigned int sls, struct sccp_source_reference *src, struct sccp_source_reference *dst)
+static void send_rlc_to_bsc(struct mtp_link *link, unsigned int sls,
+			    struct sccp_source_reference *src,
+			    struct sccp_source_reference *dst)
 {
 	struct msgb *msg;
 
@@ -357,11 +345,12 @@ static void send_rlc_to_bsc(unsigned int sls, struct sccp_source_reference *src,
 	if (!msg)
 		return;
 
-	mtp_link_submit_sccp_data(bsc.link.the_link, sls, msg->l2h, msgb_l2len(msg));
+	mtp_link_submit_sccp_data(link, sls, msg->l2h, msgb_l2len(msg));
 	msgb_free(msg);
 }
 
-static void handle_rlsd(struct sccp_connection_released *rlsd, int from_msc)
+static void handle_rlsd(struct mtp_link *link,
+			struct sccp_connection_released *rlsd, int from_msc)
 {
 	struct active_sccp_con *con;
 
@@ -400,7 +389,7 @@ static void handle_rlsd(struct sccp_connection_released *rlsd, int from_msc)
 		}
 
 		/* now send a rlc back to the BSC */
-		send_rlc_to_bsc(sls, &rlsd->destination_local_reference, &rlsd->source_local_reference);
+		send_rlc_to_bsc(link, sls, &rlsd->destination_local_reference, &rlsd->source_local_reference);
 	}
 }
 
@@ -494,7 +483,7 @@ void update_con_state(struct mtp_link *link, int rc, struct sccp_parse_result *r
 		LOGP(DINP, LOGL_ERROR, "CREF from BSC is not handled.\n");
 		break;
 	case SCCP_MSG_TYPE_RLSD:
-		handle_rlsd((struct sccp_connection_released *) msg->l2h, from_msc);
+		handle_rlsd(link, (struct sccp_connection_released *) msg->l2h, from_msc);
 		break;
 	case SCCP_MSG_TYPE_RLC:
 		if (from_msc) {
@@ -538,7 +527,7 @@ static void send_local_rlsd_for_con(void *data)
 	++con->rls_tries;
 	LOGP(DINP, LOGL_DEBUG, "Sending RLSD for 0x%x the %d time.\n",
 	     sccp_src_ref_to_int(&con->src_ref), con->rls_tries);
-	mtp_link_submit_sccp_data(bsc.link.the_link, con->sls, rlsd->l2h, msgb_l2len(rlsd));
+	mtp_link_submit_sccp_data(con->link, con->sls, rlsd->l2h, msgb_l2len(rlsd));
 	msgb_free(rlsd);
 }
 
@@ -585,7 +574,8 @@ static void sigint()
 	printf("Terminating.\n");
 	handled = 1;
 	if (bsc.setup)
-		bsc.link.shutdown(&bsc.link);
+		link_shutdown_all(&bsc);
+
 	exit(0);
 
 out:
@@ -631,14 +621,15 @@ static void handle_options(int argc, char **argv)
 			print_help();
 			exit(0);
 		case 'p':
-			if (bsc.link.pcap_fd >= 0)
-				close(bsc.link.pcap_fd);
-			bsc.link.pcap_fd = open(optarg, O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP| S_IROTH);
-			if (bsc.link.pcap_fd < 0) {
+			if (bsc.pcap_fd >= 0)
+				close(bsc.pcap_fd);
+			bsc.pcap_fd = open(optarg, O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP| S_IROTH);
+			if (bsc.pcap_fd < 0) {
 				fprintf(stderr, "Failed to open PCAP file.\n");
 				exit(0);
 			}
-			mtp_pcap_write_header(bsc.link.pcap_fd);
+			mtp_pcap_write_header(bsc.pcap_fd);
+			link_set_pcap_fd(&bsc);
 			break;
 		case 'c':
 			config = optarg;
@@ -654,23 +645,11 @@ static void handle_options(int argc, char **argv)
 	}
 }
 
-static void start_rest(void *start)
-{
-	bsc.setup = 1;
-
-	if (msc_init(&bsc, 1) != 0) {
-		fprintf(stderr, "Failed to init MSC part.\n");
-		exit(3);
-	}
-
-	bsc.link.start(&bsc.link);
-}
-
-
 int main(int argc, char **argv)
 {
 	int rc;
 	INIT_LLIST_HEAD(&bsc.sccp_connections);
+	INIT_LLIST_HEAD(&bsc.links);
 
 	bsc.dpc = 1;
 	bsc.opc = 0;
@@ -701,8 +680,8 @@ int main(int argc, char **argv)
 
 	bsc.setup = 0;
 	bsc.msc_address = "127.0.0.1";
-	bsc.link.pcap_fd = -1;
-	bsc.link.udp.reset_timeout = 180;
+	bsc.udp_reset_timeout = 180;
+	bsc.pcap_fd = -1;
 	bsc.ping_time = 20;
 	bsc.pong_time = 5;
 	bsc.msc_time = 20;
@@ -724,51 +703,10 @@ int main(int argc, char **argv)
 	if (rc < 0)
 		return rc;
 
-	bsc.link.the_link = mtp_link_alloc();
-	bsc.link.the_link->dpc = bsc.dpc;
-	bsc.link.the_link->opc = bsc.opc;
-	bsc.link.the_link->sccp_opc = bsc.sccp_opc > -1 ? bsc.sccp_opc : bsc.opc;
-	bsc.link.the_link->link = 0;
-	bsc.link.the_link->sltm_once = bsc.once;
-	bsc.link.the_link->ni = bsc.ni_ni;
-	bsc.link.the_link->spare = bsc.ni_spare;
-	bsc.link.bsc = &bsc;
-
-	if (bsc.udp_ip) {
-		LOGP(DINP, LOGL_NOTICE, "Using UDP MTP mode.\n");
-
-		/* setup SNMP first, it is blocking */
-		bsc.link.udp.session = snmp_mtp_session_create(bsc.udp_ip);
-		if (!bsc.link.udp.session)
-			return -1;
-
-		/* now connect to the transport */
-		if (link_udp_init(&bsc.link, bsc.src_port, bsc.udp_ip, bsc.udp_port) != 0)
-			return -1;
-
-		/* 
-		 * We will ask the MTP link to be taken down for two
-		 * timeouts of the BSC to make sure we are missing the
-		 * SLTM and it begins a reset. Then we will take it up
-		 * again and do the usual business.
-		 */
-		snmp_mtp_deactivate(bsc.link.udp.session);
-		bsc.start_timer.cb = start_rest;
-		bsc.start_timer.data = &bsc;
-		bsc_schedule_timer(&bsc.start_timer, bsc.link.udp.reset_timeout, 0);
-		LOGP(DMSC, LOGL_NOTICE, "Making sure SLTM will timeout.\n");
-	} else {
-		LOGP(DINP, LOGL_NOTICE, "Using NexusWare C7 input.\n");
-		if (link_c7_init(&bsc.link) != 0)
-			return -1;
-
-		/* give time to things to start*/
-		bsc.start_timer.cb = start_rest;
-		bsc.start_timer.data = &bsc;
-		bsc_schedule_timer(&bsc.start_timer, 30, 0);
-		LOGP(DMSC, LOGL_NOTICE, "Waiting to continue to startup.\n");
+	if (link_setup_start(&bsc) != 0) {
+		LOGP(DINP, LOGL_ERROR, "Failed to setup and start the links.\n");
+		return -1;
 	}
-
 
         while (1) {
 		bsc_select_main(0);

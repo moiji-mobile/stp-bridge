@@ -43,6 +43,8 @@ struct snmp_mtp_session;
  * A link to the underlying MTP2 library or such
  */
 struct link_data {
+	struct llist_head entry;
+
 	union {
 		struct {
 			struct thread_notifier *notifier;
@@ -96,7 +98,10 @@ struct bsc_data {
 
 	int setup;
 
-	struct link_data link;
+	int pcap_fd;
+	int udp_reset_timeout;
+	struct llist_head links;
+	struct link_data first_link;
 
 	const char *token;
 
@@ -150,5 +155,15 @@ int link_udp_init(struct link_data *data, int src_port, const char *dest_ip, int
 
 /* MGCP */
 void mgcp_forward(struct bsc_data *bsc, const uint8_t *data, unsigned int length);
+
+/* link help  */
+void link_stop_all(struct bsc_data *bsc);
+void link_reset_all(struct bsc_data *bsc);
+void link_start_all(struct bsc_data *bsc);
+void link_shutdown_all(struct bsc_data *bsc);
+void link_set_pcap_fd(struct bsc_data *bsc);
+void link_set_reset_timeout(struct bsc_data *bsc);
+
+int link_setup_start(struct  bsc_data *bsc);
 
 #endif

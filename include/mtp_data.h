@@ -58,6 +58,7 @@ struct mtp_link {
 
 	/* the associated link */
 	int link;
+	void *data;
 
 	int slta_misses;
 	struct timer_list t1_timer;
