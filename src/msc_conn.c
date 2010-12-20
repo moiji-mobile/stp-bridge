@@ -49,7 +49,6 @@ static void msc_schedule_reconnect(struct bsc_data *bsc);
 
 void msc_clear_queue(struct bsc_data *data)
 {
-	linkset_clear_pending(data);
 }
 
 void msc_close_connection(struct bsc_data *bsc)

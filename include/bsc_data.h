@@ -171,7 +171,6 @@ void link_set_reset_timeout(struct bsc_data *bsc);
 int link_setup_start(struct  bsc_data *bsc);
 
 /* sending messages */
-void linkset_clear_pending(struct bsc_data *data);
 int linkset_send_bsc_msg(struct bsc_data *link, int sls, struct msgb *msg);
 
 #endif

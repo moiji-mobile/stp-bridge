@@ -51,7 +51,6 @@ struct mtp_link {
 	uint8_t test_ptrn[14];
 
 	int sltm_pending;
-	struct llist_head pending_msgs;
 	int sltm_once;
 	int was_up;
 
@@ -83,7 +82,6 @@ void mtp_link_init(void);
 void mtp_link_submit(struct mtp_link *link, struct msgb *msg);
 void mtp_link_forward_sccp(struct mtp_link *link, struct msgb *msg, int sls);
 void mtp_link_restart(struct mtp_link *link);
-void mtp_link_slta_recv(struct mtp_link *link);
 void mtp_link_sccp_down(struct mtp_link *link);
 
 #endif

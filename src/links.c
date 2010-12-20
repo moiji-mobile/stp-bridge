@@ -163,22 +163,6 @@ void mtp_link_sccp_down(struct mtp_link *_link)
 	msc_clear_queue(link->bsc);
 }
 
-void mtp_link_slta_recv(struct mtp_link *link)
-{
-	struct msgb *msg;
-	unsigned int sls;
-
-	while (!llist_empty(&link->pending_msgs)) {
-		msg = msgb_dequeue(&link->pending_msgs);
-		sls = (unsigned int) msg->l3h;
-
-		if (mtp_link_submit_sccp_data(link, sls, msg->l2h, msgb_l2len(msg)) != 0)
-			LOGP(DMSC, LOGL_ERROR, "Could not forward SCCP message.\n");
-
-		msgb_free(msg);
-	}
-}
-
 static struct mtp_link *find_for_sls(struct bsc_data *bsc, int sls)
 {
 	struct link_data *link;
@@ -204,30 +188,9 @@ int linkset_send_bsc_msg(struct bsc_data *bsc, int sls, struct msgb *msg)
 		return 0;
 	}
 
-	if (link->sltm_pending) {
-		LOGP(DMSC, LOGL_NOTICE, "Queueing msg for pending SLTM.\n");
-		msg->l3h = (uint8_t *) sls;
-		msgb_enqueue(&link->pending_msgs, msg);
-		return 1;
-	}
-
 	if (mtp_link_submit_sccp_data(link, sls, msg->l2h, msgb_l2len(msg)) != 0)
 		LOGP(DMSC, LOGL_ERROR, "Could not forward SCCP message.\n");
 	return 0;
-}
-
-void linkset_clear_pending(struct bsc_data *bsc)
-{
-	struct msgb *msg;
-	struct link_data *link;
-
-	LOGP(DINP, LOGL_NOTICE, "Clearing the to network queue.\n");
-	llist_for_each_entry(link, &bsc->links, entry) {
-		while (!llist_empty(&link->the_link->pending_msgs)) {
-			msg = msgb_dequeue(&link->the_link->pending_msgs);
-			msgb_free(msg);
-		}
-	}
 }
 
 /* One of the links of the linkset failed */

@@ -265,7 +265,6 @@ struct mtp_link *mtp_link_alloc(void)
 	link->t2_timer.cb = mtp_sltm_t2_timeout;
 	link->delay_timer.data = link;
 	link->delay_timer.cb = mtp_delayed_start;
-	INIT_LLIST_HEAD(&link->pending_msgs);
 	return link;
 }
 
@@ -395,7 +394,6 @@ static int mtp_link_regular_msg(struct mtp_link *link, struct mtp_level_3_hdr *h
 			/* we had a matching slta */
 			bsc_del_timer(&link->t1_timer);
 			link->sltm_pending = 0;
-			mtp_link_slta_recv(link);
 			return 0;
 			break;
 		}
