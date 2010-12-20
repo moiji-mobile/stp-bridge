@@ -237,3 +237,10 @@ void bsc_link_up(struct link_data *data)
 
 	mtp_link_reset(data->the_link);
 }
+
+void mtp_link_forward_sccp(struct mtp_link *_link, struct msgb *_msg, int sls)
+{
+	struct link_data *link = _link->data;
+
+	linkset_forward_sccp(link->bsc, _msg, sls);
+}

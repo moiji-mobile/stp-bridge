@@ -173,4 +173,7 @@ int link_setup_start(struct  bsc_data *bsc);
 int linkset_send_bsc_msg(struct bsc_data *link, int sls, struct msgb *msg);
 int linkset_send_bsc_data(struct bsc_data *link, int sls, const uint8_t *data, int length);
 
+/* another callback for SCCP data from the linkset */
+void linkset_forward_sccp(struct bsc_data *bsc, struct msgb *msg, int sls);
+
 #endif

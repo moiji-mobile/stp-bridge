@@ -70,7 +70,7 @@ static void send_reset_ack(struct bsc_data *bsc, int sls);
 static void bsc_resources_released(struct bsc_data *bsc);
 static void handle_local_sccp(struct bsc_data *bsc, struct msgb *inp, struct sccp_parse_result *res, int sls);
 static void clear_connections(struct bsc_data *bsc);
-static void send_local_rlsd(struct mtp_link *link, struct sccp_parse_result *res);
+static void send_local_rlsd(struct bsc_data *bsc, struct sccp_parse_result *res);
 
 int link_c7_init(struct link_data *data) __attribute__((__weak__));
 
@@ -92,7 +92,7 @@ static void mgcp_reset(struct bsc_data *bsc)
 /*
  * methods called from the MTP Level3 part
  */
-void mtp_link_forward_sccp(struct mtp_link *link, struct msgb *_msg, int sls)
+void linkset_forward_sccp(struct bsc_data *bsc, struct msgb *_msg, int sls)
 {
 	int rc;
 	struct sccp_parse_result result;
@@ -100,17 +100,17 @@ void mtp_link_forward_sccp(struct mtp_link *link, struct msgb *_msg, int sls)
 	rc = bss_patch_filter_msg(_msg, &result);
 	if (rc == BSS_FILTER_RESET) {
 		LOGP(DMSC, LOGL_NOTICE, "Filtering BSS Reset from the BSC\n");
-		mgcp_reset(&bsc);
-		send_reset_ack(&bsc, sls);
+		mgcp_reset(bsc);
+		send_reset_ack(bsc, sls);
 		return;
 	}
 
 	/* special responder */
-	if (bsc.msc_link_down) {
-		if (rc == BSS_FILTER_RESET_ACK && bsc.reset_count > 0) {
+	if (bsc->msc_link_down) {
+		if (rc == BSS_FILTER_RESET_ACK && bsc->reset_count > 0) {
 			LOGP(DMSC, LOGL_ERROR, "Received reset ack for closing.\n");
-			clear_connections(&bsc);
-			bsc_resources_released(&bsc);
+			clear_connections(bsc);
+			bsc_resources_released(bsc);
 			return;
 		}
 
@@ -119,21 +119,21 @@ void mtp_link_forward_sccp(struct mtp_link *link, struct msgb *_msg, int sls)
 			return;
 		}
 
-		return handle_local_sccp(&bsc, _msg, &result, sls);
+		return handle_local_sccp(bsc, _msg, &result, sls);
 	}
 
 	/* update the connection state */
-	update_con_state(&bsc, rc, &result, _msg, 0, sls);
+	update_con_state(bsc, rc, &result, _msg, 0, sls);
 
 	if (rc == BSS_FILTER_CLEAR_COMPL) {
-		send_local_rlsd(link, &result);
+		send_local_rlsd(bsc, &result);
 	} else if (rc == BSS_FILTER_RLC || rc == BSS_FILTER_RLSD) {
 		LOGP(DMSC, LOGL_DEBUG, "Not forwarding RLC/RLSD to the MSC.\n");
 		return;
 	}
 
 
-	msc_send_msg(&bsc, rc, &result, _msg);
+	msc_send_msg(bsc, rc, &result, _msg);
 }
 
 /*
@@ -513,7 +513,7 @@ static void send_local_rlsd_for_con(void *data)
 	msgb_free(rlsd);
 }
 
-static void send_local_rlsd(struct mtp_link *link, struct sccp_parse_result *res)
+static void send_local_rlsd(struct bsc_data *bsc, struct sccp_parse_result *res)
 {
 	struct active_sccp_con *con;
 

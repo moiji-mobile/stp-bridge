@@ -73,9 +73,9 @@ int link_c7_init(struct link_data *data)
 /*
  * methods called from the MTP Level3 part
  */
-void mtp_link_forward_sccp(struct mtp_link *link, struct msgb *_msg, int sls)
+void linkset_forward_sccp(struct bsc_data *bsc, struct msgb *_msg, int sls)
 {
-	msc_send_direct(&bsc, _msg);
+	msc_send_direct(bsc, _msg);
 }
 
 void bsc_linkset_down(struct bsc_data *bsc)
