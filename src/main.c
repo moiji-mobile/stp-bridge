@@ -299,37 +299,26 @@ void release_bsc_resources(struct bsc_data *bsc)
 	msc_clear_queue(bsc);
 }
 
-void bsc_link_down(struct link_data *data)
+void bsc_linkset_down(struct bsc_data *bsc)
 {
-	int was_up;
-	struct mtp_link *link = data->the_link;
-
-	link->available = 0;
-	was_up = link->sccp_up;
-	mtp_link_stop(link);
-	clear_connections(data->bsc);
-	mgcp_reset(data->bsc);
-
-	data->clear_queue(data);
+	clear_connections(bsc);
 
 	/* clear pending messages from the MSC */
-	msc_clear_queue(data->bsc);
+	msc_clear_queue(bsc);
 
 	/* If we have an A link send a reset to the MSC */
-	msc_send_reset(data->bsc);
+	msc_send_reset(bsc);
+
+	mgcp_reset(bsc);
 }
 
-void bsc_link_up(struct link_data *data)
+void bsc_linkset_up(struct bsc_data *bsc)
 {
-	data->the_link->available = 1;
-
 	/* we have not gone through link down */
-	if (data->bsc->msc_link_down) {
-		clear_connections(data->bsc);
-		bsc_resources_released(data->bsc);
+	if (bsc->msc_link_down) {
+		clear_connections(bsc);
+		bsc_resources_released(bsc);
 	}
-
-	mtp_link_reset(data->the_link);
 }
 
 /**

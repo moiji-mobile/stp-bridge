@@ -78,28 +78,17 @@ void mtp_link_forward_sccp(struct mtp_link *link, struct msgb *_msg, int sls)
 	msc_send_direct(&bsc, _msg);
 }
 
-void bsc_link_down(struct link_data *data)
+void bsc_linkset_down(struct bsc_data *bsc)
 {
-	int was_up;
-	struct mtp_link *link = data->the_link;
-
-	link->available = 0;
-	was_up = link->sccp_up;
-	mtp_link_stop(link);
-
-	data->clear_queue(data);
-
 	/* clear pending messages from the MSC */
-	msc_clear_queue(data->bsc);
+	msc_clear_queue(bsc);
 
 	/* If we have an A link send a reset to the MSC */
-	msc_send_reset(data->bsc);
+	msc_send_reset(bsc);
 }
 
-void bsc_link_up(struct link_data *data)
+void bsc_linkset_up(struct bsc_data *data)
 {
-	data->the_link->available = 1;
-	mtp_link_reset(data->the_link);
 }
 
 static void print_usage()

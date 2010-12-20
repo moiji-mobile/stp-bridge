@@ -134,6 +134,10 @@ void release_bsc_resources(struct bsc_data *bsc);
 void bsc_link_down(struct link_data *data);
 void bsc_link_up(struct link_data *data);
 
+/* linkset related */
+void bsc_linkset_down(struct bsc_data *bsc);
+void bsc_linkset_up(struct bsc_data *bsc);
+
 /* msc related functions */
 int msc_init(struct bsc_data *bsc, int mgcp);
 void msc_send_rlc(struct bsc_data *bsc, struct sccp_source_reference *src, struct sccp_source_reference *dest);

@@ -229,3 +229,45 @@ void linkset_clear_pending(struct bsc_data *bsc)
 		}
 	}
 }
+
+/* One of the links of the linkset failed */
+void bsc_link_down(struct link_data *data)
+{
+	struct link_data *link;
+	struct bsc_data *bsc;
+	int one_up = 0;
+
+	bsc = data->bsc;
+	data->the_link->available = 0;
+
+	llist_for_each_entry(link, &bsc->links, entry)
+		one_up |= link->the_link->available;
+
+
+	mtp_link_stop(data->the_link);
+
+	if (!one_up)
+		bsc_linkset_down(bsc);
+
+	data->clear_queue(data);
+}
+
+/* One of the links of the linkset is back */
+void bsc_link_up(struct link_data *data)
+{
+	struct link_data *link;
+	struct bsc_data *bsc;
+	int one_up = 0;
+
+	bsc = data->bsc;
+	llist_for_each_entry(link, &bsc->links, entry)
+		one_up |= link->the_link->available;
+
+	data->the_link->available = 1;
+
+	/* if at least one link is back... report it as up */
+	if (!one_up)
+		bsc_linkset_up(bsc);
+
+	mtp_link_reset(data->the_link);
+}
