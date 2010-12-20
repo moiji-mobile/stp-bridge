@@ -111,8 +111,11 @@ int link_setup_start(struct bsc_data *bsc)
 		if (!bsc->first_link.udp.session)
 			return -1;
 
+		if (link_udp_network_init(bsc) != 0)
+			return -1;
+
 		/* now connect to the transport */
-		if (link_udp_init(&bsc->first_link, bsc->src_port, bsc->udp_ip, bsc->udp_port) != 0)
+		if (link_udp_init(&bsc->first_link, bsc->udp_ip, bsc->udp_port) != 0)
 			return -1;
 
 		/*

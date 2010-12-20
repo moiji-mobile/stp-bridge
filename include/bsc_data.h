@@ -52,9 +52,8 @@ struct link_data {
 			struct timer_list mtp_timeout;
 		} c7;
 		struct {
-			struct write_queue write_queue;
-			struct sockaddr_in remote;
 			struct snmp_mtp_session *session;
+			struct sockaddr_in remote;
 			int link_index;
 			int reset_timeout;
 		} udp;
@@ -128,6 +127,9 @@ struct bsc_data {
 	uint16_t lac;
 
 	int forward_only;
+
+	/* UDP socket code */
+	struct write_queue udp_write_queue;
 };
 
 /* bsc related functions */
@@ -155,7 +157,8 @@ unsigned int sls_for_src_ref(struct sccp_source_reference *ref);
 int link_c7_init(struct link_data *data);
 
 /* udp init */
-int link_udp_init(struct link_data *data, int src_port, const char *dest_ip, int port);
+int link_udp_network_init(struct bsc_data *bsc);
+int link_udp_init(struct link_data *link, const char *ip, int port);
 
 /* MGCP */
 void mgcp_forward(struct bsc_data *bsc, const uint8_t *data, unsigned int length);

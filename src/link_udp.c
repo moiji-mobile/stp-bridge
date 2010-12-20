@@ -36,12 +36,32 @@
 #include <string.h>
 #include <unistd.h>
 
+#define OSMO_CB_LI(msg) msg->cb[0]
+
+static struct link_data *find_link(struct bsc_data *bsc, int link_index)
+{
+	struct link_data *link;
+
+	llist_for_each_entry(link, &bsc->links, entry)
+		if (link->udp.link_index == link_index)
+			return link;
+
+	return NULL;
+}
+
 static int udp_write_cb(struct bsc_fd *fd, struct msgb *msg)
 {
+	struct bsc_data *bsc;
 	struct link_data *link;
 	int rc;
 
-	link = (struct link_data *) fd->data;
+	bsc = (struct bsc_data *) fd->data;
+
+	link = find_link(bsc, OSMO_CB_LI(msg));
+	if (!link) {
+		LOGP(DINP, LOGL_ERROR, "No link_data for %lu\n", OSMO_CB_LI(msg));
+		return -1;
+	}
 
 	LOGP(DINP, LOGL_DEBUG, "Sending MSU: %s\n", hexdump(msg->data, msg->len));
 	if (link->pcap_fd >= 0)
@@ -60,6 +80,7 @@ static int udp_write_cb(struct bsc_fd *fd, struct msgb *msg)
 
 static int udp_read_cb(struct bsc_fd *fd)
 {
+	struct bsc_data *bsc;
 	struct link_data *link;
 	struct udp_data_hdr *hdr;
 	struct msgb *msg;
@@ -73,10 +94,19 @@ static int udp_read_cb(struct bsc_fd *fd)
 	}
 	    
 
-	link = (struct link_data *) fd->data;
+	bsc = (struct bsc_data *) fd->data;
 	rc = read(fd->fd, msg->data, 2096);
 	if (rc < sizeof(*hdr)) {
 		LOGP(DINP, LOGL_ERROR, "Failed to read at least size of the header: %d\n", rc);
+		rc = -1;
+		goto exit;
+	}
+
+	hdr = (struct udp_data_hdr *) msgb_put(msg, sizeof(*hdr));
+
+	link = find_link(bsc, ntohs(hdr->data_link_index));
+	if (!link) {
+		LOGP(DINP, LOGL_ERROR, "Failed to find a link.\n");
 		rc = -1;
 		goto exit;
 	}
@@ -88,7 +118,6 @@ static int udp_read_cb(struct bsc_fd *fd)
 		goto exit;
 	}
 
-	hdr = (struct udp_data_hdr *) msgb_put(msg, sizeof(*hdr));
 
 	if (hdr->data_type == UDP_DATA_RETR_COMPL || hdr->data_type == UDP_DATA_RETR_IMPOS) {
 		LOGP(DINP, LOGL_ERROR, "Link retrieval done. Restarting the link.\n");
@@ -161,7 +190,9 @@ static int udp_link_write(struct link_data *link, struct msgb *msg)
 	hdr->user_context = 0;
 	hdr->data_length = htonl(msgb_l2len(msg));
 
-	if (write_queue_enqueue(&link->udp.write_queue, msg) != 0) {
+	OSMO_CB_LI(msg) = link->udp.link_index;
+
+	if (write_queue_enqueue(&link->bsc->udp_write_queue, msg) != 0) {
 		LOGP(DINP, LOGL_ERROR, "Failed to enqueue msg.\n");
 		msgb_free(msg);
 		return -1;
@@ -177,29 +208,21 @@ static int udp_link_start(struct link_data *link)
 	return 0;
 }
 
-int link_udp_init(struct link_data *link, int src_port, const char *remote, int remote_port)
+int link_udp_network_init(struct bsc_data *bsc)
 {
 	struct sockaddr_in addr;
 	int fd;
 	int on;
 
-	write_queue_init(&link->udp.write_queue, 100);
-
-	/* function table */
-	link->shutdown = udp_link_dummy;
-	link->clear_queue = udp_link_dummy;
-
-	link->reset = udp_link_reset;
-	link->start = udp_link_start;
-	link->write = udp_link_write;
+	write_queue_init(&bsc->udp_write_queue, 100);
 
 	/* socket creation */
-	link->udp.write_queue.bfd.data = link;
-	link->udp.write_queue.bfd.when = BSC_FD_READ;
-	link->udp.write_queue.read_cb = udp_read_cb;
-	link->udp.write_queue.write_cb = udp_write_cb;
+	bsc->udp_write_queue.bfd.data = bsc;
+	bsc->udp_write_queue.bfd.when = BSC_FD_READ;
+	bsc->udp_write_queue.read_cb = udp_read_cb;
+	bsc->udp_write_queue.write_cb = udp_write_cb;
 
-	link->udp.write_queue.bfd.fd = fd = socket(AF_INET, SOCK_DGRAM, 0);
+	bsc->udp_write_queue.bfd.fd = fd = socket(AF_INET, SOCK_DGRAM, 0);
 	if (fd < 0) {
 		LOGP(DINP, LOGL_ERROR, "Failed to create UDP socket.\n");
 		return -1;
@@ -210,7 +233,7 @@ int link_udp_init(struct link_data *link, int src_port, const char *remote, int 
 
 	memset(&addr, 0, sizeof(addr));
 	addr.sin_family = AF_INET;
-	addr.sin_port = htons(src_port);
+	addr.sin_port = htons(bsc->src_port);
 	addr.sin_addr.s_addr = INADDR_ANY;
 
 	if (bind(fd, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
@@ -220,16 +243,30 @@ int link_udp_init(struct link_data *link, int src_port, const char *remote, int 
 	}
 
 	/* now connect the socket to the remote */
-	memset(&link->udp.remote, 0, sizeof(link->udp.remote));
-	link->udp.remote.sin_family = AF_INET;
-	link->udp.remote.sin_port = htons(remote_port);
-	inet_aton(remote, &link->udp.remote.sin_addr);
 
-	if (bsc_register_fd(&link->udp.write_queue.bfd) != 0) {
+	if (bsc_register_fd(&bsc->udp_write_queue.bfd) != 0) {
 		LOGP(DINP, LOGL_ERROR, "Failed to register BFD.\n");
 		close(fd);
 		return -1;
 	}
+
+	return 0;
+}
+
+int link_udp_init(struct link_data *link, const char *remote, int remote_port)
+{
+	/* function table */
+	link->shutdown = udp_link_dummy;
+	link->clear_queue = udp_link_dummy;
+
+	link->reset = udp_link_reset;
+	link->start = udp_link_start;
+	link->write = udp_link_write;
+
+	memset(&link->udp.remote, 0, sizeof(link->udp.remote));
+	link->udp.remote.sin_family = AF_INET;
+	link->udp.remote.sin_port = htons(remote_port);
+	inet_aton(remote, &link->udp.remote.sin_addr);
 
 	return 0;
 }
