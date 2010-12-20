@@ -103,44 +103,37 @@ int link_setup_start(struct bsc_data *bsc)
 
 	llist_add(&bsc->first_link.entry, &bsc->links);
 
-	if (bsc->udp_ip) {
-		LOGP(DINP, LOGL_NOTICE, "Using UDP MTP mode.\n");
-
-		/* setup SNMP first, it is blocking */
-		bsc->first_link.udp.session = snmp_mtp_session_create(bsc->udp_ip);
-		if (!bsc->first_link.udp.session)
-			return -1;
-
-		if (link_udp_network_init(bsc) != 0)
-			return -1;
-
-		/* now connect to the transport */
-		if (link_udp_init(&bsc->first_link, bsc->udp_ip, bsc->udp_port) != 0)
-			return -1;
-
-		/*
-		 * We will ask the MTP link to be taken down for two
-		 * timeouts of the BSC to make sure we are missing the
-		 * SLTM and it begins a reset. Then we will take it up
-		 * again and do the usual business.
-		 */
-		snmp_mtp_deactivate(bsc->first_link.udp.session,
-				    bsc->first_link.udp.link_index);
-		bsc->start_timer.cb = start_rest;
-		bsc->start_timer.data = bsc;
-		bsc_schedule_timer(&bsc->start_timer, bsc->udp_reset_timeout, 0);
-		LOGP(DMSC, LOGL_NOTICE, "Making sure SLTM will timeout.\n");
-	} else {
-		LOGP(DINP, LOGL_NOTICE, "Using NexusWare C7 input.\n");
-		if (link_c7_init(&bsc->first_link) != 0)
-			return -1;
-
-		/* give time to things to start*/
-		bsc->start_timer.cb = start_rest;
-		bsc->start_timer.data = bsc;
-		bsc_schedule_timer(&bsc->start_timer, 30, 0);
-		LOGP(DMSC, LOGL_NOTICE, "Waiting to continue to startup.\n");
+	if (!bsc->udp_ip) {
+		LOGP(DINP, LOGL_ERROR, "Need to set a UDP IP.\n");
+		return -1;
 	}
+
+	LOGP(DINP, LOGL_NOTICE, "Using UDP MTP mode.\n");
+
+	/* setup SNMP first, it is blocking */
+	bsc->first_link.udp.session = snmp_mtp_session_create(bsc->udp_ip);
+	if (!bsc->first_link.udp.session)
+		return -1;
+
+	if (link_udp_network_init(bsc) != 0)
+		return -1;
+
+	/* now connect to the transport */
+	if (link_udp_init(&bsc->first_link, bsc->udp_ip, bsc->udp_port) != 0)
+		return -1;
+
+	/*
+	 * We will ask the MTP link to be taken down for two
+	 * timeouts of the BSC to make sure we are missing the
+	 * SLTM and it begins a reset. Then we will take it up
+	 * again and do the usual business.
+	 */
+	snmp_mtp_deactivate(bsc->first_link.udp.session,
+			    bsc->first_link.udp.link_index);
+	bsc->start_timer.cb = start_rest;
+	bsc->start_timer.data = bsc;
+	bsc_schedule_timer(&bsc->start_timer, bsc->udp_reset_timeout, 0);
+	LOGP(DMSC, LOGL_NOTICE, "Making sure SLTM will timeout.\n");
 
 	return 0;
 }
