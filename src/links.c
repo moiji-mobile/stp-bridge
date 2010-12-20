@@ -159,8 +159,6 @@ void mtp_link_restart(struct mtp_link *_link)
 
 void mtp_link_sccp_down(struct mtp_link *_link)
 {
-	struct link_data *link = _link->data;
-	msc_clear_queue(link->bsc);
 }
 
 static struct mtp_link *find_for_sls(struct bsc_data *bsc, int sls)

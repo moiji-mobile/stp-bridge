@@ -100,7 +100,6 @@ void mtp_link_forward_sccp(struct mtp_link *link, struct msgb *_msg, int sls)
 	rc = bss_patch_filter_msg(_msg, &result);
 	if (rc == BSS_FILTER_RESET) {
 		LOGP(DMSC, LOGL_NOTICE, "Filtering BSS Reset from the BSC\n");
-		msc_clear_queue(&bsc);
 		mgcp_reset(&bsc);
 		send_reset_ack(link, sls);
 		return;
@@ -294,17 +293,11 @@ void release_bsc_resources(struct bsc_data *bsc)
 		bsc->reset_count = 0;
 		bsc_schedule_timer(&bsc->reset_timeout, 10, 0);
 	}
-
-	/* clear pending messages from the MSC */
-	msc_clear_queue(bsc);
 }
 
 void bsc_linkset_down(struct bsc_data *bsc)
 {
 	clear_connections(bsc);
-
-	/* clear pending messages from the MSC */
-	msc_clear_queue(bsc);
 
 	/* If we have an A link send a reset to the MSC */
 	msc_send_reset(bsc);

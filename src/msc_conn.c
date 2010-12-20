@@ -47,10 +47,6 @@ static void msc_send_id_response(struct bsc_data *bsc);
 static void msc_send(struct bsc_data *bsc, struct msgb *msg, int proto);
 static void msc_schedule_reconnect(struct bsc_data *bsc);
 
-void msc_clear_queue(struct bsc_data *data)
-{
-}
-
 void msc_close_connection(struct bsc_data *bsc)
 {
 	struct bsc_fd *bfd = &bsc->msc_connection.bfd;

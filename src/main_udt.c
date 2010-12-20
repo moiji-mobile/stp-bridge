@@ -80,9 +80,6 @@ void mtp_link_forward_sccp(struct mtp_link *link, struct msgb *_msg, int sls)
 
 void bsc_linkset_down(struct bsc_data *bsc)
 {
-	/* clear pending messages from the MSC */
-	msc_clear_queue(bsc);
-
 	/* If we have an A link send a reset to the MSC */
 	msc_send_reset(bsc);
 }
@@ -254,8 +251,6 @@ int main(int argc, char **argv)
 
 void release_bsc_resources(struct bsc_data *bsc)
 {
-	/* clear pending messages from the MSC */
-	msc_clear_queue(bsc);
 }
 
 struct msgb *create_sccp_rlc(struct sccp_source_reference *src_ref,
