@@ -266,7 +266,7 @@ struct msgb *create_reset()
 	return NULL;
 }
 
-void update_con_state(struct mtp_link *link, int rc, struct sccp_parse_result *res, struct msgb *msg, int from_msc, int sls)
+void update_con_state(struct bsc_data *bsc, int rc, struct sccp_parse_result *res, struct msgb *msg, int from_msc, int sls)
 {
 	LOGP(DMSC, LOGL_ERROR, "Should not be called.\n");
 	return;

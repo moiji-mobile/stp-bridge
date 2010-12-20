@@ -173,6 +173,11 @@ static struct mtp_link *find_for_sls(struct bsc_data *bsc, int sls)
 
 int linkset_send_bsc_msg(struct bsc_data *bsc, int sls, struct msgb *msg)
 {
+	return linkset_send_bsc_data(bsc, sls, msg->l2h, msgb_l2len(msg));
+}
+
+int linkset_send_bsc_data(struct bsc_data *bsc, int sls, const uint8_t *data, int len)
+{
 	struct mtp_link *link;
 
 	link = find_for_sls(bsc, sls);
@@ -186,7 +191,7 @@ int linkset_send_bsc_msg(struct bsc_data *bsc, int sls, struct msgb *msg)
 		return 0;
 	}
 
-	if (mtp_link_submit_sccp_data(link, sls, msg->l2h, msgb_l2len(msg)) != 0)
+	if (mtp_link_submit_sccp_data(link, sls, data, len) != 0)
 		LOGP(DMSC, LOGL_ERROR, "Could not forward SCCP message.\n");
 	return 0;
 }

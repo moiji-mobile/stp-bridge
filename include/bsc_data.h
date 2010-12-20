@@ -147,7 +147,7 @@ void msc_send_direct(struct bsc_data *bsc, struct msgb *msg);
 void msc_close_connection(struct bsc_data *data);
 
 /* connection tracking and action */
-void update_con_state(struct mtp_link *link, int rc, struct sccp_parse_result *result, struct msgb *msg, int from_msc, int sls);
+void update_con_state(struct bsc_data *bsc, int rc, struct sccp_parse_result *result, struct msgb *msg, int from_msc, int sls);
 unsigned int sls_for_src_ref(struct sccp_source_reference *ref);
 
 /* c7 init */
@@ -171,5 +171,6 @@ int link_setup_start(struct  bsc_data *bsc);
 
 /* sending messages */
 int linkset_send_bsc_msg(struct bsc_data *link, int sls, struct msgb *msg);
+int linkset_send_bsc_data(struct bsc_data *link, int sls, const uint8_t *data, int length);
 
 #endif

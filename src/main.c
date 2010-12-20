@@ -66,9 +66,9 @@ static char *config = "cellmgr_ng.cfg";
 struct bsc_data bsc;
 extern void cell_vty_init(void);
 
-static void send_reset_ack(struct mtp_link *link, int sls);
+static void send_reset_ack(struct bsc_data *bsc, int sls);
 static void bsc_resources_released(struct bsc_data *bsc);
-static void handle_local_sccp(struct mtp_link *link, struct msgb *inp, struct sccp_parse_result *res, int sls);
+static void handle_local_sccp(struct bsc_data *bsc, struct msgb *inp, struct sccp_parse_result *res, int sls);
 static void clear_connections(struct bsc_data *bsc);
 static void send_local_rlsd(struct mtp_link *link, struct sccp_parse_result *res);
 
@@ -101,7 +101,7 @@ void mtp_link_forward_sccp(struct mtp_link *link, struct msgb *_msg, int sls)
 	if (rc == BSS_FILTER_RESET) {
 		LOGP(DMSC, LOGL_NOTICE, "Filtering BSS Reset from the BSC\n");
 		mgcp_reset(&bsc);
-		send_reset_ack(link, sls);
+		send_reset_ack(&bsc, sls);
 		return;
 	}
 
@@ -119,11 +119,11 @@ void mtp_link_forward_sccp(struct mtp_link *link, struct msgb *_msg, int sls)
 			return;
 		}
 
-		return handle_local_sccp(link, _msg, &result, sls);
+		return handle_local_sccp(&bsc, _msg, &result, sls);
 	}
 
 	/* update the connection state */
-	update_con_state(link, rc, &result, _msg, 0, sls);
+	update_con_state(&bsc, rc, &result, _msg, 0, sls);
 
 	if (rc == BSS_FILTER_CLEAR_COMPL) {
 		send_local_rlsd(link, &result);
@@ -139,7 +139,7 @@ void mtp_link_forward_sccp(struct mtp_link *link, struct msgb *_msg, int sls)
 /*
  * handle local message in close down mode
  */
-static void handle_local_sccp(struct mtp_link *link, struct msgb *inpt, struct sccp_parse_result *result, int sls)
+static void handle_local_sccp(struct bsc_data *bsc, struct msgb *inpt, struct sccp_parse_result *result, int sls)
 {
 	/* Handle msg with a reject */
 	if (inpt->l2h[0] == SCCP_MSG_TYPE_CR) {
@@ -150,7 +150,7 @@ static void handle_local_sccp(struct mtp_link *link, struct msgb *inpt, struct s
 		cr = (struct sccp_connection_request *) inpt->l2h;
 		msg = create_sccp_refuse(&cr->source_local_reference);
 		if (msg) {
-			mtp_link_submit_sccp_data(link, sls, msg->l2h, msgb_l2len(msg));
+			linkset_send_bsc_msg(bsc, sls, msg);
 			msgb_free(msg);
 		}
 		return;
@@ -164,13 +164,13 @@ static void handle_local_sccp(struct mtp_link *link, struct msgb *inpt, struct s
 
 			form1 = (struct sccp_data_form1 *) inpt->l2h;
 
-			llist_for_each_entry(con, &bsc.sccp_connections, entry) {
+			llist_for_each_entry(con, &bsc->sccp_connections, entry) {
 				if (memcmp(&form1->destination_local_reference,
 					   &con->dst_ref, sizeof(con->dst_ref)) == 0) {
 					LOGP(DINP, LOGL_DEBUG, "Sending a release request now.\n");
 					msg = create_sccp_rlsd(&con->dst_ref, &con->src_ref);
 					if (msg) {
-						mtp_link_submit_sccp_data(link, con->sls, msg->l2h, msgb_l2len(msg));
+						linkset_send_bsc_msg(con->bsc, con->sls, msg);
 						msgb_free(msg);
 					}
 					return;
@@ -182,16 +182,16 @@ static void handle_local_sccp(struct mtp_link *link, struct msgb *inpt, struct s
 	} else if (inpt->l2h[0] == SCCP_MSG_TYPE_UDT && result->data_len >= 3) {
 		if (inpt->l3h[0] == 0 && inpt->l3h[2] == BSS_MAP_MSG_RESET_ACKNOWLEDGE) {
 			LOGP(DINP, LOGL_NOTICE, "Reset ACK. Connecting to the MSC again.\n");
-			bsc_resources_released(&bsc);
+			bsc_resources_released(bsc);
 			return;
 		}
 	}
 
 
 	/* Update the state, maybe the connection was released? */
-	update_con_state(link, 0, result, inpt, 0, sls);
-	if (llist_empty(&bsc.sccp_connections))
-		bsc_resources_released(&bsc);
+	update_con_state(bsc, 0, result, inpt, 0, sls);
+	if (llist_empty(&bsc->sccp_connections))
+		bsc_resources_released(bsc);
 	return;
 }
 
@@ -235,7 +235,7 @@ static void bsc_reset_timeout(void *_data)
 	}
 
 	++bsc->reset_count;
-	mtp_link_submit_sccp_data(bsc->first_link.the_link, 13, msg->l2h, msgb_l2len(msg));
+	linkset_send_bsc_msg(bsc, 13, msg);
 	msgb_free(msg);
 	bsc_schedule_timer(&bsc->reset_timeout, 20, 0);
 }
@@ -280,7 +280,7 @@ void release_bsc_resources(struct bsc_data *bsc)
 			continue;
 
 		/* wait for the clear commands */
-		mtp_link_submit_sccp_data(con->link, con->sls, msg->l2h, msgb_l2len(msg));
+		linkset_send_bsc_msg(con->bsc, con->sls, msg);
 		msgb_free(msg);
 	}
 
@@ -317,7 +317,7 @@ void bsc_linkset_up(struct bsc_data *bsc)
 /**
  * update the connection state and helpers below
  */
-static void send_rlc_to_bsc(struct mtp_link *link, unsigned int sls,
+static void send_rlc_to_bsc(struct bsc_data *bsc, unsigned int sls,
 			    struct sccp_source_reference *src,
 			    struct sccp_source_reference *dst)
 {
@@ -327,11 +327,11 @@ static void send_rlc_to_bsc(struct mtp_link *link, unsigned int sls,
 	if (!msg)
 		return;
 
-	mtp_link_submit_sccp_data(link, sls, msg->l2h, msgb_l2len(msg));
+	linkset_send_bsc_msg(bsc, sls, msg);
 	msgb_free(msg);
 }
 
-static void handle_rlsd(struct mtp_link *link,
+static void handle_rlsd(struct bsc_data *bsc,
 			struct sccp_connection_released *rlsd, int from_msc)
 {
 	struct active_sccp_con *con;
@@ -350,7 +350,7 @@ static void handle_rlsd(struct mtp_link *link,
 			LOGP(DINP, LOGL_DEBUG, "Sending RLC for MSC: src: 0x%x dst: 0x%x\n",
 			     sccp_src_ref_to_int(&rlsd->destination_local_reference),
 			     sccp_src_ref_to_int(&rlsd->source_local_reference));
-			msc_send_rlc(&bsc, &rlsd->destination_local_reference,
+			msc_send_rlc(bsc, &rlsd->destination_local_reference,
 				 &rlsd->source_local_reference);
 		}
 	} else {
@@ -362,7 +362,7 @@ static void handle_rlsd(struct mtp_link *link,
 			     sccp_src_ref_to_int(&rlsd->source_local_reference));
 
 			if (con->released_from_msc)
-				msc_send_rlc(&bsc, &con->src_ref, &con->dst_ref);
+				msc_send_rlc(bsc, &con->src_ref, &con->dst_ref);
 			sls = con->sls;
 			free_con(con);
 		} else {
@@ -371,7 +371,7 @@ static void handle_rlsd(struct mtp_link *link,
 		}
 
 		/* now send a rlc back to the BSC */
-		send_rlc_to_bsc(link, sls, &rlsd->destination_local_reference, &rlsd->source_local_reference);
+		send_rlc_to_bsc(bsc, sls, &rlsd->destination_local_reference, &rlsd->source_local_reference);
 	}
 }
 
@@ -389,7 +389,7 @@ static void handle_rlsd(struct mtp_link *link,
  *      1.) We are destroying the connection, we might send a RLC to
  *          the MSC if we are waiting for one.
  */
-void update_con_state(struct mtp_link *link, int rc, struct sccp_parse_result *res, struct msgb *msg, int from_msc, int sls)
+void update_con_state(struct bsc_data *bsc, int rc, struct sccp_parse_result *res, struct msgb *msg, int from_msc, int sls)
 {
 	struct active_sccp_con *con;
 	struct sccp_connection_request *cr;
@@ -425,8 +425,8 @@ void update_con_state(struct mtp_link *link, int rc, struct sccp_parse_result *r
 
 		con->src_ref = cr->source_local_reference;
 		con->sls = sls;
-		con->link = link;
-		llist_add_tail(&con->entry, &bsc.sccp_connections);
+		con->bsc = bsc;
+		llist_add_tail(&con->entry, &bsc->sccp_connections);
 		LOGP(DINP, LOGL_DEBUG, "Adding CR: local ref: 0x%x\n", sccp_src_ref_to_int(&con->src_ref));
 		break;
 	case SCCP_MSG_TYPE_CC:
@@ -465,7 +465,7 @@ void update_con_state(struct mtp_link *link, int rc, struct sccp_parse_result *r
 		LOGP(DINP, LOGL_ERROR, "CREF from BSC is not handled.\n");
 		break;
 	case SCCP_MSG_TYPE_RLSD:
-		handle_rlsd(link, (struct sccp_connection_released *) msg->l2h, from_msc);
+		handle_rlsd(bsc, (struct sccp_connection_released *) msg->l2h, from_msc);
 		break;
 	case SCCP_MSG_TYPE_RLC:
 		if (from_msc) {
@@ -479,7 +479,7 @@ void update_con_state(struct mtp_link *link, int rc, struct sccp_parse_result *r
 		if (con) {
 			LOGP(DINP, LOGL_DEBUG, "Releasing local: 0x%x\n", sccp_src_ref_to_int(&con->src_ref));
 			if (con->released_from_msc)
-				msc_send_rlc(&bsc, &con->src_ref, &con->dst_ref);
+				msc_send_rlc(bsc, &con->src_ref, &con->dst_ref);
 			free_con(con);
 			return;
 		}
@@ -509,7 +509,7 @@ static void send_local_rlsd_for_con(void *data)
 	++con->rls_tries;
 	LOGP(DINP, LOGL_DEBUG, "Sending RLSD for 0x%x the %d time.\n",
 	     sccp_src_ref_to_int(&con->src_ref), con->rls_tries);
-	mtp_link_submit_sccp_data(con->link, con->sls, rlsd->l2h, msgb_l2len(rlsd));
+	linkset_send_bsc_msg(con->bsc, con->sls, rlsd);
 	msgb_free(rlsd);
 }
 
@@ -526,7 +526,7 @@ static void send_local_rlsd(struct mtp_link *link, struct sccp_parse_result *res
 	send_local_rlsd_for_con(con);
 }
 
-static void send_reset_ack(struct mtp_link *link, int sls)
+static void send_reset_ack(struct bsc_data *bsc, int sls)
 {
 	static const uint8_t reset_ack[] = {
 		0x09, 0x00, 0x03, 0x05, 0x7, 0x02, 0x42, 0xfe,
@@ -534,7 +534,7 @@ static void send_reset_ack(struct mtp_link *link, int sls)
 		0x00, 0x01, 0x31
 	};
 
-	mtp_link_submit_sccp_data(link, sls, reset_ack, sizeof(reset_ack));
+	linkset_send_bsc_data(bsc, sls, reset_ack, sizeof(reset_ack));
 }
 
 static void print_usage()

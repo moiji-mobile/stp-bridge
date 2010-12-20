@@ -54,8 +54,8 @@ struct active_sccp_con {
 	/* how often did we send a RLSD this */
 	unsigned int rls_tries;
 
-	/* MTP link this was coming in */
-	struct mtp_link *link;
+	/* Link set this was coming in. */
+	struct bsc_data *bsc;
 
 	/* sls id */
 	int sls;
