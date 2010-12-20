@@ -47,49 +47,9 @@ static void msc_send_id_response(struct bsc_data *bsc);
 static void msc_send(struct bsc_data *bsc, struct msgb *msg, int proto);
 static void msc_schedule_reconnect(struct bsc_data *bsc);
 
-void mtp_link_slta_recv(struct mtp_link *link)
-{
-	struct msgb *msg;
-	unsigned int sls;
-
-	while (!llist_empty(&link->pending_msgs)) {
-		msg = msgb_dequeue(&link->pending_msgs);
-		sls = (unsigned int) msg->l3h;
-
-		if (mtp_link_submit_sccp_data(link, sls, msg->l2h, msgb_l2len(msg)) != 0)
-			LOGP(DMSC, LOGL_ERROR, "Could not forward SCCP message.\n");
-
-		msgb_free(msg);
-	}
-}
-
-int send_or_queue_bsc_msg(struct mtp_link *link, int sls, struct msgb *msg)
-{
-	if (link->sltm_pending) {
-		LOGP(DMSC, LOGL_NOTICE, "Queueing msg for pending SLTM.\n");
-		msg->l3h = (uint8_t *) sls;
-		msgb_enqueue(&link->pending_msgs, msg);
-		return 1;
-	}
-
-	if (mtp_link_submit_sccp_data(link, sls, msg->l2h, msgb_l2len(msg)) != 0)
-		LOGP(DMSC, LOGL_ERROR, "Could not forward SCCP message.\n");
-	return 0;
-}
-
-
 void msc_clear_queue(struct bsc_data *data)
 {
-	struct msgb *msg;
-	struct link_data *link;
-
-	LOGP(DMSC, LOGL_NOTICE, "Clearing the MSC to BSC queue.\n");
-	llist_for_each_entry(link, &data->links, entry) {
-		while (!llist_empty(&link->the_link->pending_msgs)) {
-			msg = msgb_dequeue(&link->the_link->pending_msgs);
-			msgb_free(msg);
-		}
-	}
+	linkset_clear_pending(data);
 }
 
 void msc_close_connection(struct bsc_data *bsc)
@@ -161,7 +121,6 @@ static int ipaccess_a_fd_cb(struct bsc_fd *bfd)
 {
 	int error;
 	struct ipaccess_head *hh;
-	struct mtp_link *link;
 	struct bsc_data *bsc;
 	struct msgb *msg;
 
@@ -185,8 +144,6 @@ static int ipaccess_a_fd_cb(struct bsc_fd *bfd)
 	hh = (struct ipaccess_head *) msg->data;
 	ipaccess_rcvmsg_base(msg, bfd);
 
-	link = bsc->first_link.the_link;
-
 	/* initialize the networking. This includes sending a GSM08.08 message */
 	if (hh->proto == IPAC_PROTO_IPACCESS) {
 		if (bsc->first_contact) {
@@ -206,8 +163,8 @@ static int ipaccess_a_fd_cb(struct bsc_fd *bfd)
 		int rc;
 
 		/* we can not forward it right now */
-		if (bsc->forward_only && link->sccp_up) {
-			if (send_or_queue_bsc_msg(link, 13, msg) != 1)
+		if (bsc->forward_only) {
+			if (linkset_send_bsc_msg(bsc, 13, msg) != 1)
 				msgb_free(msg);
 			return 0;
 		}
@@ -225,7 +182,7 @@ static int ipaccess_a_fd_cb(struct bsc_fd *bfd)
 			LOGP(DMSC, LOGL_ERROR, "RLC from the network. BAD!\n");
 		} else if (rc == BSS_FILTER_CLEAR_COMPL) {
 			LOGP(DMSC, LOGL_ERROR, "Clear Complete from the network.\n");
-		} else if (link->sccp_up) {
+		} else {
 			unsigned int sls;
 
 			update_con_state(NULL, rc, &result, msg, 1, 0);
@@ -235,12 +192,11 @@ static int ipaccess_a_fd_cb(struct bsc_fd *bfd)
 			bsc_ussd_handle_in_msg(bsc, &result, msg);
 
 			/* patch a possible PC */
-			bss_rewrite_header_to_bsc(msg, link->opc, link->dpc);
+			bss_rewrite_header_to_bsc(msg, bsc->opc, bsc->dpc);
 
 			/* we can not forward it right now */
-			if (send_or_queue_bsc_msg(link, sls, msg) == 1)
+			if (linkset_send_bsc_msg(bsc, sls, msg) == 1)
 				return 0;
-
 		}
 	} else if (hh->proto == NAT_MUX) {
 		mgcp_forward(bsc, msg->l2h, msgb_l2len(msg));
