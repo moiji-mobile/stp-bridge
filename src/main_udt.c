@@ -65,11 +65,6 @@ extern void cell_vty_init(void);
 /*
  * methods called from the MTP Level3 part
  */
-void mtp_link_sccp_down(struct mtp_link *link)
-{
-	msc_clear_queue(&bsc);
-}
-
 void mtp_link_forward_sccp(struct mtp_link *link, struct msgb *_msg, int sls)
 {
 	msc_send_direct(&bsc, _msg);
@@ -85,9 +80,6 @@ void bsc_link_down(struct link_data *data)
 	mtp_link_stop(link);
 
 	data->clear_queue(data);
-
-	/* clear pending messages from the MSC */
-	msc_clear_queue(data->bsc);
 
 	/* If we have an A link send a reset to the MSC */
 	msc_send_reset(data->bsc);
@@ -257,8 +249,6 @@ int main(int argc, char **argv)
 
 void release_bsc_resources(struct bsc_data *bsc)
 {
-	/* clear pending messages from the MSC */
-	msc_clear_queue(bsc);
 }
 
 struct msgb *create_sccp_rlc(struct sccp_source_reference *src_ref,

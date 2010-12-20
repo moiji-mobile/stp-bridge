@@ -27,6 +27,10 @@
 
 extern struct bsc_data bsc;
 
+void mtp_link_sccp_down(struct mtp_link *link)
+{
+}
+
 void mtp_link_submit(struct mtp_link *link, struct msgb *msg)
 {
 	bsc.link.write(&bsc.link, msg);

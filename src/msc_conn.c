@@ -53,11 +53,6 @@ int send_or_queue_bsc_msg(struct mtp_link *link, int sls, struct msgb *msg)
 	return 0;
 }
 
-
-void msc_clear_queue(struct bsc_data *data)
-{
-}
-
 void msc_close_connection(struct bsc_data *bsc)
 {
 	struct bsc_fd *bfd = &bsc->msc_connection.bfd;
