@@ -101,12 +101,12 @@ struct snmp_mtp_session *snmp_mtp_session_create(char *host)
 	return session;
 }
 
-void snmp_mtp_deactivate(struct snmp_mtp_session *session)
+void snmp_mtp_deactivate(struct snmp_mtp_session *session, int index)
 {
-	snmp_mtp_stop_c7_datalink(session, 1);
+	snmp_mtp_stop_c7_datalink(session, index);
 }
 
-void snmp_mtp_activate(struct snmp_mtp_session *session)
+void snmp_mtp_activate(struct snmp_mtp_session *session, int index)
 {
-	snmp_mtp_start_c7_datalink(session, 1);
+	snmp_mtp_start_c7_datalink(session, index);
 }

@@ -55,6 +55,7 @@ struct link_data {
 			struct write_queue write_queue;
 			struct sockaddr_in remote;
 			struct snmp_mtp_session *session;
+			int link_index;
 			int reset_timeout;
 		} udp;
 	};

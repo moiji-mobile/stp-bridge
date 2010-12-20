@@ -99,6 +99,7 @@ int link_setup_start(struct bsc_data *bsc)
 	bsc->first_link.bsc = bsc;
 	bsc->first_link.pcap_fd = bsc->pcap_fd;
 	bsc->first_link.udp.reset_timeout = bsc->udp_reset_timeout;
+	bsc->first_link.udp.link_index = 1;
 
 	llist_add(&bsc->first_link.entry, &bsc->links);
 
@@ -120,7 +121,8 @@ int link_setup_start(struct bsc_data *bsc)
 		 * SLTM and it begins a reset. Then we will take it up
 		 * again and do the usual business.
 		 */
-		snmp_mtp_deactivate(bsc->first_link.udp.session);
+		snmp_mtp_deactivate(bsc->first_link.udp.session,
+				    bsc->first_link.udp.link_index);
 		bsc->start_timer.cb = start_rest;
 		bsc->start_timer.data = bsc;
 		bsc_schedule_timer(&bsc->start_timer, bsc->udp_reset_timeout, 0);
