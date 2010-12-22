@@ -56,6 +56,8 @@ struct link_data {
 			struct sockaddr_in remote;
 			int link_index;
 			int reset_timeout;
+			int udp_port;
+			char *udp_ip;
 		} udp;
 	};
 
@@ -112,8 +114,6 @@ struct bsc_data {
 	int opc;
 	int sccp_opc;
 	int src_port;
-	int udp_port;
-	char *udp_ip;
 	int once;
 
 	/* the network header to use */

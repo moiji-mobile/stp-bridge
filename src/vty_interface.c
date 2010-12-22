@@ -69,9 +69,9 @@ static int config_write_cell(struct vty *vty)
 	vty_out(vty, " country-code %d%s", bsc.mcc, VTY_NEWLINE);
 	vty_out(vty, " network-code %d%s", bsc.mnc, VTY_NEWLINE);
 	vty_out(vty, " location-area-code %d%s", bsc.lac, VTY_NEWLINE);
-	if (bsc.udp_ip)
-		vty_out(vty, " udp dest ip %s%s", bsc.udp_ip, VTY_NEWLINE);
-	vty_out(vty, " udp dest port %d%s", bsc.udp_port, VTY_NEWLINE);
+	if (bsc.first_link.udp.udp_ip)
+		vty_out(vty, " udp dest ip %s%s", bsc.first_link.udp.udp_ip, VTY_NEWLINE);
+	vty_out(vty, " udp dest port %d%s", bsc.first_link.udp.udp_port, VTY_NEWLINE);
 	vty_out(vty, " udp src port %d%s", bsc.src_port, VTY_NEWLINE);
 	vty_out(vty, " udp reset %d%s", bsc.udp_reset_timeout, VTY_NEWLINE);
 	vty_out(vty, " msc ip %s%s", bsc.msc_address, VTY_NEWLINE);
@@ -143,7 +143,7 @@ DEFUN(cfg_udp_dst_ip, cfg_udp_dst_ip_cmd,
 	}
 
 	addr = (struct in_addr *) hosts->h_addr_list[0];
-	bsc.udp_ip = talloc_strdup(NULL, inet_ntoa(*addr));
+	bsc.first_link.udp.udp_ip = talloc_strdup(NULL, inet_ntoa(*addr));
 	return CMD_SUCCESS;
 }
 
@@ -151,7 +151,7 @@ DEFUN(cfg_udp_dst_port, cfg_udp_dst_port_cmd,
       "udp dest port PORT_NR",
       "If UDP mode is used specify the UDP dest port")
 {
-	bsc.udp_port = atoi(argv[0]);
+	bsc.first_link.udp.udp_port = atoi(argv[0]);
 	return CMD_SUCCESS;
 }
 

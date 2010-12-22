@@ -103,7 +103,7 @@ int link_setup_start(struct bsc_data *bsc)
 
 	llist_add(&bsc->first_link.entry, &bsc->links);
 
-	if (!bsc->udp_ip) {
+	if (!bsc->first_link.udp.udp_ip) {
 		LOGP(DINP, LOGL_ERROR, "Need to set a UDP IP.\n");
 		return -1;
 	}
@@ -111,7 +111,7 @@ int link_setup_start(struct bsc_data *bsc)
 	LOGP(DINP, LOGL_NOTICE, "Using UDP MTP mode.\n");
 
 	/* setup SNMP first, it is blocking */
-	bsc->first_link.udp.session = snmp_mtp_session_create(bsc->udp_ip);
+	bsc->first_link.udp.session = snmp_mtp_session_create(bsc->first_link.udp.udp_ip);
 	if (!bsc->first_link.udp.session)
 		return -1;
 
@@ -119,7 +119,7 @@ int link_setup_start(struct bsc_data *bsc)
 		return -1;
 
 	/* now connect to the transport */
-	if (link_udp_init(&bsc->first_link, bsc->udp_ip, bsc->udp_port) != 0)
+	if (link_udp_init(&bsc->first_link, bsc->first_link.udp.udp_ip, bsc->first_link.udp.udp_port) != 0)
 		return -1;
 
 	/*
