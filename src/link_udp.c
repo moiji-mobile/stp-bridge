@@ -38,17 +38,6 @@
 
 #define OSMO_CB_LI(msg) msg->cb[0]
 
-static struct link_data *find_link(struct bsc_data *bsc, int link_index)
-{
-	struct link_data *link;
-
-	llist_for_each_entry(link, &bsc->links, entry)
-		if (link->link_index == link_index)
-			return link;
-
-	return NULL;
-}
-
 static int udp_write_cb(struct bsc_fd *fd, struct msgb *msg)
 {
 	struct bsc_data *bsc;
@@ -57,7 +46,7 @@ static int udp_write_cb(struct bsc_fd *fd, struct msgb *msg)
 
 	bsc = (struct bsc_data *) fd->data;
 
-	link = find_link(bsc, OSMO_CB_LI(msg));
+	link = linkset_find_link(bsc, OSMO_CB_LI(msg));
 	if (!link) {
 		LOGP(DINP, LOGL_ERROR, "No link_data for %lu\n", OSMO_CB_LI(msg));
 		return -1;
@@ -104,7 +93,7 @@ static int udp_read_cb(struct bsc_fd *fd)
 
 	hdr = (struct udp_data_hdr *) msgb_put(msg, sizeof(*hdr));
 
-	link = find_link(bsc, ntohs(hdr->data_link_index));
+	link = linkset_find_link(bsc, ntohs(hdr->data_link_index));
 	if (!link) {
 		LOGP(DINP, LOGL_ERROR, "Failed to find a link.\n");
 		rc = -1;

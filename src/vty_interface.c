@@ -21,6 +21,7 @@
  */
 
 #include <bsc_data.h>
+#include <cellmgr_debug.h>
 
 #include <osmocore/talloc.h>
 #include <osmocore/gsm48.h>
@@ -59,6 +60,8 @@ static struct cmd_node cell_node = {
 
 static int config_write_cell(struct vty *vty)
 {
+	struct link_data *link;
+
 	vty_out(vty, "cellmgr%s", VTY_NEWLINE);
 	vty_out(vty, " mtp dpc %d%s", bsc.dpc, VTY_NEWLINE);
 	vty_out(vty, " mtp opc %d%s", bsc.opc, VTY_NEWLINE);
@@ -69,9 +72,14 @@ static int config_write_cell(struct vty *vty)
 	vty_out(vty, " country-code %d%s", bsc.mcc, VTY_NEWLINE);
 	vty_out(vty, " network-code %d%s", bsc.mnc, VTY_NEWLINE);
 	vty_out(vty, " location-area-code %d%s", bsc.lac, VTY_NEWLINE);
-	if (bsc.first_link.udp.udp_ip)
-		vty_out(vty, " udp dest ip %s%s", bsc.first_link.udp.udp_ip, VTY_NEWLINE);
-	vty_out(vty, " udp dest port %d%s", bsc.first_link.udp.udp_port, VTY_NEWLINE);
+
+	llist_for_each_entry(link, &bsc.links, entry) {
+		vty_out(vty, " udp dest-ip %d %s%s",
+			link->link_index, link->udp.udp_ip, VTY_NEWLINE);
+		vty_out(vty, " udp dest-port %d %d%s",
+			link->link_index, link->udp.udp_port, VTY_NEWLINE);
+	}
+
 	vty_out(vty, " udp src port %d%s", bsc.src_port, VTY_NEWLINE);
 	vty_out(vty, " udp reset %d%s", bsc.udp_reset_timeout, VTY_NEWLINE);
 	vty_out(vty, " msc ip %s%s", bsc.msc_address, VTY_NEWLINE);
@@ -128,30 +136,98 @@ DEFUN(cfg_net_mtp_spare, cfg_net_mtp_spare_cmd,
 	return CMD_SUCCESS;
 }
 
+static struct link_data *find_or_create(struct bsc_data *bsc, int index)
+{
+	struct link_data *link = linkset_find_link(bsc, index);
+	if (link)
+		return link;
 
-DEFUN(cfg_udp_dst_ip, cfg_udp_dst_ip_cmd,
-      "udp dest ip IP",
-      "Set the IP when UDP mode is supposed to be used.")
+	link = talloc_zero(NULL, struct link_data);
+	if (!link) {
+		LOGP(DINP, LOGL_ERROR, "Failed to allocate link.\n");
+		return NULL;
+	}
+
+	link->link_index = index;
+	llist_add(&link->entry, &bsc->links);
+	return link;
+}
+
+static int set_dest_ip(struct vty *vty, struct link_data *link, const char *name)
 {
 	struct hostent *hosts;
 	struct in_addr *addr;
 
-	hosts = gethostbyname(argv[0]);
+	hosts = gethostbyname(name);
 	if (!hosts || hosts->h_length < 1 || hosts->h_addrtype != AF_INET) {
-		vty_out(vty, "Failed to resolve '%s'%s", argv[0], VTY_NEWLINE);
+		vty_out(vty, "Failed to resolve '%s'%s", name, VTY_NEWLINE);
 		return CMD_WARNING;
 	}
 
 	addr = (struct in_addr *) hosts->h_addr_list[0];
-	bsc.first_link.udp.udp_ip = talloc_strdup(NULL, inet_ntoa(*addr));
+	link->udp.udp_ip = talloc_strdup(NULL, inet_ntoa(*addr));
 	return CMD_SUCCESS;
 }
 
-DEFUN(cfg_udp_dst_port, cfg_udp_dst_port_cmd,
+DEFUN_DEPRECATED(cfg_udp_dst_ip, cfg_udp_dst_ip_cmd,
+      "udp dest ip IP",
+      "Set the IP when UDP mode is supposed to be used.")
+{
+	struct link_data *link;
+
+	link = find_or_create(&bsc, 1);
+	if (!link) {
+		vty_out(vty, "Failed to create a link.\n");
+		return CMD_WARNING;
+	}
+
+	return set_dest_ip(vty, link, argv[0]);
+}
+
+DEFUN_DEPRECATED(cfg_udp_dst_port, cfg_udp_dst_port_cmd,
       "udp dest port PORT_NR",
       "If UDP mode is used specify the UDP dest port")
 {
-	bsc.first_link.udp.udp_port = atoi(argv[0]);
+	struct link_data *link;
+
+	link = find_or_create(&bsc, 1);
+	if (!link) {
+		vty_out(vty, "Failed to create a link.\n");
+		return CMD_WARNING;
+	}
+
+	link->udp.udp_port = atoi(argv[0]);
+	return CMD_SUCCESS;
+}
+
+DEFUN(cfg_link_dest_ip, cfg_link_dest_ip_cmd,
+      "udp dest-ip <0-64> IP",
+      "Set the dest-ip for a link.\n" "The link index\n" "IP or hostname\n")
+{
+	struct link_data *link;
+
+	link = find_or_create(&bsc, atoi(argv[0]));
+	if (!link) {
+		vty_out(vty, "Failed to create a link.\n");
+		return CMD_WARNING;
+	}
+
+	return set_dest_ip(vty, link, argv[1]);
+}
+
+DEFUN(cfg_link_port_ip, cfg_link_port_ip_cmd,
+      "udp dest-port <0-64> PORT_NR",
+      "Set the dest-port for a link.\n" "The link index\n" "port number\n")
+{
+	struct link_data *link;
+
+	link = find_or_create(&bsc, atoi(argv[0]));
+	if (!link) {
+		vty_out(vty, "Failed to create a link.\n");
+		return CMD_WARNING;
+	}
+
+	link->udp.udp_port = atoi(argv[1]);
 	return CMD_SUCCESS;
 }
 
@@ -305,6 +381,9 @@ void cell_vty_init(void)
 	install_element(CELLMGR_NODE, &cfg_mcc_cmd);
 	install_element(CELLMGR_NODE, &cfg_mnc_cmd);
 	install_element(CELLMGR_NODE, &cfg_lac_cmd);
+
+	install_element(CELLMGR_NODE, &cfg_link_dest_ip_cmd);
+	install_element(CELLMGR_NODE, &cfg_link_port_ip_cmd);
 }
 
 const char *openbsc_copyright = "";

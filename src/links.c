@@ -24,6 +24,17 @@
 #include <cellmgr_debug.h>
 #include <snmp_mtp.h>
 
+struct link_data *linkset_find_link(struct bsc_data *bsc, int link_index)
+{
+	struct link_data *link;
+
+	llist_for_each_entry(link, &bsc->links, entry)
+		if (link->link_index == link_index)
+			return link;
+
+	return NULL;
+}
+
 void link_stop_all(struct bsc_data *bsc)
 {
 	struct link_data *link;
@@ -87,49 +98,70 @@ static void start_rest(void *start)
 
 int link_setup_start(struct bsc_data *bsc)
 {
-	bsc->first_link.the_link = mtp_link_alloc();
-	bsc->first_link.the_link->data = &bsc->first_link;
-	bsc->first_link.the_link->dpc = bsc->dpc;
-	bsc->first_link.the_link->opc = bsc->opc;
-	bsc->first_link.the_link->sccp_opc = bsc->sccp_opc > -1 ? bsc->sccp_opc : bsc->opc;
-	bsc->first_link.the_link->link = 0;
-	bsc->first_link.the_link->sltm_once = bsc->once;
-	bsc->first_link.the_link->ni = bsc->ni_ni;
-	bsc->first_link.the_link->spare = bsc->ni_spare;
-	bsc->first_link.bsc = bsc;
-	bsc->first_link.pcap_fd = bsc->pcap_fd;
-	bsc->first_link.udp.reset_timeout = bsc->udp_reset_timeout;
-	bsc->first_link.link_index = 1;
+	struct link_data *link;
 
-	llist_add(&bsc->first_link.entry, &bsc->links);
-
-	if (!bsc->first_link.udp.udp_ip) {
-		LOGP(DINP, LOGL_ERROR, "Need to set a UDP IP.\n");
+	if (llist_empty(&bsc->links)) {
+		LOGP(DINP, LOGL_ERROR, "No links defined.\n");
 		return -1;
 	}
-
-	LOGP(DINP, LOGL_NOTICE, "Using UDP MTP mode.\n");
-
-	/* setup SNMP first, it is blocking */
-	bsc->first_link.udp.session = snmp_mtp_session_create(bsc->first_link.udp.udp_ip);
-	if (!bsc->first_link.udp.session)
-		return -1;
 
 	if (link_udp_network_init(bsc) != 0)
 		return -1;
 
-	/* now connect to the transport */
-	if (link_udp_init(&bsc->first_link, bsc->first_link.udp.udp_ip, bsc->first_link.udp.udp_port) != 0)
-		return -1;
+	llist_for_each_entry(link, &bsc->links, entry) {
+		link->the_link = mtp_link_alloc();
+		link->the_link->data = link;
+		link->the_link->dpc = bsc->dpc;
+		link->the_link->opc = bsc->opc;
+		link->the_link->sccp_opc = bsc->sccp_opc > -1 ? bsc->sccp_opc : bsc->opc;
+		link->the_link->link = 0;
+		link->the_link->sltm_once = bsc->once;
+		link->the_link->ni = bsc->ni_ni;
+		link->the_link->spare = bsc->ni_spare;
+		link->bsc = bsc;
+		link->pcap_fd = bsc->pcap_fd;
+		link->udp.reset_timeout = bsc->udp_reset_timeout;
 
-	/*
-	 * We will ask the MTP link to be taken down for two
-	 * timeouts of the BSC to make sure we are missing the
-	 * SLTM and it begins a reset. Then we will take it up
-	 * again and do the usual business.
-	 */
-	snmp_mtp_deactivate(bsc->first_link.udp.session,
-			    bsc->first_link.link_index);
+		if (!link->udp.udp_ip) {
+			LOGP(DINP, LOGL_ERROR, "Need to set a UDP IP on %d.\n",
+			     link->link_index);
+			return -1;
+		}
+
+		if (!link->udp.udp_port) {
+			LOGP(DINP, LOGL_ERROR, "Need to set a UDP Port on %d.\n",
+			     link->link_index);
+			return -1;
+		}
+	}
+
+	LOGP(DINP, LOGL_NOTICE, "Using UDP MTP mode.\n");
+
+	llist_for_each_entry(link, &bsc->links, entry) {
+		/* setup SNMP first, it is blocking */
+		link->udp.session = snmp_mtp_session_create(link->udp.udp_ip);
+		if (!link->udp.session) {
+			LOGP(DINP, LOGL_ERROR,
+			     "Failed to initialize SNMP on %d\n", link->link_index);
+			return -1;
+		}
+
+		/* now connect to the transport */
+		if (link_udp_init(link, link->udp.udp_ip, link->udp.udp_port) != 0) {
+			LOGP(DINP, LOGL_ERROR,
+			     "Failed to init the link on %d\n", link->link_index);
+			return -1;
+		}
+
+		/*
+		 * We will ask the MTP link to be taken down for two
+		 * timeouts of the BSC to make sure we are missing the
+		 * SLTM and it begins a reset. Then we will take it up
+		 * again and do the usual business.
+		 */
+		snmp_mtp_deactivate(link->udp.session, link->link_index);
+	}
+
 	bsc->start_timer.cb = start_rest;
 	bsc->start_timer.data = bsc;
 	bsc_schedule_timer(&bsc->start_timer, bsc->udp_reset_timeout, 0);

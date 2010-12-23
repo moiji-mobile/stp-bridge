@@ -103,7 +103,6 @@ struct bsc_data {
 	int pcap_fd;
 	int udp_reset_timeout;
 	struct llist_head links;
-	struct link_data first_link;
 
 	const char *token;
 
@@ -179,5 +178,8 @@ int linkset_send_bsc_data(struct bsc_data *link, int sls, const uint8_t *data, i
 
 /* another callback for SCCP data from the linkset */
 void linkset_forward_sccp(struct bsc_data *bsc, struct msgb *msg, int sls);
+
+/* find the link */
+struct link_data *linkset_find_link(struct bsc_data *bsc, int link_index);
 
 #endif
