@@ -43,7 +43,7 @@ static struct link_data *find_link(struct bsc_data *bsc, int link_index)
 	struct link_data *link;
 
 	llist_for_each_entry(link, &bsc->links, entry)
-		if (link->udp.link_index == link_index)
+		if (link->link_index == link_index)
 			return link;
 
 	return NULL;
@@ -161,7 +161,7 @@ static void do_start(void *_data)
 	struct link_data *link = (struct link_data *) _data;
 
 	link->forced_down = 0;
-	snmp_mtp_activate(link->udp.session, link->udp.link_index);
+	snmp_mtp_activate(link->udp.session, link->link_index);
 	bsc_link_up(link);
 }
 
@@ -169,7 +169,7 @@ static int udp_link_reset(struct link_data *link)
 {
 	LOGP(DINP, LOGL_NOTICE, "Will restart SLTM transmission in %d seconds.\n",
 	     link->udp.reset_timeout);
-	snmp_mtp_deactivate(link->udp.session, link->udp.link_index);
+	snmp_mtp_deactivate(link->udp.session, link->link_index);
 	bsc_link_down(link);
 
 	/* restart the link in 90 seconds... to force a timeout on the BSC */
@@ -186,11 +186,11 @@ static int udp_link_write(struct link_data *link, struct msgb *msg)
 	hdr = (struct udp_data_hdr *) msgb_push(msg, sizeof(*hdr));
 	hdr->format_type = UDP_FORMAT_SIMPLE_UDP;
 	hdr->data_type = UDP_DATA_MSU_PRIO_0;
-	hdr->data_link_index = htons(link->udp.link_index);
+	hdr->data_link_index = htons(link->link_index);
 	hdr->user_context = 0;
 	hdr->data_length = htonl(msgb_l2len(msg));
 
-	OSMO_CB_LI(msg) = link->udp.link_index;
+	OSMO_CB_LI(msg) = link->link_index;
 
 	if (write_queue_enqueue(&link->bsc->udp_write_queue, msg) != 0) {
 		LOGP(DINP, LOGL_ERROR, "Failed to enqueue msg.\n");

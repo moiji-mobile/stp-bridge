@@ -54,13 +54,13 @@ struct link_data {
 		struct {
 			struct snmp_mtp_session *session;
 			struct sockaddr_in remote;
-			int link_index;
 			int reset_timeout;
 			int udp_port;
 			char *udp_ip;
 		} udp;
 	};
 
+	int link_index;
 	int pcap_fd;
 	struct bsc_data *bsc;
 	struct mtp_link *the_link;
