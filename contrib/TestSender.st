@@ -34,4 +34,9 @@ Eval [
     msg := #(2 0 0 1 0 0 0 0 0 0 0 6 192 232 197 7 0 23) asByteArray.
     datagram data: msg.
     socket nextPut: datagram.
+
+    "SST"
+    msg := #(2 0 0 1 0 0 0 0 0 0 0 24 195 233 197 7 224 9 0 3 5 9 2 66 1 4 67 31 0 1 5 3 7 233 5 0 ) asByteArray.
+    datagram data: msg.
+    socket nextPut: datagram.
 ]

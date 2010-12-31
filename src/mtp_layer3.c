@@ -136,7 +136,8 @@ static struct msgb *mtp_tra_alloc(struct mtp_link *link)
 	return out;
 }
 
-static struct msgb *mtp_sccp_alloc_ssa(struct mtp_link *link, int sls)
+static struct msgb *mtp_sccp_alloc_scmg(struct mtp_link *link,
+					int type, int assn, int sls)
 {
 	struct sccp_data_unitdata *udt;
 	struct sccp_con_ctrl_prt_mgt *prt;
@@ -178,8 +179,8 @@ static struct msgb *mtp_sccp_alloc_ssa(struct mtp_link *link, int sls)
 	data[0] = sizeof(*prt);
 
 	prt = (struct sccp_con_ctrl_prt_mgt *) msgb_put(out, sizeof(*prt));
-	prt->sst = SCCP_SSA;
-	prt->assn = 254;
+	prt->sst = type;
+	prt->assn = assn;
 	prt->apoc = MTP_MAKE_APOC(link->opc);
 	prt->mul_ind = 0;
 
@@ -409,6 +410,7 @@ static int mtp_link_sccp_data(struct mtp_link *link, struct mtp_level_3_hdr *hdr
 	struct msgb *out;
 	struct sccp_con_ctrl_prt_mgt *prt;
 	struct sccp_parse_result sccp;
+	int type;
 
 	msg->l2h = &hdr->data[0];
 	if (msgb_l2len(msg) != l3_len) {
@@ -441,10 +443,13 @@ static int mtp_link_sccp_data(struct mtp_link *link, struct mtp_level_3_hdr *hdr
 		if (prt->assn != 254 || prt->apoc != MTP_MAKE_APOC(link->opc)) {
 			LOGP(DINP, LOGL_ERROR, "Unknown SSN/APOC assn: %u, apoc: %u/%u\n",
 			     prt->assn, ntohs(prt->apoc), prt->apoc);
-			return -1;
+			type = SCCP_SSP;
+		} else {
+			type = SCCP_SSA;
 		}
 
-		out = mtp_sccp_alloc_ssa(link, MTP_LINK_SLS(hdr->addr));
+		out = mtp_sccp_alloc_scmg(link, type, prt->assn,
+					  MTP_LINK_SLS(hdr->addr));
 		if (!out)
 			return -1;
 

@@ -56,6 +56,7 @@
 
 
 #define SCCP_SST	0x03
+#define SCCP_SSP	0x02
 #define SCCP_SSA	0x01
 
 #define MTP_LINK_MASK	    0x0F
