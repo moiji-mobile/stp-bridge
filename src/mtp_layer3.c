@@ -440,9 +440,14 @@ static int mtp_link_sccp_data(struct mtp_link *link, struct mtp_level_3_hdr *hdr
 		}
 
 		prt = (struct sccp_con_ctrl_prt_mgt *) &msg->l3h[0];
-		if (prt->assn != 254 || prt->apoc != MTP_MAKE_APOC(link->opc)) {
-			LOGP(DINP, LOGL_ERROR, "Unknown SSN/APOC assn: %u, apoc: %u/%u\n",
-			     prt->assn, ntohs(prt->apoc), prt->apoc);
+		if (prt->apoc != MTP_MAKE_APOC(link->opc)) {
+			LOGP(DINP, LOGL_ERROR, "Unknown APOC: %u/%u\n",
+			     ntohs(prt->apoc), prt->apoc);
+			type = SCCP_SSP;
+		} else if (prt->assn != 1 && prt->assn != 254 &&
+			   prt->assn != 7 && prt->assn != 8 && prt->assn != 146) {
+			LOGP(DINP, LOGL_ERROR, "Unknown affected SSN assn: %u\n",
+			     prt->assn);
 			type = SCCP_SSP;
 		} else {
 			type = SCCP_SSA;
