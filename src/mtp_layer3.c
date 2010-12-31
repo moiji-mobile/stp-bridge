@@ -308,7 +308,7 @@ static int mtp_link_sign_msg(struct mtp_link *link, struct mtp_level_3_hdr *hdr,
 	case MTP_TRF_RESTR_MSG_GRP:
 		switch (cmn->h1) {
 		case MTP_RESTR_MSG_ALLWED:
-			LOGP(DINP, LOGL_INFO, "Received Restart Allowed. SST should be next: %p\n", link);
+			LOGP(DINP, LOGL_INFO, "Received Restart Allowed. SST could be next: %p\n", link);
 			link->sccp_up = 0;
 			mtp_link_sccp_down(link);
 
