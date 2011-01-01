@@ -226,6 +226,7 @@ int main(int argc, char **argv)
 
 	bsc.dpc = 1;
 	bsc.opc = 0;
+	bsc.sccp_opc = -1;
 	bsc.udp_port = 3456;
 	bsc.udp_ip = NULL;
 	bsc.src_port = 1313;
@@ -279,6 +280,7 @@ int main(int argc, char **argv)
 	bsc.link.the_link = mtp_link_alloc();
 	bsc.link.the_link->dpc = bsc.dpc;
 	bsc.link.the_link->opc = bsc.opc;
+	bsc.link.the_link->sccp_opc = bsc.sccp_opc > -1 ? bsc.sccp_opc : bsc.opc;
 	bsc.link.the_link->link = 0;
 	bsc.link.the_link->sltm_once = bsc.once;
 	bsc.link.the_link->ni = bsc.ni_ni;

@@ -62,6 +62,7 @@ static int config_write_cell(struct vty *vty)
 	vty_out(vty, "cellmgr%s", VTY_NEWLINE);
 	vty_out(vty, " mtp dpc %d%s", bsc.dpc, VTY_NEWLINE);
 	vty_out(vty, " mtp opc %d%s", bsc.opc, VTY_NEWLINE);
+	vty_out(vty, " mtp sccp-opc %d%s", bsc.sccp_opc, VTY_NEWLINE);
 	vty_out(vty, " mtp ni %d%s", bsc.ni_ni, VTY_NEWLINE);
 	vty_out(vty, " mtp spare %d%s", bsc.ni_spare, VTY_NEWLINE);
 	vty_out(vty, " mtp sltm once %d%s", bsc.once, VTY_NEWLINE);
@@ -100,6 +101,14 @@ DEFUN(cfg_net_opc, cfg_net_opc_cmd,
       "Set the OPC to be used.")
 {
 	bsc.opc = atoi(argv[0]);
+	return CMD_SUCCESS;
+}
+
+DEFUN(cfg_net_sccp_opc, cfg_net_sccp_opc_cmd,
+      "mtp sccp-opc OPC_NR",
+      "Set the SCCP OPC to be used.")
+{
+	bsc.sccp_opc = atoi(argv[0]);
 	return CMD_SUCCESS;
 }
 
@@ -277,6 +286,7 @@ void cell_vty_init(void)
 
 	install_element(CELLMGR_NODE, &cfg_net_dpc_cmd);
 	install_element(CELLMGR_NODE, &cfg_net_opc_cmd);
+	install_element(CELLMGR_NODE, &cfg_net_sccp_opc_cmd);
 	install_element(CELLMGR_NODE, &cfg_net_mtp_ni_cmd);
 	install_element(CELLMGR_NODE, &cfg_net_mtp_spare_cmd);
 	install_element(CELLMGR_NODE, &cfg_udp_dst_ip_cmd);

@@ -34,7 +34,7 @@
 
 static void *tall_mtp_ctx = NULL;
 
-static int mtp_int_submit(struct mtp_link *link, int sls, int type, const uint8_t *data, unsigned int length);
+static int mtp_int_submit(struct mtp_link *link, int pc, int sls, int type, const uint8_t *data, unsigned int length);
 
 static struct msgb *mtp_msg_alloc(struct mtp_link *link)
 {
@@ -154,7 +154,7 @@ static struct msgb *mtp_sccp_alloc_scmg(struct mtp_link *link,
 	hdr->ser_ind = MTP_SI_MNT_SCCP;
 
 	/* this appears to be round robin or such.. */
-	hdr->addr = MTP_ADDR(sls % 16, link->dpc, link->opc);
+	hdr->addr = MTP_ADDR(sls % 16, link->dpc, link->sccp_opc);
 
 	/* generate the UDT message... libsccp does not offer formating yet */
 	udt = (struct sccp_data_unitdata *) msgb_put(out, sizeof(*udt));
@@ -440,7 +440,7 @@ static int mtp_link_sccp_data(struct mtp_link *link, struct mtp_level_3_hdr *hdr
 		}
 
 		prt = (struct sccp_con_ctrl_prt_mgt *) &msg->l3h[0];
-		if (prt->apoc != MTP_MAKE_APOC(link->opc)) {
+		if (prt->apoc != MTP_MAKE_APOC(link->sccp_opc)) {
 			LOGP(DINP, LOGL_ERROR, "Unknown APOC: %u/%u\n",
 			     ntohs(prt->apoc), prt->apoc);
 			type = SCCP_SSP;
@@ -513,16 +513,16 @@ int mtp_link_submit_sccp_data(struct mtp_link *link, int sls, const uint8_t *dat
 		return -1;
 	}
 
-	return mtp_int_submit(link, sls, MTP_SI_MNT_SCCP, data, length);
+	return mtp_int_submit(link, link->sccp_opc, sls, MTP_SI_MNT_SCCP, data, length);
 }
 
 int mtp_link_submit_isup_data(struct mtp_link *link, int sls,
 			      const uint8_t *data, unsigned int length)
 {
-	return mtp_int_submit(link, sls, MTP_SI_MNT_ISUP, data, length);
+	return mtp_int_submit(link, link->opc, sls, MTP_SI_MNT_ISUP, data, length);
 }
 
-static int mtp_int_submit(struct mtp_link *link, int sls, int type,
+static int mtp_int_submit(struct mtp_link *link, int pc, int sls, int type,
 			  const uint8_t *data, unsigned int length)
 {
 	uint8_t *put_ptr;
@@ -536,7 +536,7 @@ static int mtp_int_submit(struct mtp_link *link, int sls, int type,
 	hdr = (struct mtp_level_3_hdr *) msg->l2h;
 	hdr->ser_ind = type;
 
-	hdr->addr = MTP_ADDR(sls % 16, link->dpc, link->opc);
+	hdr->addr = MTP_ADDR(sls % 16, link->dpc, pc);
 
 	/* copy the raw sccp data */
 	put_ptr = msgb_put(msg, length);
