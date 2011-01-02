@@ -143,6 +143,7 @@ unsigned int sls_for_src_ref(struct sccp_source_reference *ref);
 
 /* udp init */
 int link_udp_init(struct link_data *data, int src_port, const char *dest_ip, int port);
+int link_init(struct bsc_data *bsc);
 
 /* MGCP */
 void mgcp_forward(struct bsc_data *bsc, const uint8_t *data, unsigned int length);
