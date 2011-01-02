@@ -168,7 +168,7 @@ static int ipaccess_a_fd_cb(struct bsc_fd *bfd)
 
 		/* we can not forward it right now */
 		if (bsc->forward_only && link->sccp_up) {
-			if (send_or_queue_bsc_msg(link, 13, msg) != 1)
+			if (send_or_queue_bsc_msg(link, -1, msg) != 1)
 				msgb_free(msg);
 			return 0;
 		}

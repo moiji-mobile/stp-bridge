@@ -510,6 +510,11 @@ int mtp_link_submit_sccp_data(struct mtp_link *link, int sls, const uint8_t *dat
 		return -1;
 	}
 
+	if (sls == -1) {
+		sls = link->last_sls;
+		link->last_sls = (link->last_sls + 1) % 16;
+	}
+
 	return mtp_int_submit(link, link->sccp_opc, sls, MTP_SI_MNT_SCCP, data, length);
 }
 

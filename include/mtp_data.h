@@ -46,6 +46,8 @@ struct mtp_link {
 	int running;
 	int sccp_up;
 
+	int last_sls;
+
 	/* misc data */
 	uint8_t test_ptrn[14];
 

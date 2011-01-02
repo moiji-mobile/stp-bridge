@@ -224,7 +224,7 @@ static void bsc_reset_timeout(void *_data)
 	}
 
 	++bsc->reset_count;
-	mtp_link_submit_sccp_data(bsc->link.the_link, 13, msg->l2h, msgb_l2len(msg));
+	mtp_link_submit_sccp_data(bsc->link.the_link, -1, msg->l2h, msgb_l2len(msg));
 	msgb_free(msg);
 	bsc_schedule_timer(&bsc->reset_timeout, 20, 0);
 }
@@ -351,7 +351,7 @@ static void handle_rlsd(struct sccp_connection_released *rlsd, int from_msc)
 				 &rlsd->source_local_reference);
 		}
 	} else {
-		unsigned int sls = 13;
+		unsigned int sls = -1;
 		con = find_con_by_src_dest_ref(&rlsd->source_local_reference,
 					       &rlsd->destination_local_reference);
 		if (con) {

@@ -86,7 +86,7 @@ unsigned int sls_for_src_ref(struct sccp_source_reference *ref)
 
 	con = find_con_by_src_ref(ref);
 	if (!con)
-		return 13;
+		return -1;
 	return con->sls;
 }
 
