@@ -54,7 +54,7 @@ struct active_sccp_con {
 	unsigned int rls_tries;
 
 	/* MTP link this was coming in */
-	struct mtp_link *link;
+	struct mtp_link_set *link;
 
 	/* sls id */
 	int sls;

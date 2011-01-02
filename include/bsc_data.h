@@ -59,7 +59,7 @@ struct link_data {
 
 	int pcap_fd;
 	struct bsc_data *bsc;
-	struct mtp_link *the_link;
+	struct mtp_link_set *the_link;
 
 	struct timer_list link_activate;
 	int forced_down;
@@ -138,7 +138,7 @@ void msc_send_direct(struct bsc_data *bsc, struct msgb *msg);
 void msc_close_connection(struct bsc_data *data);
 
 /* connection tracking and action */
-void update_con_state(struct mtp_link *link, int rc, struct sccp_parse_result *result, struct msgb *msg, int from_msc, int sls);
+void update_con_state(struct mtp_link_set *link, int rc, struct sccp_parse_result *result, struct msgb *msg, int from_msc, int sls);
 unsigned int sls_for_src_ref(struct sccp_source_reference *ref);
 
 /* udp init */

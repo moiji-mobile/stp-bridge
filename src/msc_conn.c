@@ -46,9 +46,9 @@ static void msc_send_id_response(struct bsc_data *bsc);
 static void msc_send(struct bsc_data *bsc, struct msgb *msg, int proto);
 static void msc_schedule_reconnect(struct bsc_data *bsc);
 
-int send_or_queue_bsc_msg(struct mtp_link *link, int sls, struct msgb *msg)
+int send_or_queue_bsc_msg(struct mtp_link_set *link, int sls, struct msgb *msg)
 {
-	if (mtp_link_submit_sccp_data(link, sls, msg->l2h, msgb_l2len(msg)) != 0)
+	if (mtp_link_set_submit_sccp_data(link, sls, msg->l2h, msgb_l2len(msg)) != 0)
 		LOGP(DMSC, LOGL_ERROR, "Could not forward SCCP message.\n");
 	return 0;
 }
@@ -122,7 +122,7 @@ static int ipaccess_a_fd_cb(struct bsc_fd *bfd)
 {
 	int error;
 	struct ipaccess_head *hh;
-	struct mtp_link *link;
+	struct mtp_link_set *link;
 	struct bsc_data *bsc;
 	struct msgb *msg;
 

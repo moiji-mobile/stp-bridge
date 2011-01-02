@@ -27,16 +27,16 @@
 
 extern struct bsc_data bsc;
 
-void mtp_link_sccp_down(struct mtp_link *link)
+void mtp_link_set_sccp_down(struct mtp_link_set *link)
 {
 }
 
-void mtp_link_submit(struct mtp_link *link, struct msgb *msg)
+void mtp_link_set_submit(struct mtp_link_set *link, struct msgb *msg)
 {
 	bsc.link.write(&bsc.link, msg);
 }
 
-void mtp_link_restart(struct mtp_link *link)
+void mtp_link_set_restart(struct mtp_link_set *link)
 {
 	LOGP(DINP, LOGL_ERROR, "Need to restart the SS7 link.\n");
 	bsc.link.reset(&bsc.link);
@@ -56,7 +56,7 @@ static void start_rest(void *start)
 
 int link_init(struct bsc_data *bsc)
 {
-	bsc->link.the_link = mtp_link_alloc();
+	bsc->link.the_link = mtp_link_set_alloc();
 	bsc->link.the_link->dpc = bsc->dpc;
 	bsc->link.the_link->opc = bsc->opc;
 	bsc->link.the_link->sccp_opc = bsc->sccp_opc > -1 ? bsc->sccp_opc : bsc->opc;

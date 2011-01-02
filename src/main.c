@@ -64,11 +64,11 @@ static char *config = "cellmgr_ng.cfg";
 struct bsc_data bsc;
 extern void cell_vty_init(void);
 
-static void send_reset_ack(struct mtp_link *link, int sls);
+static void send_reset_ack(struct mtp_link_set *link, int sls);
 static void bsc_resources_released(struct bsc_data *bsc);
-static void handle_local_sccp(struct mtp_link *link, struct msgb *inp, struct sccp_parse_result *res, int sls);
+static void handle_local_sccp(struct mtp_link_set *link, struct msgb *inp, struct sccp_parse_result *res, int sls);
 static void clear_connections(struct bsc_data *bsc);
-static void send_local_rlsd(struct mtp_link *link, struct sccp_parse_result *res);
+static void send_local_rlsd(struct mtp_link_set *link, struct sccp_parse_result *res);
 
 /* send a RSIP to the MGCP GW */
 static void mgcp_reset(struct bsc_data *bsc)
@@ -83,7 +83,7 @@ static void mgcp_reset(struct bsc_data *bsc)
 /*
  * methods called from the MTP Level3 part
  */
-void mtp_link_forward_sccp(struct mtp_link *link, struct msgb *_msg, int sls)
+void mtp_link_set_forward_sccp(struct mtp_link_set *link, struct msgb *_msg, int sls)
 {
 	int rc;
 	struct sccp_parse_result result;
@@ -130,7 +130,7 @@ void mtp_link_forward_sccp(struct mtp_link *link, struct msgb *_msg, int sls)
 /*
  * handle local message in close down mode
  */
-static void handle_local_sccp(struct mtp_link *link, struct msgb *inpt, struct sccp_parse_result *result, int sls)
+static void handle_local_sccp(struct mtp_link_set *link, struct msgb *inpt, struct sccp_parse_result *result, int sls)
 {
 	/* Handle msg with a reject */
 	if (inpt->l2h[0] == SCCP_MSG_TYPE_CR) {
@@ -141,7 +141,7 @@ static void handle_local_sccp(struct mtp_link *link, struct msgb *inpt, struct s
 		cr = (struct sccp_connection_request *) inpt->l2h;
 		msg = create_sccp_refuse(&cr->source_local_reference);
 		if (msg) {
-			mtp_link_submit_sccp_data(link, sls, msg->l2h, msgb_l2len(msg));
+			mtp_link_set_submit_sccp_data(link, sls, msg->l2h, msgb_l2len(msg));
 			msgb_free(msg);
 		}
 		return;
@@ -161,7 +161,7 @@ static void handle_local_sccp(struct mtp_link *link, struct msgb *inpt, struct s
 					LOGP(DINP, LOGL_DEBUG, "Sending a release request now.\n");
 					msg = create_sccp_rlsd(&con->dst_ref, &con->src_ref);
 					if (msg) {
-						mtp_link_submit_sccp_data(link, con->sls, msg->l2h, msgb_l2len(msg));
+						mtp_link_set_submit_sccp_data(link, con->sls, msg->l2h, msgb_l2len(msg));
 						msgb_free(msg);
 					}
 					return;
@@ -210,7 +210,7 @@ static void bsc_reset_timeout(void *_data)
 	/* no reset */
 	if (bsc->reset_count > 0) {
 		LOGP(DINP, LOGL_ERROR, "The BSC did not answer the GSM08.08 reset. Restart MTP\n");
-		mtp_link_stop(bsc->link.the_link);
+		mtp_link_set_stop(bsc->link.the_link);
 		clear_connections(bsc);
 		bsc->link.reset(&bsc->link);
 		bsc_resources_released(bsc);
@@ -224,7 +224,7 @@ static void bsc_reset_timeout(void *_data)
 	}
 
 	++bsc->reset_count;
-	mtp_link_submit_sccp_data(bsc->link.the_link, -1, msg->l2h, msgb_l2len(msg));
+	mtp_link_set_submit_sccp_data(bsc->link.the_link, -1, msg->l2h, msgb_l2len(msg));
 	msgb_free(msg);
 	bsc_schedule_timer(&bsc->reset_timeout, 20, 0);
 }
@@ -269,7 +269,7 @@ void release_bsc_resources(struct bsc_data *bsc)
 			continue;
 
 		/* wait for the clear commands */
-		mtp_link_submit_sccp_data(bsc->link.the_link, con->sls, msg->l2h, msgb_l2len(msg));
+		mtp_link_set_submit_sccp_data(bsc->link.the_link, con->sls, msg->l2h, msgb_l2len(msg));
 		msgb_free(msg);
 	}
 
@@ -287,11 +287,11 @@ void release_bsc_resources(struct bsc_data *bsc)
 void bsc_link_down(struct link_data *data)
 {
 	int was_up;
-	struct mtp_link *link = data->the_link;
+	struct mtp_link_set *link = data->the_link;
 
 	link->available = 0;
 	was_up = link->sccp_up;
-	mtp_link_stop(link);
+	mtp_link_set_stop(link);
 	clear_connections(data->bsc);
 	mgcp_reset(data->bsc);
 
@@ -311,7 +311,7 @@ void bsc_link_up(struct link_data *data)
 		bsc_resources_released(data->bsc);
 	}
 
-	mtp_link_reset(data->the_link);
+	mtp_link_set_reset(data->the_link);
 }
 
 /**
@@ -325,7 +325,7 @@ static void send_rlc_to_bsc(unsigned int sls, struct sccp_source_reference *src,
 	if (!msg)
 		return;
 
-	mtp_link_submit_sccp_data(bsc.link.the_link, sls, msg->l2h, msgb_l2len(msg));
+	mtp_link_set_submit_sccp_data(bsc.link.the_link, sls, msg->l2h, msgb_l2len(msg));
 	msgb_free(msg);
 }
 
@@ -386,7 +386,7 @@ static void handle_rlsd(struct sccp_connection_released *rlsd, int from_msc)
  *      1.) We are destroying the connection, we might send a RLC to
  *          the MSC if we are waiting for one.
  */
-void update_con_state(struct mtp_link *link, int rc, struct sccp_parse_result *res, struct msgb *msg, int from_msc, int sls)
+void update_con_state(struct mtp_link_set *link, int rc, struct sccp_parse_result *res, struct msgb *msg, int from_msc, int sls)
 {
 	struct active_sccp_con *con;
 	struct sccp_connection_request *cr;
@@ -506,11 +506,11 @@ static void send_local_rlsd_for_con(void *data)
 	++con->rls_tries;
 	LOGP(DINP, LOGL_DEBUG, "Sending RLSD for 0x%x the %d time.\n",
 	     sccp_src_ref_to_int(&con->src_ref), con->rls_tries);
-	mtp_link_submit_sccp_data(bsc.link.the_link, con->sls, rlsd->l2h, msgb_l2len(rlsd));
+	mtp_link_set_submit_sccp_data(bsc.link.the_link, con->sls, rlsd->l2h, msgb_l2len(rlsd));
 	msgb_free(rlsd);
 }
 
-static void send_local_rlsd(struct mtp_link *link, struct sccp_parse_result *res)
+static void send_local_rlsd(struct mtp_link_set *link, struct sccp_parse_result *res)
 {
 	struct active_sccp_con *con;
 
@@ -523,7 +523,7 @@ static void send_local_rlsd(struct mtp_link *link, struct sccp_parse_result *res
 	send_local_rlsd_for_con(con);
 }
 
-static void send_reset_ack(struct mtp_link *link, int sls)
+static void send_reset_ack(struct mtp_link_set *link, int sls)
 {
 	static const uint8_t reset_ack[] = {
 		0x09, 0x00, 0x03, 0x05, 0x7, 0x02, 0x42, 0xfe,
@@ -531,7 +531,7 @@ static void send_reset_ack(struct mtp_link *link, int sls)
 		0x00, 0x01, 0x31
 	};
 
-	mtp_link_submit_sccp_data(link, sls, reset_ack, sizeof(reset_ack));
+	mtp_link_set_submit_sccp_data(link, sls, reset_ack, sizeof(reset_ack));
 }
 
 static void print_usage()
@@ -636,7 +636,7 @@ int main(int argc, char **argv)
 	bsc.ni_ni = MTP_NI_NATION_NET;
 	bsc.ni_spare = 0;
 
-	mtp_link_init();
+	mtp_link_set_init();
 	thread_init();
 
 	log_init(&log_info);

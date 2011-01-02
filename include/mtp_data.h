@@ -34,7 +34,7 @@
 /**
  * The state of the mtp_link in terms of layer3 and upwards
  */
-struct mtp_link {
+struct mtp_link_set {
 	/* routing info.. */
 	int dpc, opc, sccp_opc;
 	int ni;
@@ -63,21 +63,21 @@ struct mtp_link {
 };
 
 
-struct mtp_link *mtp_link_alloc(void);
-void mtp_link_stop(struct mtp_link *link);
-void mtp_link_reset(struct mtp_link *link);
-int mtp_link_data(struct mtp_link *link, struct msgb *msg);
-int mtp_link_submit_sccp_data(struct mtp_link *link, int sls, const uint8_t *data, unsigned int length);
-int mtp_link_submit_isup_data(struct mtp_link *link, int sls, const uint8_t *data, unsigned int length);
+struct mtp_link_set *mtp_link_set_alloc(void);
+void mtp_link_set_stop(struct mtp_link_set *link);
+void mtp_link_set_reset(struct mtp_link_set *link);
+int mtp_link_set_data(struct mtp_link_set *link, struct msgb *msg);
+int mtp_link_set_submit_sccp_data(struct mtp_link_set *link, int sls, const uint8_t *data, unsigned int length);
+int mtp_link_set_submit_isup_data(struct mtp_link_set *link, int sls, const uint8_t *data, unsigned int length);
 
 
 /* one time init function */
-void mtp_link_init(void);
+void mtp_link_set_init(void);
 
 /* to be implemented for MSU sending */
-void mtp_link_submit(struct mtp_link *link, struct msgb *msg);
-void mtp_link_forward_sccp(struct mtp_link *link, struct msgb *msg, int sls);
-void mtp_link_restart(struct mtp_link *link);
-void mtp_link_sccp_down(struct mtp_link *link);
+void mtp_link_set_submit(struct mtp_link_set *link, struct msgb *msg);
+void mtp_link_set_forward_sccp(struct mtp_link_set *link, struct msgb *msg, int sls);
+void mtp_link_set_restart(struct mtp_link_set *link);
+void mtp_link_set_sccp_down(struct mtp_link_set *link);
 
 #endif

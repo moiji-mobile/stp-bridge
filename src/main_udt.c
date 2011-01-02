@@ -65,7 +65,7 @@ extern void cell_vty_init(void);
 /*
  * methods called from the MTP Level3 part
  */
-void mtp_link_forward_sccp(struct mtp_link *link, struct msgb *_msg, int sls)
+void mtp_link_set_forward_sccp(struct mtp_link_set *link, struct msgb *_msg, int sls)
 {
 	msc_send_direct(&bsc, _msg);
 }
@@ -73,11 +73,11 @@ void mtp_link_forward_sccp(struct mtp_link *link, struct msgb *_msg, int sls)
 void bsc_link_down(struct link_data *data)
 {
 	int was_up;
-	struct mtp_link *link = data->the_link;
+	struct mtp_link_set *link = data->the_link;
 
 	link->available = 0;
 	was_up = link->sccp_up;
-	mtp_link_stop(link);
+	mtp_link_set_stop(link);
 
 	data->clear_queue(data);
 
@@ -88,7 +88,7 @@ void bsc_link_down(struct link_data *data)
 void bsc_link_up(struct link_data *data)
 {
 	data->the_link->available = 1;
-	mtp_link_reset(data->the_link);
+	mtp_link_set_reset(data->the_link);
 }
 
 static void print_usage()
@@ -193,7 +193,7 @@ int main(int argc, char **argv)
 	bsc.ni_ni = MTP_NI_NATION_NET;
 	bsc.ni_spare = 0;
 
-	mtp_link_init();
+	mtp_link_set_init();
 	thread_init();
 
 	log_init(&log_info);
@@ -264,7 +264,7 @@ struct msgb *create_reset()
 	return NULL;
 }
 
-void update_con_state(struct mtp_link *link, int rc, struct sccp_parse_result *res, struct msgb *msg, int from_msc, int sls)
+void update_con_state(struct mtp_link_set *link, int rc, struct sccp_parse_result *res, struct msgb *msg, int from_msc, int sls)
 {
 	LOGP(DMSC, LOGL_ERROR, "Should not be called.\n");
 	return;

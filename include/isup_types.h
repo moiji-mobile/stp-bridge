@@ -25,7 +25,7 @@
 #include <endian.h>
 
 struct msgb;
-struct mtp_link;
+struct mtp_link_set;
 
 /* This is from Table 4/Q.763 */
 #define ISUP_MSG_GRS	0x17
@@ -47,7 +47,7 @@ struct isup_msg_grs {
 	uint8_t  pointer_int;
 };
 
-int mtp_link_forward_isup(struct mtp_link *link, struct msgb *msg, int sls);
+int mtp_link_set_forward_isup(struct mtp_link_set *link, struct msgb *msg, int sls);
 
 int isup_parse_grs(const uint8_t *data, uint8_t length);
 
