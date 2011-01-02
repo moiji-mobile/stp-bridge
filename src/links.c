@@ -65,6 +65,7 @@ int link_init(struct bsc_data *bsc)
 	bsc->link.the_link->ni = bsc->ni_ni;
 	bsc->link.the_link->spare = bsc->ni_spare;
 	bsc->link.bsc = bsc;
+	bsc->link.udp.link_index = 1;
 
 	if (!bsc->src_port) {
 		LOGP(DINP, LOGL_ERROR, "You need to set a UDP address.\n");
@@ -88,7 +89,8 @@ int link_init(struct bsc_data *bsc)
 	 * SLTM and it begins a reset. Then we will take it up
 	 * again and do the usual business.
 	 */
-	snmp_mtp_deactivate(bsc->link.udp.session);
+	snmp_mtp_deactivate(bsc->link.udp.session,
+			    bsc->link.udp.link_index);
 	bsc->start_timer.cb = start_rest;
 	bsc->start_timer.data = &bsc;
 	bsc_schedule_timer(&bsc->start_timer, bsc->link.udp.reset_timeout, 0);

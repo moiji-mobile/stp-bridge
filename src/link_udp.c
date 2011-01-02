@@ -131,7 +131,7 @@ static void do_start(void *_data)
 	struct link_data *link = (struct link_data *) _data;
 
 	link->forced_down = 0;
-	snmp_mtp_activate(link->udp.session);
+	snmp_mtp_activate(link->udp.session, link->udp.link_index);
 	bsc_link_up(link);
 }
 
@@ -139,7 +139,7 @@ static int udp_link_reset(struct link_data *link)
 {
 	LOGP(DINP, LOGL_NOTICE, "Will restart SLTM transmission in %d seconds.\n",
 	     link->udp.reset_timeout);
-	snmp_mtp_deactivate(link->udp.session);
+	snmp_mtp_deactivate(link->udp.session, link->udp.link_index);
 	bsc_link_down(link);
 
 	/* restart the link in 90 seconds... to force a timeout on the BSC */
@@ -156,7 +156,7 @@ static int udp_link_write(struct link_data *link, struct msgb *msg)
 	hdr = (struct udp_data_hdr *) msgb_push(msg, sizeof(*hdr));
 	hdr->format_type = UDP_FORMAT_SIMPLE_UDP;
 	hdr->data_type = UDP_DATA_MSU_PRIO_0;
-	hdr->data_link_index = htons(1);
+	hdr->data_link_index = htons(link->udp.link_index);
 	hdr->user_context = 0;
 	hdr->data_length = htonl(msgb_l2len(msg));
 
