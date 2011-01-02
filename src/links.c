@@ -27,6 +27,17 @@
 
 extern struct bsc_data bsc;
 
+void mtp_link_down(struct link_data *link)
+{
+	mtp_linkset_down(link->the_link);
+	link->clear_queue(link);
+}
+
+void mtp_link_up(struct link_data *link)
+{
+	mtp_linkset_up(link->the_link);
+}
+
 void mtp_link_set_sccp_down(struct mtp_link_set *link)
 {
 }
@@ -63,6 +74,7 @@ int link_init(struct bsc_data *bsc)
 	bsc->link.the_link->sltm_once = bsc->once;
 	bsc->link.the_link->ni = bsc->ni_ni;
 	bsc->link.the_link->spare = bsc->ni_spare;
+	bsc->link.the_link->bsc = bsc;
 	bsc->link.bsc = bsc;
 	bsc->link.udp.link_index = 1;
 

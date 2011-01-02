@@ -1,7 +1,7 @@
 /* Bloated main routine, refactor */
 /*
- * (C) 2010 by Holger Hans Peter Freyther <zecke@selfish.org>
- * (C) 2010 by On-Waves
+ * (C) 2010-2011 by Holger Hans Peter Freyther <zecke@selfish.org>
+ * (C) 2010-2011 by On-Waves
  * All Rights Reserved
  *
  * This program is free software: you can redistribute it and/or modify
@@ -284,34 +284,28 @@ void release_bsc_resources(struct bsc_data *bsc)
 	}
 }
 
-void bsc_link_down(struct link_data *data)
+void mtp_linkset_down(struct mtp_link_set *set)
 {
-	int was_up;
-	struct mtp_link_set *link = data->the_link;
-
-	link->available = 0;
-	was_up = link->sccp_up;
-	mtp_link_set_stop(link);
-	clear_connections(data->bsc);
-	mgcp_reset(data->bsc);
-
-	data->clear_queue(data);
+	set->available = 0;
+	mtp_link_set_stop(set);
+	clear_connections(set->bsc);
+	mgcp_reset(set->bsc);
 
 	/* If we have an A link send a reset to the MSC */
-	msc_send_reset(data->bsc);
+	msc_send_reset(set->bsc);
 }
 
-void bsc_link_up(struct link_data *data)
+void mtp_linkset_up(struct mtp_link_set *set)
 {
-	data->the_link->available = 1;
+	set->available = 1;
 
 	/* we have not gone through link down */
-	if (data->bsc->msc_link_down) {
-		clear_connections(data->bsc);
-		bsc_resources_released(data->bsc);
+	if (set->bsc->msc_link_down) {
+		clear_connections(set->bsc);
+		bsc_resources_released(set->bsc);
 	}
 
-	mtp_link_set_reset(data->the_link);
+	mtp_link_set_reset(set);
 }
 
 /**

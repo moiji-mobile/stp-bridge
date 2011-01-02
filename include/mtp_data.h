@@ -1,6 +1,6 @@
 /*
- * (C) 2010 by Holger Hans Peter Freyther <zecke@selfish.org>
- * (C) 2010 by On-Waves
+ * (C) 2010-2011 by Holger Hans Peter Freyther <zecke@selfish.org>
+ * (C) 2010-2011 by On-Waves
  * All Rights Reserved
  *
  * This program is free software: you can redistribute it and/or modify
@@ -23,6 +23,8 @@
 #include <osmocore/msgb.h>
 #include <osmocore/timer.h>
 #include <osmocore/utils.h>
+
+struct bsc_data;
 
 /* MTP Level3 timers */
 
@@ -60,6 +62,9 @@ struct mtp_link_set {
 	struct timer_list t2_timer;
 
 	struct timer_list delay_timer;
+
+	/* custom data */
+	struct bsc_data *bsc;
 };
 
 

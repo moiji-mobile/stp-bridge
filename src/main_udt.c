@@ -1,7 +1,7 @@
 /* Relay UDT/all SCCP messages */
 /*
- * (C) 2010 by Holger Hans Peter Freyther <zecke@selfish.org>
- * (C) 2010 by On-Waves
+ * (C) 2010-2011 by Holger Hans Peter Freyther <zecke@selfish.org>
+ * (C) 2010-2011 by On-Waves
  * All Rights Reserved
  *
  * This program is free software: you can redistribute it and/or modify
@@ -70,25 +70,19 @@ void mtp_link_set_forward_sccp(struct mtp_link_set *link, struct msgb *_msg, int
 	msc_send_direct(&bsc, _msg);
 }
 
-void bsc_link_down(struct link_data *data)
+void mtp_linkset_down(struct mtp_link_set *set)
 {
-	int was_up;
-	struct mtp_link_set *link = data->the_link;
-
-	link->available = 0;
-	was_up = link->sccp_up;
-	mtp_link_set_stop(link);
-
-	data->clear_queue(data);
+	set->available = 0;
+	mtp_link_set_stop(set);
 
 	/* If we have an A link send a reset to the MSC */
-	msc_send_reset(data->bsc);
+	msc_send_reset(set->bsc);
 }
 
-void bsc_link_up(struct link_data *data)
+void mtp_linkset_up(struct mtp_link_set *set)
 {
-	data->the_link->available = 1;
-	mtp_link_set_reset(data->the_link);
+	set->available = 1;
+	mtp_link_set_reset(set);
 }
 
 static void print_usage()

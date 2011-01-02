@@ -1,7 +1,7 @@
 /* Everything related to the BSC connection */
 /*
- * (C) 2010 by Holger Hans Peter Freyther <zecke@selfish.org>
- * (C) 2010 by On-Waves
+ * (C) 2010-2011 by Holger Hans Peter Freyther <zecke@selfish.org>
+ * (C) 2010-2011 by On-Waves
  * All Rights Reserved
  *
  * This program is free software: you can redistribute it and/or modify
@@ -126,8 +126,11 @@ struct bsc_data {
 
 /* bsc related functions */
 void release_bsc_resources(struct bsc_data *bsc);
-void bsc_link_down(struct link_data *data);
-void bsc_link_up(struct link_data *data);
+void mtp_link_down(struct link_data *data);
+void mtp_link_up(struct link_data *data);
+
+void mtp_linkset_down(struct mtp_link_set *);
+void mtp_linkset_up(struct mtp_link_set *);
 
 /* msc related functions */
 int msc_init(struct bsc_data *bsc, int mgcp);
