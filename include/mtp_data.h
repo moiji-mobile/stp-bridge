@@ -53,10 +53,6 @@ struct mtp_link {
 	int sltm_once;
 	int was_up;
 
-
-	/* the associated link */
-	int link;
-
 	int slta_misses;
 	struct timer_list t1_timer;
 	struct timer_list t2_timer;
