@@ -194,7 +194,7 @@ static void clear_connections(struct bsc_data *bsc)
 		free_con(con);
 	}
 
-	bsc->link.clear_queue(&bsc->link);
+	bsc->link_set->link->clear_queue(bsc->link_set->link);
 }
 
 void bsc_resources_released(struct bsc_data *bsc)
@@ -210,9 +210,9 @@ static void bsc_reset_timeout(void *_data)
 	/* no reset */
 	if (bsc->reset_count > 0) {
 		LOGP(DINP, LOGL_ERROR, "The BSC did not answer the GSM08.08 reset. Restart MTP\n");
-		mtp_link_set_stop(bsc->link.the_link);
+		mtp_link_set_stop(bsc->link_set);
 		clear_connections(bsc);
-		bsc->link.reset(&bsc->link);
+		bsc->link_set->link->reset(bsc->link_set->link);
 		bsc_resources_released(bsc);
 		return;
 	}
@@ -224,7 +224,7 @@ static void bsc_reset_timeout(void *_data)
 	}
 
 	++bsc->reset_count;
-	mtp_link_set_submit_sccp_data(bsc->link.the_link, -1, msg->l2h, msgb_l2len(msg));
+	mtp_link_set_submit_sccp_data(bsc->link_set, -1, msg->l2h, msgb_l2len(msg));
 	msgb_free(msg);
 	bsc_schedule_timer(&bsc->reset_timeout, 20, 0);
 }
@@ -269,7 +269,7 @@ void release_bsc_resources(struct bsc_data *bsc)
 			continue;
 
 		/* wait for the clear commands */
-		mtp_link_set_submit_sccp_data(bsc->link.the_link, con->sls, msg->l2h, msgb_l2len(msg));
+		mtp_link_set_submit_sccp_data(bsc->link_set, con->sls, msg->l2h, msgb_l2len(msg));
 		msgb_free(msg);
 	}
 
@@ -319,7 +319,7 @@ static void send_rlc_to_bsc(unsigned int sls, struct sccp_source_reference *src,
 	if (!msg)
 		return;
 
-	mtp_link_set_submit_sccp_data(bsc.link.the_link, sls, msg->l2h, msgb_l2len(msg));
+	mtp_link_set_submit_sccp_data(bsc.link_set, sls, msg->l2h, msgb_l2len(msg));
 	msgb_free(msg);
 }
 
@@ -500,7 +500,7 @@ static void send_local_rlsd_for_con(void *data)
 	++con->rls_tries;
 	LOGP(DINP, LOGL_DEBUG, "Sending RLSD for 0x%x the %d time.\n",
 	     sccp_src_ref_to_int(&con->src_ref), con->rls_tries);
-	mtp_link_set_submit_sccp_data(bsc.link.the_link, con->sls, rlsd->l2h, msgb_l2len(rlsd));
+	mtp_link_set_submit_sccp_data(bsc.link_set, con->sls, rlsd->l2h, msgb_l2len(rlsd));
 	msgb_free(rlsd);
 }
 
@@ -547,7 +547,7 @@ static void sigint()
 	printf("Terminating.\n");
 	handled = 1;
 	if (bsc.setup)
-		bsc.link.shutdown(&bsc.link);
+		bsc.link_set->link->shutdown(bsc.link_set->link);
 	exit(0);
 
 out:
@@ -593,14 +593,14 @@ static void handle_options(int argc, char **argv)
 			print_help();
 			exit(0);
 		case 'p':
-			if (bsc.link.pcap_fd >= 0)
-				close(bsc.link.pcap_fd);
-			bsc.link.pcap_fd = open(optarg, O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP| S_IROTH);
-			if (bsc.link.pcap_fd < 0) {
+			if (bsc.pcap_fd >= 0)
+				close(bsc.pcap_fd);
+			bsc.pcap_fd = open(optarg, O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP| S_IROTH);
+			if (bsc.pcap_fd < 0) {
 				fprintf(stderr, "Failed to open PCAP file.\n");
 				exit(0);
 			}
-			mtp_pcap_write_header(bsc.link.pcap_fd);
+			mtp_pcap_write_header(bsc.pcap_fd);
 			break;
 		case 'c':
 			config = optarg;
@@ -650,8 +650,8 @@ int main(int argc, char **argv)
 
 	bsc.setup = 0;
 	bsc.msc_address = "127.0.0.1";
-	bsc.link.pcap_fd = -1;
-	bsc.link.udp.reset_timeout = 180;
+	bsc.pcap_fd = -1;
+	bsc.udp_reset_timeout = 180;
 	bsc.ping_time = 20;
 	bsc.pong_time = 5;
 	bsc.msc_time = 20;

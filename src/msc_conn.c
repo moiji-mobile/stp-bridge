@@ -146,7 +146,7 @@ static int ipaccess_a_fd_cb(struct bsc_fd *bfd)
 	hh = (struct ipaccess_head *) msg->data;
 	ipaccess_rcvmsg_base(msg, bfd);
 
-	link = bsc->link.the_link;
+	link = bsc->link_set;
 
 	/* initialize the networking. This includes sending a GSM08.08 message */
 	if (hh->proto == IPAC_PROTO_IPACCESS) {

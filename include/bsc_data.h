@@ -96,7 +96,9 @@ struct bsc_data {
 
 	int setup;
 
-	struct link_data link;
+	int pcap_fd;
+	int udp_reset_timeout;
+	struct mtp_link_set *link_set;
 
 	const char *token;
 

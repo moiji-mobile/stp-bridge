@@ -25,6 +25,7 @@
 #include <osmocore/utils.h>
 
 struct bsc_data;
+struct link_data;
 
 /* MTP Level3 timers */
 
@@ -62,6 +63,8 @@ struct mtp_link_set {
 	struct timer_list t2_timer;
 
 	struct timer_list delay_timer;
+
+	struct link_data *link;
 
 	/* custom data */
 	struct bsc_data *bsc;

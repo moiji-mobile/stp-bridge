@@ -25,6 +25,8 @@
 #include <mtp_data.h>
 #include <snmp_mtp.h>
 
+#include <osmocore/talloc.h>
+
 extern struct bsc_data bsc;
 
 void mtp_link_down(struct link_data *link)
@@ -42,15 +44,15 @@ void mtp_link_set_sccp_down(struct mtp_link_set *link)
 {
 }
 
-void mtp_link_set_submit(struct mtp_link_set *link, struct msgb *msg)
+void mtp_link_set_submit(struct mtp_link_set *set, struct msgb *msg)
 {
-	bsc.link.write(&bsc.link, msg);
+	set->link->write(set->link, msg);
 }
 
-void mtp_link_set_restart(struct mtp_link_set *link)
+void mtp_link_set_restart(struct mtp_link_set *set)
 {
 	LOGP(DINP, LOGL_ERROR, "Need to restart the SS7 link.\n");
-	bsc.link.reset(&bsc.link);
+	set->link->reset(set->link);
 }
 
 static void start_rest(void *start)
@@ -62,21 +64,26 @@ static void start_rest(void *start)
 		exit(3);
 	}
 
-	bsc.link.start(&bsc.link);
+	bsc.link_set->link->start(bsc.link_set->link);
 }
 
 int link_init(struct bsc_data *bsc)
 {
-	bsc->link.the_link = mtp_link_set_alloc();
-	bsc->link.the_link->dpc = bsc->dpc;
-	bsc->link.the_link->opc = bsc->opc;
-	bsc->link.the_link->sccp_opc = bsc->sccp_opc > -1 ? bsc->sccp_opc : bsc->opc;
-	bsc->link.the_link->sltm_once = bsc->once;
-	bsc->link.the_link->ni = bsc->ni_ni;
-	bsc->link.the_link->spare = bsc->ni_spare;
-	bsc->link.the_link->bsc = bsc;
-	bsc->link.bsc = bsc;
-	bsc->link.udp.link_index = 1;
+	bsc->link_set = mtp_link_set_alloc();
+	bsc->link_set->dpc = bsc->dpc;
+	bsc->link_set->opc = bsc->opc;
+	bsc->link_set->sccp_opc = bsc->sccp_opc > -1 ? bsc->sccp_opc : bsc->opc;
+	bsc->link_set->sltm_once = bsc->once;
+	bsc->link_set->ni = bsc->ni_ni;
+	bsc->link_set->spare = bsc->ni_spare;
+	bsc->link_set->bsc = bsc;
+
+	bsc->link_set->link = talloc_zero(bsc->link_set, struct link_data);
+	bsc->link_set->link->bsc = bsc;
+	bsc->link_set->link->udp.link_index = 1;
+	bsc->link_set->link->pcap_fd = bsc->pcap_fd;
+	bsc->link_set->link->udp.reset_timeout = bsc->udp_reset_timeout;
+	bsc->link_set->link->the_link = bsc->link_set;
 
 	if (!bsc->src_port) {
 		LOGP(DINP, LOGL_ERROR, "You need to set a UDP address.\n");
@@ -86,12 +93,12 @@ int link_init(struct bsc_data *bsc)
 	LOGP(DINP, LOGL_NOTICE, "Using UDP MTP mode.\n");
 
 	/* setup SNMP first, it is blocking */
-	bsc->link.udp.session = snmp_mtp_session_create(bsc->udp_ip);
-	if (!bsc->link.udp.session)
+	bsc->link_set->link->udp.session = snmp_mtp_session_create(bsc->udp_ip);
+	if (!bsc->link_set->link->udp.session)
 		return -1;
 
 	/* now connect to the transport */
-	if (link_udp_init(&bsc->link, bsc->src_port, bsc->udp_ip, bsc->udp_port) != 0)
+	if (link_udp_init(bsc->link_set->link, bsc->src_port, bsc->udp_ip, bsc->udp_port) != 0)
 		return -1;
 
 	/*
@@ -100,11 +107,11 @@ int link_init(struct bsc_data *bsc)
 	 * SLTM and it begins a reset. Then we will take it up
 	 * again and do the usual business.
 	 */
-	snmp_mtp_deactivate(bsc->link.udp.session,
-			    bsc->link.udp.link_index);
+	snmp_mtp_deactivate(bsc->link_set->link->udp.session,
+			    bsc->link_set->link->udp.link_index);
 	bsc->start_timer.cb = start_rest;
 	bsc->start_timer.data = &bsc;
-	bsc_schedule_timer(&bsc->start_timer, bsc->link.udp.reset_timeout, 0);
+	bsc_schedule_timer(&bsc->start_timer, bsc->link_set->link->udp.reset_timeout, 0);
 	LOGP(DMSC, LOGL_NOTICE, "Making sure SLTM will timeout.\n");
 
 	return 0;

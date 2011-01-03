@@ -104,7 +104,7 @@ static void sigint()
 	printf("Terminating.\n");
 	handled = 1;
 	if (bsc.setup)
-		bsc.link.shutdown(&bsc.link);
+		bsc.link_set->link->shutdown(bsc.link_set->link);
 	exit(0);
 
 out:
@@ -150,14 +150,14 @@ static void handle_options(int argc, char **argv)
 			print_help();
 			exit(0);
 		case 'p':
-			if (bsc.link.pcap_fd >= 0)
-				close(bsc.link.pcap_fd);
-			bsc.link.pcap_fd = open(optarg, O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP| S_IROTH);
-			if (bsc.link.pcap_fd < 0) {
+			if (bsc.pcap_fd >= 0)
+				close(bsc.pcap_fd);
+			bsc.pcap_fd = open(optarg, O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP| S_IROTH);
+			if (bsc.pcap_fd < 0) {
 				fprintf(stderr, "Failed to open PCAP file.\n");
 				exit(0);
 			}
-			mtp_pcap_write_header(bsc.link.pcap_fd);
+			mtp_pcap_write_header(bsc.pcap_fd);
 			break;
 		case 'c':
 			config = optarg;
@@ -207,8 +207,8 @@ int main(int argc, char **argv)
 
 	bsc.setup = 0;
 	bsc.msc_address = "127.0.0.1";
-	bsc.link.pcap_fd = -1;
-	bsc.link.udp.reset_timeout = 180;
+	bsc.pcap_fd = -1;
+	bsc.udp_reset_timeout = 180;
 	bsc.ping_time = 20;
 	bsc.pong_time = 5;
 	bsc.msc_time = 20;
