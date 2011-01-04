@@ -64,7 +64,6 @@ struct link_data {
 	struct mtp_link_set *the_link;
 
 	struct timer_list link_activate;
-	int forced_down;
 
 	int (*start)(struct link_data *);
 	int (*write)(struct link_data *, struct msgb *msg);

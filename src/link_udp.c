@@ -130,7 +130,6 @@ static void do_start(void *_data)
 {
 	struct link_data *link = (struct link_data *) _data;
 
-	link->forced_down = 0;
 	snmp_mtp_activate(link->udp.session, link->udp.link_index);
 	mtp_link_up(link);
 }
