@@ -29,17 +29,42 @@
 
 extern struct bsc_data bsc;
 
+int is_one_up(struct mtp_link_set *set)
+{
+	struct link_data *entry;
+
+	llist_for_each_entry(entry, &set->links, entry)
+		if (entry->available)
+			return 1;
+	return 0;
+}
+
 void mtp_link_down(struct link_data *link)
 {
-	mtp_linkset_down(link->the_link);
+	int one_up;
+	int was_up;
+
+	was_up = link->available;
+	link->available = 0;
+	one_up = is_one_up(link->the_link);
+
+	/* our linkset is now unsuable */
+	if (was_up && !one_up)
+		mtp_linkset_down(link->the_link);
 	link->clear_queue(link);
 	mtp_link_set_init_slc(link->the_link);
 }
 
 void mtp_link_up(struct link_data *link)
 {
-	mtp_linkset_up(link->the_link);
+	int one_up;
+
+	one_up = is_one_up(link->the_link);
+	link->available = 1;
+
 	mtp_link_set_init_slc(link->the_link);
+	if (!one_up)
+		mtp_linkset_up(link->the_link);
 }
 
 void mtp_link_set_sccp_down(struct mtp_link_set *link)

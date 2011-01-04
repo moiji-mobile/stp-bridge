@@ -63,6 +63,8 @@ struct link_data {
 	struct bsc_data *bsc;
 	struct mtp_link_set *the_link;
 
+	int available;
+
 	struct timer_list link_activate;
 
 	int (*start)(struct link_data *);
