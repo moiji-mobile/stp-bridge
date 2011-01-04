@@ -64,7 +64,7 @@ struct mtp_link_set {
 
 	struct timer_list delay_timer;
 
-	struct link_data *link;
+	struct llist_head links;
 	struct link_data *slc[16];
 
 	/* custom data */
@@ -80,6 +80,7 @@ int mtp_link_set_submit_sccp_data(struct mtp_link_set *link, int sls, const uint
 int mtp_link_set_submit_isup_data(struct mtp_link_set *link, int sls, const uint8_t *data, unsigned int length);
 
 void mtp_link_set_init_slc(struct mtp_link_set *set);
+void mtp_link_set_add_link(struct mtp_link_set *set, struct link_data *link);
 
 
 /* one time init function */
@@ -88,7 +89,7 @@ void mtp_link_set_init(void);
 /* to be implemented for MSU sending */
 void mtp_link_set_submit(struct link_data *link, struct msgb *msg);
 void mtp_link_set_forward_sccp(struct mtp_link_set *link, struct msgb *msg, int sls);
-void mtp_link_set_restart(struct mtp_link_set *link);
+void mtp_link_restart(struct link_data *link);
 void mtp_link_set_sccp_down(struct mtp_link_set *link);
 
 #endif

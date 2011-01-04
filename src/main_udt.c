@@ -104,7 +104,7 @@ static void sigint()
 	printf("Terminating.\n");
 	handled = 1;
 	if (bsc.setup)
-		bsc.link_set->link->shutdown(bsc.link_set->link);
+		link_shutdown_all(bsc.link_set);
 	exit(0);
 
 out:

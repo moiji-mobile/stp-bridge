@@ -194,7 +194,7 @@ static void clear_connections(struct bsc_data *bsc)
 		free_con(con);
 	}
 
-	bsc->link_set->link->clear_queue(bsc->link_set->link);
+	link_clear_all(bsc->link_set);
 }
 
 void bsc_resources_released(struct bsc_data *bsc)
@@ -212,7 +212,7 @@ static void bsc_reset_timeout(void *_data)
 		LOGP(DINP, LOGL_ERROR, "The BSC did not answer the GSM08.08 reset. Restart MTP\n");
 		mtp_link_set_stop(bsc->link_set);
 		clear_connections(bsc);
-		bsc->link_set->link->reset(bsc->link_set->link);
+		link_reset_all(bsc->link_set);
 		bsc_resources_released(bsc);
 		return;
 	}
@@ -547,7 +547,7 @@ static void sigint()
 	printf("Terminating.\n");
 	handled = 1;
 	if (bsc.setup)
-		bsc.link_set->link->shutdown(bsc.link_set->link);
+		link_shutdown_all(bsc.link_set);
 	exit(0);
 
 out:

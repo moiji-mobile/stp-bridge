@@ -51,14 +51,15 @@ void mtp_link_set_submit(struct link_data *link, struct msgb *msg)
 	link->write(link, msg);
 }
 
-void mtp_link_set_restart(struct mtp_link_set *set)
+void mtp_link_restart(struct link_data *link)
 {
 	LOGP(DINP, LOGL_ERROR, "Need to restart the SS7 link.\n");
-	set->link->reset(set->link);
+	link->reset(link);
 }
 
 static void start_rest(void *start)
 {
+	struct link_data *data;
 	bsc.setup = 1;
 
 	if (msc_init(&bsc, 1) != 0) {
@@ -66,11 +67,14 @@ static void start_rest(void *start)
 		exit(3);
 	}
 
-	bsc.link_set->link->start(bsc.link_set->link);
+	llist_for_each_entry(data, &bsc.link_set->links, entry)
+		data->start(data);
 }
 
 int link_init(struct bsc_data *bsc)
 {
+	struct link_data *lnk;
+
 	bsc->link_set = mtp_link_set_alloc();
 	bsc->link_set->dpc = bsc->dpc;
 	bsc->link_set->opc = bsc->opc;
@@ -80,12 +84,13 @@ int link_init(struct bsc_data *bsc)
 	bsc->link_set->spare = bsc->ni_spare;
 	bsc->link_set->bsc = bsc;
 
-	bsc->link_set->link = talloc_zero(bsc->link_set, struct link_data);
-	bsc->link_set->link->bsc = bsc;
-	bsc->link_set->link->udp.link_index = 1;
-	bsc->link_set->link->pcap_fd = bsc->pcap_fd;
-	bsc->link_set->link->udp.reset_timeout = bsc->udp_reset_timeout;
-	bsc->link_set->link->the_link = bsc->link_set;
+	lnk = talloc_zero(bsc->link_set, struct link_data);
+	lnk->bsc = bsc;
+	lnk->udp.link_index = 1;
+	lnk->pcap_fd = bsc->pcap_fd;
+	lnk->udp.reset_timeout = bsc->udp_reset_timeout;
+	lnk->the_link = bsc->link_set;
+	mtp_link_set_add_link(bsc->link_set, lnk);
 
 	if (!bsc->src_port) {
 		LOGP(DINP, LOGL_ERROR, "You need to set a UDP address.\n");
@@ -95,12 +100,12 @@ int link_init(struct bsc_data *bsc)
 	LOGP(DINP, LOGL_NOTICE, "Using UDP MTP mode.\n");
 
 	/* setup SNMP first, it is blocking */
-	bsc->link_set->link->udp.session = snmp_mtp_session_create(bsc->udp_ip);
-	if (!bsc->link_set->link->udp.session)
+	lnk->udp.session = snmp_mtp_session_create(bsc->udp_ip);
+	if (!lnk->udp.session)
 		return -1;
 
 	/* now connect to the transport */
-	if (link_udp_init(bsc->link_set->link, bsc->src_port, bsc->udp_ip, bsc->udp_port) != 0)
+	if (link_udp_init(lnk, bsc->src_port, bsc->udp_ip, bsc->udp_port) != 0)
 		return -1;
 
 	/*
@@ -109,12 +114,39 @@ int link_init(struct bsc_data *bsc)
 	 * SLTM and it begins a reset. Then we will take it up
 	 * again and do the usual business.
 	 */
-	snmp_mtp_deactivate(bsc->link_set->link->udp.session,
-			    bsc->link_set->link->udp.link_index);
+	snmp_mtp_deactivate(lnk->udp.session,
+			    lnk->udp.link_index);
 	bsc->start_timer.cb = start_rest;
 	bsc->start_timer.data = &bsc;
-	bsc_schedule_timer(&bsc->start_timer, bsc->link_set->link->udp.reset_timeout, 0);
+	bsc_schedule_timer(&bsc->start_timer, lnk->udp.reset_timeout, 0);
 	LOGP(DMSC, LOGL_NOTICE, "Making sure SLTM will timeout.\n");
 
+	return 0;
+}
+
+int link_shutdown_all(struct mtp_link_set *set)
+{
+	struct link_data *lnk;
+
+	llist_for_each_entry(lnk, &set->links, entry)
+		lnk->shutdown(lnk);
+	return 0;
+}
+
+int link_reset_all(struct mtp_link_set *set)
+{
+	struct link_data *lnk;
+
+	llist_for_each_entry(lnk, &set->links, entry)
+		lnk->reset(lnk);
+	return 0;
+}
+
+int link_clear_all(struct mtp_link_set *set)
+{
+	struct link_data *lnk;
+
+	llist_for_each_entry(lnk, &set->links, entry)
+		lnk->clear_queue(lnk);
 	return 0;
 }

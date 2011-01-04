@@ -20,6 +20,7 @@
  */
 #include <mtp_data.h>
 #include <mtp_level3.h>
+#include <bsc_data.h>
 #include <cellmgr_debug.h>
 #include <isup_types.h>
 
@@ -220,7 +221,7 @@ static void mtp_sltm_t1_timeout(void *_link)
 		link->running = 0;
 		bsc_del_timer(&link->t2_timer);
 		mtp_link_set_sccp_down(link);
-		mtp_link_set_restart(link);
+		mtp_link_restart(link->slc[0]);
 	}
 }
 
@@ -264,6 +265,8 @@ struct mtp_link_set *mtp_link_set_alloc(void)
 	link->t2_timer.cb = mtp_sltm_t2_timeout;
 	link->delay_timer.data = link;
 	link->delay_timer.cb = mtp_delayed_start;
+	INIT_LLIST_HEAD(&link->links);
+
 	return link;
 }
 
@@ -552,5 +555,11 @@ void mtp_link_set_init_slc(struct mtp_link_set *set)
 {
 	int i;
 	for (i = 0; i < ARRAY_SIZE(set->slc); ++i)
-		set->slc[i] = set->link;
+		set->slc[i] = (struct link_data *) set->links.next;
+}
+
+void mtp_link_set_add_link(struct mtp_link_set *set, struct link_data *lnk)
+{
+	llist_add_tail(&lnk->entry, &set->links);
+	mtp_link_set_init_slc(set);
 }
