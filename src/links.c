@@ -33,20 +33,22 @@ void mtp_link_down(struct link_data *link)
 {
 	mtp_linkset_down(link->the_link);
 	link->clear_queue(link);
+	mtp_link_set_init_slc(link->the_link);
 }
 
 void mtp_link_up(struct link_data *link)
 {
 	mtp_linkset_up(link->the_link);
+	mtp_link_set_init_slc(link->the_link);
 }
 
 void mtp_link_set_sccp_down(struct mtp_link_set *link)
 {
 }
 
-void mtp_link_set_submit(struct mtp_link_set *set, struct msgb *msg)
+void mtp_link_set_submit(struct link_data *link, struct msgb *msg)
 {
-	set->link->write(set->link, msg);
+	link->write(link, msg);
 }
 
 void mtp_link_set_restart(struct mtp_link_set *set)
