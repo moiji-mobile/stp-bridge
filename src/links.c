@@ -71,7 +71,7 @@ void mtp_link_set_sccp_down(struct mtp_link_set *link)
 {
 }
 
-void mtp_link_set_submit(struct link_data *link, struct msgb *msg)
+void mtp_link_submit(struct link_data *link, struct msgb *msg)
 {
 	link->write(link, msg);
 }

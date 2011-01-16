@@ -37,6 +37,15 @@ static void *tall_mtp_ctx = NULL;
 
 static int mtp_int_submit(struct mtp_link_set *link, int pc, int sls, int type, const uint8_t *data, unsigned int length);
 
+static int mtp_link_set_submit(struct mtp_link_set *set,
+			       int sls, struct msgb *msg)
+{
+	rate_ctr_inc(&set->ctrg->ctr[MTP_LSET_TOTA_OUT_MSG]);
+	mtp_link_submit(set->slc[sls], msg);
+
+	return 0;
+}
+
 static struct msgb *mtp_msg_alloc(struct mtp_link_set *link)
 {
 	struct mtp_level_3_hdr *hdr;
@@ -204,7 +213,7 @@ static void mtp_send_sltm(struct mtp_link_set *link)
 		return;
 	}
 
-	mtp_link_set_submit(link->slc[0], msg);
+	mtp_link_set_submit(link, 0, msg);
 }
 
 static void mtp_sltm_t1_timeout(void *_link)
@@ -329,13 +338,13 @@ static int mtp_link_sign_msg(struct mtp_link_set *link, struct mtp_level_3_hdr *
 			msg = mtp_tfp_alloc(link, 0);
 			if (!msg)
 				return -1;
-			mtp_link_set_submit(link->slc[0], msg);
+			mtp_link_set_submit(link, 0, msg);
 
 			msg = mtp_tra_alloc(link);
 			if (!msg)
 				return -1;
 
-			mtp_link_set_submit(link->slc[0], msg);
+			mtp_link_set_submit(link, 0, msg);
 			link->sccp_up = 1;
 			link->was_up = 1;
 			LOGP(DINP, LOGL_INFO, "SCCP traffic allowed. %p\n", link);
@@ -387,7 +396,7 @@ static int mtp_link_regular_msg(struct mtp_link_set *link, struct mtp_level_3_hd
 			out = mtp_create_slta(link, mng, l3_len);
 			if (!out)
 				return -1;
-			mtp_link_set_submit(link->slc[0], out);
+			mtp_link_set_submit(link, 0, out);
 			return 0;
 			break;
 		case MTP_TST_MSG_SLTA:
@@ -473,7 +482,7 @@ static int mtp_link_sccp_data(struct mtp_link_set *link, struct mtp_level_3_hdr 
 		if (!out)
 			return -1;
 
-		mtp_link_set_submit(link->slc[MTP_LINK_SLS(hdr->addr)], out);
+		mtp_link_set_submit(link, MTP_LINK_SLS(hdr->addr), out);
 		return 0;
 	}
 
@@ -568,7 +577,7 @@ static int mtp_int_submit(struct mtp_link_set *link, int pc, int sls, int type,
 	put_ptr = msgb_put(msg, length);
 	memcpy(put_ptr, data, length);
 
-	mtp_link_set_submit(link->slc[sls % 16], msg);
+	mtp_link_set_submit(link, sls % 16, msg);
 	return 0;
 }
 
