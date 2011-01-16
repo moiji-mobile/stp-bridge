@@ -25,6 +25,7 @@
 #include <mtp_pcap.h>
 #include <snmp_mtp.h>
 #include <cellmgr_debug.h>
+#include <counter.h>
 
 #include <osmocore/talloc.h>
 
@@ -91,11 +92,13 @@ static int udp_read_cb(struct bsc_fd *fd)
 
 	if (hdr->data_type == UDP_DATA_RETR_COMPL || hdr->data_type == UDP_DATA_RETR_IMPOS) {
 		LOGP(DINP, LOGL_ERROR, "Link retrieval done. Restarting the link.\n");
+		rate_ctr_inc(&link->ctrg->ctr[MTP_LNK_ERROR]);
 		mtp_link_down(link);
 		mtp_link_up(link);
 		goto exit;
 	} else if (hdr->data_type > UDP_DATA_MSU_PRIO_3) {
 		LOGP(DINP, LOGL_ERROR, "Link failure. retrieved message.\n");
+		rate_ctr_inc(&link->ctrg->ctr[MTP_LNK_ERROR]);
 		mtp_link_down(link);
 		goto exit;
 	}
@@ -113,6 +116,7 @@ static int udp_read_cb(struct bsc_fd *fd)
 	LOGP(DINP, LOGL_DEBUG, "MSU data on: %p data %s.\n", link, hexdump(msg->data, msg->len));
 	if (link->pcap_fd >= 0)
 		mtp_pcap_write_msu(link->pcap_fd, msg->l2h, msgb_l2len(msg));
+	rate_ctr_inc(&link->ctrg->ctr[MTP_LNK_IN]);
 	mtp_link_set_data(link->the_link, msg);
 
 exit:

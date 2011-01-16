@@ -37,6 +37,7 @@
 
 struct bsc_data;
 struct snmp_mtp_session;
+struct rate_ctr_group;
 
 /**
  * A link to the underlying MTP2 library or such
@@ -62,6 +63,7 @@ struct link_data {
 	int pcap_fd;
 	struct bsc_data *bsc;
 	struct mtp_link_set *the_link;
+	struct rate_ctr_group *ctrg;
 
 	int available;
 

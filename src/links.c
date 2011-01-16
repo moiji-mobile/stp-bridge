@@ -24,6 +24,7 @@
 #include <cellmgr_debug.h>
 #include <mtp_data.h>
 #include <snmp_mtp.h>
+#include <counter.h>
 
 #include <osmocore/talloc.h>
 
@@ -73,6 +74,7 @@ void mtp_link_set_sccp_down(struct mtp_link_set *link)
 
 void mtp_link_submit(struct link_data *link, struct msgb *msg)
 {
+	rate_ctr_inc(&link->ctrg->ctr[MTP_LNK_OUT]);
 	link->write(link, msg);
 }
 
@@ -110,6 +112,8 @@ int link_init(struct bsc_data *bsc)
 	bsc->link_set->bsc = bsc;
 
 	lnk = talloc_zero(bsc->link_set, struct link_data);
+	lnk->ctrg = rate_ctr_group_alloc(lnk,
+					 mtp_link_rate_ctr_desc(), 1);
 	lnk->bsc = bsc;
 	lnk->udp.link_index = 1;
 	lnk->pcap_fd = bsc->pcap_fd;
