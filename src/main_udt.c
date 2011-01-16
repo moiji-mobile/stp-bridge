@@ -62,13 +62,6 @@ static char *config = "udt_relay.cfg";
 struct bsc_data bsc;
 extern void cell_vty_init(void);
 
-int link_c7_init(struct link_data *data) __attribute__((__weak__));
-
-int link_c7_init(struct link_data *data)
-{
-	return -1;
-}
-
 /*
  * methods called from the MTP Level3 part
  */

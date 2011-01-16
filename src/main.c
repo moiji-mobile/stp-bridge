@@ -71,13 +71,6 @@ static void handle_local_sccp(struct mtp_link *link, struct msgb *inp, struct sc
 static void clear_connections(struct bsc_data *bsc);
 static void send_local_rlsd(struct mtp_link *link, struct sccp_parse_result *res);
 
-int link_c7_init(struct link_data *data) __attribute__((__weak__));
-
-int link_c7_init(struct link_data *data)
-{
-	return -1;
-}
-
 /* send a RSIP to the MGCP GW */
 static void mgcp_reset(struct bsc_data *bsc)
 {

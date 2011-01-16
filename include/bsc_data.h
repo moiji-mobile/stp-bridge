@@ -141,9 +141,6 @@ void msc_close_connection(struct bsc_data *data);
 void update_con_state(struct mtp_link *link, int rc, struct sccp_parse_result *result, struct msgb *msg, int from_msc, int sls);
 unsigned int sls_for_src_ref(struct sccp_source_reference *ref);
 
-/* c7 init */
-int link_c7_init(struct link_data *data);
-
 /* udp init */
 int link_udp_init(struct link_data *data, int src_port, const char *dest_ip, int port);
 
