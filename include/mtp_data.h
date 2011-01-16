@@ -67,6 +67,9 @@ struct mtp_link_set {
 	struct llist_head links;
 	struct link_data *slc[16];
 
+	/* statistics */
+	struct rate_ctr_group *ctrg;
+
 	/* custom data */
 	struct bsc_data *bsc;
 };
