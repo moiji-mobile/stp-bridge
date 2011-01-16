@@ -551,11 +551,44 @@ static int mtp_int_submit(struct mtp_link_set *link, int pc, int sls, int type,
 	return 0;
 }
 
+static struct link_data *find_next_link(struct mtp_link_set *set,
+					struct link_data *data)
+{
+	int found = 0;
+	struct link_data *next;
+
+	if (llist_empty(&set->links))
+		return NULL;
+
+	if (data == NULL)
+		found = 1;
+
+	/* try to find the next one */
+	llist_for_each_entry(next, &set->links, entry) {
+		if (found && next->available)
+			return next;
+		if (next == data)
+			found = 1;
+	}
+
+	/* try to find any one */
+	llist_for_each_entry(next, &set->links, entry)
+		if (next->available)
+			return next;
+
+	return NULL;
+}
+
 void mtp_link_set_init_slc(struct mtp_link_set *set)
 {
+	struct link_data *link = NULL;
 	int i;
-	for (i = 0; i < ARRAY_SIZE(set->slc); ++i)
-		set->slc[i] = (struct link_data *) set->links.next;
+
+
+	for (i = 0; i < ARRAY_SIZE(set->slc); ++i) {
+		link = find_next_link(set, link);
+		set->slc[i] = link;
+	}
 }
 
 void mtp_link_set_add_link(struct mtp_link_set *set, struct link_data *lnk)
