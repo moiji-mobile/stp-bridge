@@ -1,6 +1,6 @@
 /*
- * (C) 2010 by Holger Hans Peter Freyther <zecke@selfish.org>
- * (C) 2010 by On-Waves
+ * (C) 2010-2011 by Holger Hans Peter Freyther <zecke@selfish.org>
+ * (C) 2010-2011 by On-Waves
  * All Rights Reserved
  *
  * This program is free software: you can redistribute it and/or modify
@@ -63,3 +63,4 @@ int main(int argc, char **argv)
 
 /* stubs */
 int mtp_link_set_submit_isup_data() {return -1;}
+int mtp_link_set_forward_isup(struct mtp_link_set *s, struct msgb *m, int l) { abort(); }
