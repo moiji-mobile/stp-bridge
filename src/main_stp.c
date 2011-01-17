@@ -251,7 +251,7 @@ int main(int argc, char **argv)
 	bsc.link_set->pass_all_isup = 1;
 
 	lnk = sctp_m2ua_transp_create("0.0.0.0", 2904);
-	lnk->base.pcap_fd = -1;
+	lnk->base.pcap_fd = bsc.pcap_fd;
 	lnk->base.the_link = bsc.m2ua_set;
 	mtp_link_set_add_link(bsc.m2ua_set, (struct mtp_link *) lnk);
 
