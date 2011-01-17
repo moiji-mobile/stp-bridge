@@ -187,6 +187,7 @@ int main(int argc, char **argv)
 	bsc.dpc = 1;
 	bsc.opc = 0;
 	bsc.sccp_opc = -1;
+	bsc.isup_opc = -1;
 	bsc.udp_port = 3456;
 	bsc.udp_ip = NULL;
 	bsc.src_port = 1313;
@@ -243,6 +244,7 @@ int main(int argc, char **argv)
 	bsc.m2ua_set->dpc = 92;
 	bsc.m2ua_set->opc = 9;
 	bsc.m2ua_set->sccp_opc = 9;
+	bsc.m2ua_set->isup_opc = 9;
 	bsc.m2ua_set->ni = 3;
 	bsc.m2ua_set->bsc = &bsc;
 

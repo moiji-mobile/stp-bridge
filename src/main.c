@@ -629,6 +629,7 @@ int main(int argc, char **argv)
 	bsc.dpc = 1;
 	bsc.opc = 0;
 	bsc.sccp_opc = -1;
+	bsc.isup_opc = -1;
 	bsc.udp_port = 3456;
 	bsc.udp_ip = NULL;
 	bsc.src_port = 1313;
