@@ -246,6 +246,10 @@ int main(int argc, char **argv)
 	bsc.m2ua_set->ni = 3;
 	bsc.m2ua_set->bsc = &bsc;
 
+	/* for both links we want to have all isup messages */
+	bsc.m2ua_set->pass_all_isup = 1;
+	bsc.link_set->pass_all_isup = 1;
+
 	lnk = sctp_m2ua_transp_create("0.0.0.0", 2904);
 	lnk->base.pcap_fd = -1;
 	lnk->base.the_link = bsc.m2ua_set;
