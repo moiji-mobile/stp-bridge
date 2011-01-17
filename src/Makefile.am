@@ -17,6 +17,6 @@ cellmgr_ng_LDADD = $(LIBOSMOCORE_LIBS) $(LIBOSMOSCCP_LIBS) $(LIBOSMOVTY_LIBS) $(
 
 udt_relay_SOURCES = main_udt.c mtp_layer3.c thread.c input/ipaccess.c pcap.c \
 		     msc_conn.c link_udp.c snmp_mtp.c debug.c vty_interface.c \
-		     bss_patch.c isup.c links.c
+		     bss_patch.c isup.c links.c sctp_m2ua.c
 udt_relay_LDADD = $(LIBOSMOCORE_LIBS) $(LIBOSMOSCCP_LIBS) $(LIBOSMOVTY_LIBS) $(NEXUSWARE_C7_LIBS) \
-		   -lpthread -lnetsnmp -lcrypto
+		   -lpthread -lnetsnmp -lcrypto -lm2ua -lsctp

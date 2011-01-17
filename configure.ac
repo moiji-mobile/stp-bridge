@@ -26,6 +26,8 @@ PKG_CHECK_MODULES([LIBOSMOSCCP], [libosmo-sccp])
 PKG_CHECK_MODULES([LIBOSMOVTY], [libosmovty])
 #PKG_CHECK_MODULES([NEXUSWARE_C7], [nexusware-c7])
 
+AC_CHECK_LIB([sctp], sctp_sendmsg, [], [AC_MSG_ERROR([The sctp library is required.])])
+
 AC_ARG_ENABLE([uniporte], [AS_HELP_STRING([--enable-uniporte], [Build with uniporte])],
    [
        PKG_CHECK_MODULES([NEXUSWARE_UNIPORTE], [nexusware-uniporte])
