@@ -81,6 +81,7 @@ struct bsc_data {
 	int pcap_fd;
 	int udp_reset_timeout;
 	struct mtp_link_set *link_set;
+	struct mtp_link_set *m2ua_set;
 
 	const char *token;
 

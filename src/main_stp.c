@@ -27,6 +27,7 @@
 #include <bsc_data.h>
 #include <snmp_mtp.h>
 #include <cellmgr_debug.h>
+#include <sctp_m2ua.h>
 
 #include <osmocore/talloc.h>
 
@@ -68,6 +69,10 @@ extern void cell_vty_init(void);
  */
 void mtp_link_set_forward_sccp(struct mtp_link_set *link, struct msgb *_msg, int sls)
 {
+	struct mtp_link_set *target;
+
+	target = bsc.m2ua_set == link ? bsc.link_set : bsc.m2ua_set;
+	mtp_link_set_submit_sccp_data(target, sls, _msg->l2h, msgb_l2len(_msg));
 }
 
 void mtp_linkset_down(struct mtp_link_set *set)
@@ -167,6 +172,8 @@ static void handle_options(int argc, char **argv)
 int main(int argc, char **argv)
 {
 	int rc;
+	struct mtp_link *data;
+	struct mtp_m2ua_link *lnk;
 	INIT_LLIST_HEAD(&bsc.sccp_connections);
 
 	bsc.dpc = 1;
@@ -223,6 +230,21 @@ int main(int argc, char **argv)
 
 	if (link_init(&bsc) != 0)
 		return -1;
+
+	bsc.m2ua_set = mtp_link_set_alloc();
+	bsc.m2ua_set->dpc = 92;
+	bsc.m2ua_set->opc = 9;
+	bsc.m2ua_set->sccp_opc = 9;
+	bsc.m2ua_set->ni = 3;
+	bsc.m2ua_set->bsc = &bsc;
+
+	lnk = sctp_m2ua_transp_create("0.0.0.0", 2904);
+	lnk->base.pcap_fd = -1;
+	lnk->base.the_link = bsc.m2ua_set;
+	mtp_link_set_add_link(bsc.m2ua_set, (struct mtp_link *) lnk);
+
+	llist_for_each_entry(data, &bsc.m2ua_set->links, entry)
+		data->start(data);
 
         while (1) {
 		bsc_select_main(0);

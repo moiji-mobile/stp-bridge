@@ -22,6 +22,6 @@ udt_relay_LDADD = $(LIBOSMOCORE_LIBS) $(LIBOSMOSCCP_LIBS) $(LIBOSMOVTY_LIBS) $(N
 		   -lpthread -lnetsnmp -lcrypto -lm2ua -lsctp
 
 osmo_stp_SOURCES = main_stp.c mtp_layer3.c thread.c pcap.c link_udp.c snmp_mtp.c \
-		   debug.c vty_interface.c links.c isup.c
+		   debug.c vty_interface.c links.c isup.c sctp_m2ua.c
 osmo_stp_LDADD = $(LIBOSMOCORE_LIBS) $(LIBOSMOSCCP_LIBS) $(LIBOSMOVTY_LIBS) $(NEXUSWARE_C7_LIBS) \
 		   -lpthread -lnetsnmp -lcrypto -lm2ua -lsctp
