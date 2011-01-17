@@ -534,6 +534,9 @@ static int mtp_int_submit(struct mtp_link_set *link, int pc, int sls, int type,
 	struct mtp_level_3_hdr *hdr;
 	struct msgb *msg;
 
+	if (!link->slc[sls % 16])
+		return -1;
+
 	msg = mtp_msg_alloc(link);
 	if (!msg)
 		return -1;
