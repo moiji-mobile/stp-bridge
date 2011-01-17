@@ -1,7 +1,7 @@
 /* Everything related to the BSC connection */
 /*
- * (C) 2010 by Holger Hans Peter Freyther <zecke@selfish.org>
- * (C) 2010 by On-Waves
+ * (C) 2010-2011 by Holger Hans Peter Freyther <zecke@selfish.org>
+ * (C) 2010-2011 by On-Waves
  * All Rights Reserved
  *
  * This program is free software: you can redistribute it and/or modify
@@ -42,6 +42,8 @@ struct snmp_mtp_session;
  * A link to the underlying MTP2 library or such
  */
 struct link_data {
+	struct llist_head entry;
+
 	union {
 		struct {
 			struct thread_notifier *notifier;
@@ -52,16 +54,18 @@ struct link_data {
 			struct write_queue write_queue;
 			struct sockaddr_in remote;
 			struct snmp_mtp_session *session;
+			int link_index;
 			int reset_timeout;
 		} udp;
 	};
 
 	int pcap_fd;
 	struct bsc_data *bsc;
-	struct mtp_link *the_link;
+	struct mtp_link_set *the_link;
+
+	int available;
 
 	struct timer_list link_activate;
-	int forced_down;
 
 	int (*start)(struct link_data *);
 	int (*write)(struct link_data *, struct msgb *msg);
@@ -95,7 +99,9 @@ struct bsc_data {
 
 	int setup;
 
-	struct link_data link;
+	int pcap_fd;
+	int udp_reset_timeout;
+	struct mtp_link_set *link_set;
 
 	const char *token;
 
@@ -125,8 +131,11 @@ struct bsc_data {
 
 /* bsc related functions */
 void release_bsc_resources(struct bsc_data *bsc);
-void bsc_link_down(struct link_data *data);
-void bsc_link_up(struct link_data *data);
+void mtp_link_down(struct link_data *data);
+void mtp_link_up(struct link_data *data);
+
+void mtp_linkset_down(struct mtp_link_set *);
+void mtp_linkset_up(struct mtp_link_set *);
 
 /* msc related functions */
 int msc_init(struct bsc_data *bsc, int mgcp);
@@ -134,18 +143,18 @@ void msc_send_rlc(struct bsc_data *bsc, struct sccp_source_reference *src, struc
 void msc_send_reset(struct bsc_data *bsc);
 void msc_send_msg(struct bsc_data *bsc, int rc, struct sccp_parse_result *, struct msgb *msg);
 void msc_send_direct(struct bsc_data *bsc, struct msgb *msg);
-void msc_clear_queue(struct bsc_data *data);
 void msc_close_connection(struct bsc_data *data);
 
 /* connection tracking and action */
-void update_con_state(struct mtp_link *link, int rc, struct sccp_parse_result *result, struct msgb *msg, int from_msc, int sls);
+void update_con_state(struct mtp_link_set *link, int rc, struct sccp_parse_result *result, struct msgb *msg, int from_msc, int sls);
 unsigned int sls_for_src_ref(struct sccp_source_reference *ref);
-
-/* c7 init */
-int link_c7_init(struct link_data *data);
 
 /* udp init */
 int link_udp_init(struct link_data *data, int src_port, const char *dest_ip, int port);
+int link_init(struct bsc_data *bsc);
+int link_shutdown_all(struct mtp_link_set *);
+int link_reset_all(struct mtp_link_set *);
+int link_clear_all(struct mtp_link_set *);
 
 /* MGCP */
 void mgcp_forward(struct bsc_data *bsc, const uint8_t *data, unsigned int length);

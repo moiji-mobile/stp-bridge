@@ -20,6 +20,7 @@
  */
 #include <mtp_data.h>
 #include <mtp_level3.h>
+#include <bsc_data.h>
 #include <cellmgr_debug.h>
 #include <isup_types.h>
 
@@ -33,9 +34,9 @@
 
 static void *tall_mtp_ctx = NULL;
 
-static int mtp_int_submit(struct mtp_link *link, int pc, int sls, int type, const uint8_t *data, unsigned int length);
+static int mtp_int_submit(struct mtp_link_set *link, int pc, int sls, int type, const uint8_t *data, unsigned int length);
 
-static struct msgb *mtp_msg_alloc(struct mtp_link *link)
+static struct msgb *mtp_msg_alloc(struct mtp_link_set *link)
 {
 	struct mtp_level_3_hdr *hdr;
 	struct msgb *msg = msgb_alloc_headroom(4096, 128, "mtp-msg");
@@ -52,7 +53,7 @@ static struct msgb *mtp_msg_alloc(struct mtp_link *link)
 	return msg;
 }
 
-static struct msgb *mtp_create_sltm(struct mtp_link *link)
+static struct msgb *mtp_create_sltm(struct mtp_link_set *link)
 {
 	const uint8_t test_ptrn[14] = { 'G', 'S', 'M', 'M', 'M', 'S', };
 	struct mtp_level_3_hdr *hdr;
@@ -79,7 +80,7 @@ static struct msgb *mtp_create_sltm(struct mtp_link *link)
 	return msg;
 }
 
-static struct msgb *mtp_create_slta(struct mtp_link *link, struct mtp_level_3_mng *in_mng, int l3_len)
+static struct msgb *mtp_create_slta(struct mtp_link_set *link, struct mtp_level_3_mng *in_mng, int l3_len)
 {
 	struct mtp_level_3_hdr *hdr;
 	struct mtp_level_3_mng *mng;
@@ -100,7 +101,7 @@ static struct msgb *mtp_create_slta(struct mtp_link *link, struct mtp_level_3_mn
 	return out;
 }
 
-static struct msgb *mtp_tfp_alloc(struct mtp_link *link, int apoc)
+static struct msgb *mtp_tfp_alloc(struct mtp_link_set *link, int apoc)
 {
 	struct mtp_level_3_hdr *hdr;
 	struct mtp_level_3_prohib *prb;
@@ -118,7 +119,7 @@ static struct msgb *mtp_tfp_alloc(struct mtp_link *link, int apoc)
 	return out;
 }
 
-static struct msgb *mtp_tra_alloc(struct mtp_link *link)
+static struct msgb *mtp_tra_alloc(struct mtp_link_set *link)
 {
 	struct mtp_level_3_hdr *hdr;
 	struct mtp_level_3_cmn *cmn;
@@ -135,7 +136,7 @@ static struct msgb *mtp_tra_alloc(struct mtp_link *link)
 	return out;
 }
 
-static struct msgb *mtp_sccp_alloc_scmg(struct mtp_link *link,
+static struct msgb *mtp_sccp_alloc_scmg(struct mtp_link_set *link,
 					int type, int assn, int sls)
 {
 	struct sccp_data_unitdata *udt;
@@ -186,12 +187,12 @@ static struct msgb *mtp_sccp_alloc_scmg(struct mtp_link *link,
 	return out;
 }
 
-void mtp_link_init(void)
+void mtp_link_set_init(void)
 {
 	tall_mtp_ctx = talloc_named_const(NULL, 1, "mtp-link");
 }
 
-static void mtp_send_sltm(struct mtp_link *link)
+static void mtp_send_sltm(struct mtp_link_set *link)
 {
 	struct msgb *msg;
 
@@ -202,12 +203,12 @@ static void mtp_send_sltm(struct mtp_link *link)
 		return;
 	}
 
-	mtp_link_submit(link, msg);
+	mtp_link_set_submit(link->slc[0], msg);
 }
 
 static void mtp_sltm_t1_timeout(void *_link)
 {
-	struct mtp_link *link = (struct mtp_link *) _link;
+	struct mtp_link_set *link = (struct mtp_link_set *) _link;
 
 	if (link->slta_misses == 0) {
 		LOGP(DINP, LOGL_ERROR, "No SLTM response. Retrying. Link: %p\n", link);
@@ -219,14 +220,14 @@ static void mtp_sltm_t1_timeout(void *_link)
 		link->sccp_up = 0;
 		link->running = 0;
 		bsc_del_timer(&link->t2_timer);
-		mtp_link_sccp_down(link);
-		mtp_link_restart(link);
+		mtp_link_set_sccp_down(link);
+		mtp_link_restart(link->slc[0]);
 	}
 }
 
 static void mtp_sltm_t2_timeout(void *_link)
 {
-	struct mtp_link *link = (struct mtp_link *) _link;
+	struct mtp_link_set *link = (struct mtp_link_set *) _link;
 
 	if (!link->running) {
 		LOGP(DINP, LOGL_INFO, "Not restarting SLTM timer on link: %p\n", link);
@@ -249,11 +250,11 @@ static void mtp_delayed_start(void *link)
 	mtp_sltm_t2_timeout(link);
 }
 
-struct mtp_link *mtp_link_alloc(void)
+struct mtp_link_set *mtp_link_set_alloc(void)
 {
-	struct mtp_link *link;
+	struct mtp_link_set *link;
 
-	link = talloc_zero(tall_mtp_ctx, struct mtp_link);
+	link = talloc_zero(tall_mtp_ctx, struct mtp_link_set);
 	if (!link)
 		return NULL;
 
@@ -264,11 +265,12 @@ struct mtp_link *mtp_link_alloc(void)
 	link->t2_timer.cb = mtp_sltm_t2_timeout;
 	link->delay_timer.data = link;
 	link->delay_timer.cb = mtp_delayed_start;
-	INIT_LLIST_HEAD(&link->pending_msgs);
+	INIT_LLIST_HEAD(&link->links);
+
 	return link;
 }
 
-void mtp_link_stop(struct mtp_link *link)
+void mtp_link_set_stop(struct mtp_link_set *link)
 {
 	bsc_del_timer(&link->t1_timer);
 	bsc_del_timer(&link->t2_timer);
@@ -277,17 +279,17 @@ void mtp_link_stop(struct mtp_link *link)
 	link->running = 0;
 	link->sltm_pending = 0;
 
-	mtp_link_sccp_down(link);
+	mtp_link_set_sccp_down(link);
 }
 
-void mtp_link_reset(struct mtp_link *link)
+void mtp_link_set_reset(struct mtp_link_set *link)
 {
-	mtp_link_stop(link);
+	mtp_link_set_stop(link);
 	link->running = 1;
 	bsc_schedule_timer(&link->delay_timer, START_DELAY);
 }
 
-static int mtp_link_sign_msg(struct mtp_link *link, struct mtp_level_3_hdr *hdr, int l3_len)
+static int mtp_link_sign_msg(struct mtp_link_set *link, struct mtp_level_3_hdr *hdr, int l3_len)
 {
 	struct msgb *msg;
 	struct mtp_level_3_cmn *cmn;
@@ -309,18 +311,18 @@ static int mtp_link_sign_msg(struct mtp_link *link, struct mtp_level_3_hdr *hdr,
 		case MTP_RESTR_MSG_ALLWED:
 			LOGP(DINP, LOGL_INFO, "Received Restart Allowed. SST could be next: %p\n", link);
 			link->sccp_up = 0;
-			mtp_link_sccp_down(link);
+			mtp_link_set_sccp_down(link);
 
 			msg = mtp_tfp_alloc(link, 0);
 			if (!msg)
 				return -1;
-			mtp_link_submit(link, msg);
+			mtp_link_set_submit(link->slc[0], msg);
 
 			msg = mtp_tra_alloc(link);
 			if (!msg)
 				return -1;
 
-			mtp_link_submit(link, msg);
+			mtp_link_set_submit(link->slc[0], msg);
 			link->sccp_up = 1;
 			link->was_up = 1;
 			LOGP(DINP, LOGL_INFO, "SCCP traffic allowed. %p\n", link);
@@ -349,7 +351,7 @@ static int mtp_link_sign_msg(struct mtp_link *link, struct mtp_level_3_hdr *hdr,
 	return -1;
 }
 
-static int mtp_link_regular_msg(struct mtp_link *link, struct mtp_level_3_hdr *hdr, int l3_len)
+static int mtp_link_regular_msg(struct mtp_link_set *link, struct mtp_level_3_hdr *hdr, int l3_len)
 {
 	struct msgb *out;
 	struct mtp_level_3_mng *mng;
@@ -372,7 +374,7 @@ static int mtp_link_regular_msg(struct mtp_link *link, struct mtp_level_3_hdr *h
 			out = mtp_create_slta(link, mng, l3_len);
 			if (!out)
 				return -1;
-			mtp_link_submit(link, out);
+			mtp_link_set_submit(link->slc[0], out);
 			return 0;
 			break;
 		case MTP_TST_MSG_SLTA:
@@ -394,7 +396,6 @@ static int mtp_link_regular_msg(struct mtp_link *link, struct mtp_level_3_hdr *h
 			/* we had a matching slta */
 			bsc_del_timer(&link->t1_timer);
 			link->sltm_pending = 0;
-			mtp_link_slta_recv(link);
 			return 0;
 			break;
 		}
@@ -404,7 +405,7 @@ static int mtp_link_regular_msg(struct mtp_link *link, struct mtp_level_3_hdr *h
 	return -1;
 }
 
-static int mtp_link_sccp_data(struct mtp_link *link, struct mtp_level_3_hdr *hdr, struct msgb *msg, int l3_len)
+static int mtp_link_sccp_data(struct mtp_link_set *link, struct mtp_level_3_hdr *hdr, struct msgb *msg, int l3_len)
 {
 	struct msgb *out;
 	struct sccp_con_ctrl_prt_mgt *prt;
@@ -457,15 +458,15 @@ static int mtp_link_sccp_data(struct mtp_link *link, struct mtp_level_3_hdr *hdr
 		if (!out)
 			return -1;
 
-		mtp_link_submit(link, out);
+		mtp_link_set_submit(link->slc[MTP_LINK_SLS(hdr->addr)], out);
 		return 0;
 	}
 
-	mtp_link_forward_sccp(link, msg, MTP_LINK_SLS(hdr->addr));
+	mtp_link_set_forward_sccp(link, msg, MTP_LINK_SLS(hdr->addr));
 	return 0;
 }
 
-int mtp_link_data(struct mtp_link *link, struct msgb *msg)
+int mtp_link_set_data(struct mtp_link_set *link, struct msgb *msg)
 {
 	int rc = -1;
 	struct mtp_level_3_hdr *hdr;
@@ -494,7 +495,7 @@ int mtp_link_data(struct mtp_link *link, struct msgb *msg)
 		break;
 	case MTP_SI_MNT_ISUP:
 		msg->l3h = &hdr->data[0];
-		rc = mtp_link_forward_isup(link, msg, MTP_LINK_SLS(hdr->addr));
+		rc = mtp_link_set_forward_isup(link, msg, MTP_LINK_SLS(hdr->addr));
 		break;
 	default:
 		fprintf(stderr, "Unhandled: %u\n", hdr->ser_ind);
@@ -504,7 +505,7 @@ int mtp_link_data(struct mtp_link *link, struct msgb *msg)
 	return rc;
 }
 
-int mtp_link_submit_sccp_data(struct mtp_link *link, int sls, const uint8_t *data, unsigned int length)
+int mtp_link_set_submit_sccp_data(struct mtp_link_set *link, int sls, const uint8_t *data, unsigned int length)
 {
 
 	if (!link->sccp_up) {
@@ -512,16 +513,21 @@ int mtp_link_submit_sccp_data(struct mtp_link *link, int sls, const uint8_t *dat
 		return -1;
 	}
 
+	if (sls == -1) {
+		sls = link->last_sls;
+		link->last_sls = (link->last_sls + 1) % 16;
+	}
+
 	return mtp_int_submit(link, link->sccp_opc, sls, MTP_SI_MNT_SCCP, data, length);
 }
 
-int mtp_link_submit_isup_data(struct mtp_link *link, int sls,
+int mtp_link_set_submit_isup_data(struct mtp_link_set *link, int sls,
 			      const uint8_t *data, unsigned int length)
 {
 	return mtp_int_submit(link, link->opc, sls, MTP_SI_MNT_ISUP, data, length);
 }
 
-static int mtp_int_submit(struct mtp_link *link, int pc, int sls, int type,
+static int mtp_int_submit(struct mtp_link_set *link, int pc, int sls, int type,
 			  const uint8_t *data, unsigned int length)
 {
 	uint8_t *put_ptr;
@@ -541,6 +547,52 @@ static int mtp_int_submit(struct mtp_link *link, int pc, int sls, int type,
 	put_ptr = msgb_put(msg, length);
 	memcpy(put_ptr, data, length);
 
-	mtp_link_submit(link, msg);
+	mtp_link_set_submit(link->slc[sls % 16], msg);
 	return 0;
+}
+
+static struct link_data *find_next_link(struct mtp_link_set *set,
+					struct link_data *data)
+{
+	int found = 0;
+	struct link_data *next;
+
+	if (llist_empty(&set->links))
+		return NULL;
+
+	if (data == NULL)
+		found = 1;
+
+	/* try to find the next one */
+	llist_for_each_entry(next, &set->links, entry) {
+		if (found && next->available)
+			return next;
+		if (next == data)
+			found = 1;
+	}
+
+	/* try to find any one */
+	llist_for_each_entry(next, &set->links, entry)
+		if (next->available)
+			return next;
+
+	return NULL;
+}
+
+void mtp_link_set_init_slc(struct mtp_link_set *set)
+{
+	struct link_data *link = NULL;
+	int i;
+
+
+	for (i = 0; i < ARRAY_SIZE(set->slc); ++i) {
+		link = find_next_link(set, link);
+		set->slc[i] = link;
+	}
+}
+
+void mtp_link_set_add_link(struct mtp_link_set *set, struct link_data *lnk)
+{
+	llist_add_tail(&lnk->entry, &set->links);
+	mtp_link_set_init_slc(set);
 }

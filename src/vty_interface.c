@@ -72,7 +72,7 @@ static int config_write_cell(struct vty *vty)
 		vty_out(vty, " udp dest ip %s%s", bsc.udp_ip, VTY_NEWLINE);
 	vty_out(vty, " udp dest port %d%s", bsc.udp_port, VTY_NEWLINE);
 	vty_out(vty, " udp src port %d%s", bsc.src_port, VTY_NEWLINE);
-	vty_out(vty, " udp reset %d%s", bsc.link.udp.reset_timeout, VTY_NEWLINE);
+	vty_out(vty, " udp reset %d%s", bsc.udp_reset_timeout, VTY_NEWLINE);
 	vty_out(vty, " msc ip %s%s", bsc.msc_address, VTY_NEWLINE);
 	vty_out(vty, " msc ip-dscp %d%s", bsc.msc_ip_dscp, VTY_NEWLINE);
 	vty_out(vty, " msc token %s%s", bsc.token, VTY_NEWLINE);
@@ -166,7 +166,7 @@ DEFUN(cfg_udp_reset, cfg_udp_reset_cmd,
       "udp reset TIMEOUT",
       "Set the timeout to take the link down")
 {
-	bsc.link.udp.reset_timeout = atoi(argv[0]);
+	bsc.udp_reset_timeout = atoi(argv[0]);
 	return CMD_SUCCESS;
 }
 

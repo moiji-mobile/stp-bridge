@@ -1,6 +1,6 @@
 /*
- * (C) 2010 by Holger Hans Peter Freyther <zecke@selfish.org>
- * (C) 2010 by On-Waves
+ * (C) 2010-2011 by Holger Hans Peter Freyther <zecke@selfish.org>
+ * (C) 2010-2011 by On-Waves
  * All Rights Reserved
  *
  * This program is free software: you can redistribute it and/or modify
@@ -24,6 +24,9 @@
 #include <osmocore/timer.h>
 #include <osmocore/utils.h>
 
+struct bsc_data;
+struct link_data;
+
 /* MTP Level3 timers */
 
 /* Timers for SS7 */
@@ -34,7 +37,7 @@
 /**
  * The state of the mtp_link in terms of layer3 and upwards
  */
-struct mtp_link {
+struct mtp_link_set {
 	/* routing info.. */
 	int dpc, opc, sccp_opc;
 	int ni;
@@ -46,42 +49,47 @@ struct mtp_link {
 	int running;
 	int sccp_up;
 
+	int last_sls;
+
 	/* misc data */
 	uint8_t test_ptrn[14];
 
 	int sltm_pending;
-	struct llist_head pending_msgs;
 	int sltm_once;
 	int was_up;
-
-
-	/* the associated link */
-	int link;
 
 	int slta_misses;
 	struct timer_list t1_timer;
 	struct timer_list t2_timer;
 
 	struct timer_list delay_timer;
+
+	struct llist_head links;
+	struct link_data *slc[16];
+
+	/* custom data */
+	struct bsc_data *bsc;
 };
 
 
-struct mtp_link *mtp_link_alloc(void);
-void mtp_link_stop(struct mtp_link *link);
-void mtp_link_reset(struct mtp_link *link);
-int mtp_link_data(struct mtp_link *link, struct msgb *msg);
-int mtp_link_submit_sccp_data(struct mtp_link *link, int sls, const uint8_t *data, unsigned int length);
-int mtp_link_submit_isup_data(struct mtp_link *link, int sls, const uint8_t *data, unsigned int length);
+struct mtp_link_set *mtp_link_set_alloc(void);
+void mtp_link_set_stop(struct mtp_link_set *link);
+void mtp_link_set_reset(struct mtp_link_set *link);
+int mtp_link_set_data(struct mtp_link_set *link, struct msgb *msg);
+int mtp_link_set_submit_sccp_data(struct mtp_link_set *link, int sls, const uint8_t *data, unsigned int length);
+int mtp_link_set_submit_isup_data(struct mtp_link_set *link, int sls, const uint8_t *data, unsigned int length);
+
+void mtp_link_set_init_slc(struct mtp_link_set *set);
+void mtp_link_set_add_link(struct mtp_link_set *set, struct link_data *link);
 
 
 /* one time init function */
-void mtp_link_init(void);
+void mtp_link_set_init(void);
 
 /* to be implemented for MSU sending */
-void mtp_link_submit(struct mtp_link *link, struct msgb *msg);
-void mtp_link_forward_sccp(struct mtp_link *link, struct msgb *msg, int sls);
-void mtp_link_restart(struct mtp_link *link);
-void mtp_link_slta_recv(struct mtp_link *link);
-void mtp_link_sccp_down(struct mtp_link *link);
+void mtp_link_set_submit(struct link_data *link, struct msgb *msg);
+void mtp_link_set_forward_sccp(struct mtp_link_set *link, struct msgb *msg, int sls);
+void mtp_link_restart(struct link_data *link);
+void mtp_link_set_sccp_down(struct mtp_link_set *link);
 
 #endif

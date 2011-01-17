@@ -62,4 +62,4 @@ int main(int argc, char **argv)
 }
 
 /* stubs */
-int mtp_link_submit_isup_data() {return -1;}
+int mtp_link_set_submit_isup_data() {return -1;}

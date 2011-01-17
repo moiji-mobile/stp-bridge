@@ -91,12 +91,12 @@ static int udp_read_cb(struct bsc_fd *fd)
 
 	if (hdr->data_type == UDP_DATA_RETR_COMPL || hdr->data_type == UDP_DATA_RETR_IMPOS) {
 		LOGP(DINP, LOGL_ERROR, "Link retrieval done. Restarting the link.\n");
-		bsc_link_down(link);
-		bsc_link_up(link);
+		mtp_link_down(link);
+		mtp_link_up(link);
 		goto exit;
 	} else if (hdr->data_type > UDP_DATA_MSU_PRIO_3) {
 		LOGP(DINP, LOGL_ERROR, "Link failure. retrieved message.\n");
-		bsc_link_down(link);
+		mtp_link_down(link);
 		goto exit;
 	}
 
@@ -113,7 +113,7 @@ static int udp_read_cb(struct bsc_fd *fd)
 	LOGP(DINP, LOGL_DEBUG, "MSU data on: %p data %s.\n", link, hexdump(msg->data, msg->len));
 	if (link->pcap_fd >= 0)
 		mtp_pcap_write_msu(link->pcap_fd, msg->l2h, msgb_l2len(msg));
-	mtp_link_data(link->the_link, msg);
+	mtp_link_set_data(link->the_link, msg);
 
 exit:
 	msgb_free(msg);
@@ -130,17 +130,16 @@ static void do_start(void *_data)
 {
 	struct link_data *link = (struct link_data *) _data;
 
-	link->forced_down = 0;
-	snmp_mtp_activate(link->udp.session);
-	bsc_link_up(link);
+	snmp_mtp_activate(link->udp.session, link->udp.link_index);
+	mtp_link_up(link);
 }
 
 static int udp_link_reset(struct link_data *link)
 {
 	LOGP(DINP, LOGL_NOTICE, "Will restart SLTM transmission in %d seconds.\n",
 	     link->udp.reset_timeout);
-	snmp_mtp_deactivate(link->udp.session);
-	bsc_link_down(link);
+	snmp_mtp_deactivate(link->udp.session, link->udp.link_index);
+	mtp_link_down(link);
 
 	/* restart the link in 90 seconds... to force a timeout on the BSC */
 	link->link_activate.cb = do_start;
@@ -156,7 +155,7 @@ static int udp_link_write(struct link_data *link, struct msgb *msg)
 	hdr = (struct udp_data_hdr *) msgb_push(msg, sizeof(*hdr));
 	hdr->format_type = UDP_FORMAT_SIMPLE_UDP;
 	hdr->data_type = UDP_DATA_MSU_PRIO_0;
-	hdr->data_link_index = htons(1);
+	hdr->data_link_index = htons(link->udp.link_index);
 	hdr->user_context = 0;
 	hdr->data_length = htonl(msgb_l2len(msg));
 

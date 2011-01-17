@@ -90,7 +90,7 @@ int isup_parse_grs(const uint8_t *data, uint8_t in_length)
 
 
 /* Handle incoming ISUP data */
-static int handle_circuit_reset_grs(struct mtp_link *link, int sls, int cic,
+static int handle_circuit_reset_grs(struct mtp_link_set *link, int sls, int cic,
 				    const uint8_t *data, int size)
 {
 	struct msgb *resp;
@@ -104,12 +104,12 @@ static int handle_circuit_reset_grs(struct mtp_link *link, int sls, int cic,
 	if (!resp)
 		return -1;
 
-	mtp_link_submit_isup_data(link, sls, resp->l2h, msgb_l2len(resp));
+	mtp_link_set_submit_isup_data(link, sls, resp->l2h, msgb_l2len(resp));
 	msgb_free(resp);
 	return 0;
 }
 
-int mtp_link_forward_isup(struct mtp_link *link, struct msgb *msg, int sls)
+int mtp_link_set_forward_isup(struct mtp_link_set *link, struct msgb *msg, int sls)
 {
 	int rc = -1;
 	int payload_size;
