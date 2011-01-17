@@ -120,6 +120,11 @@ int mtp_link_set_isup(struct mtp_link_set *link, struct msgb *msg, int sls)
 		return -1;
 	}
 
+	if (link->pass_all_isup) {
+		mtp_link_set_forward_isup(link, msg, sls);
+		return 0;
+	}
+
 	hdr = (struct isup_msg_hdr *) msg->l3h;
 	payload_size = msgb_l3len(msg) - sizeof(*hdr);
 

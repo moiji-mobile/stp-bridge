@@ -67,6 +67,9 @@ struct mtp_link_set {
 	struct llist_head links;
 	struct mtp_link *slc[16];
 
+	/* special handling */
+	int pass_all_isup;
+
 	/* custom data */
 	struct bsc_data *bsc;
 };
