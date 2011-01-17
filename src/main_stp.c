@@ -75,6 +75,14 @@ void mtp_link_set_forward_sccp(struct mtp_link_set *link, struct msgb *_msg, int
 	mtp_link_set_submit_sccp_data(target, sls, _msg->l2h, msgb_l2len(_msg));
 }
 
+void mtp_link_set_forward_isup(struct mtp_link_set *set, struct msgb *msg, int sls)
+{
+	struct mtp_link_set *target;
+
+	target = bsc.m2ua_set == set ? bsc.link_set : bsc.m2ua_set;
+	mtp_link_set_submit_isup_data(target, sls, msg->l3h, msgb_l3len(msg));
+}
+
 void mtp_linkset_down(struct mtp_link_set *set)
 {
 	set->available = 0;

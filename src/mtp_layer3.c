@@ -495,7 +495,7 @@ int mtp_link_set_data(struct mtp_link_set *link, struct msgb *msg)
 		break;
 	case MTP_SI_MNT_ISUP:
 		msg->l3h = &hdr->data[0];
-		rc = mtp_link_set_forward_isup(link, msg, MTP_LINK_SLS(hdr->addr));
+		rc = mtp_link_set_isup(link, msg, MTP_LINK_SLS(hdr->addr));
 		break;
 	default:
 		fprintf(stderr, "Unhandled: %u\n", hdr->ser_ind);

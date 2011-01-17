@@ -1,6 +1,6 @@
 /*
- * (C) 2010 by Holger Hans Peter Freyther <zecke@selfish.org>
- * (C) 2010 by On-Waves
+ * (C) 2010-2011 by Holger Hans Peter Freyther <zecke@selfish.org>
+ * (C) 2010-2011 by On-Waves
  * All Rights Reserved
  *
  * This program is free software: you can redistribute it and/or modify
@@ -109,7 +109,7 @@ static int handle_circuit_reset_grs(struct mtp_link_set *link, int sls, int cic,
 	return 0;
 }
 
-int mtp_link_set_forward_isup(struct mtp_link_set *link, struct msgb *msg, int sls)
+int mtp_link_set_isup(struct mtp_link_set *link, struct msgb *msg, int sls)
 {
 	int rc = -1;
 	int payload_size;
@@ -128,7 +128,8 @@ int mtp_link_set_forward_isup(struct mtp_link_set *link, struct msgb *msg, int s
 		rc = handle_circuit_reset_grs(link, sls, hdr->cic, hdr->data, payload_size);
 		break;
 	default:
-		LOGP(DISUP, LOGL_NOTICE, "ISUP msg not handled: 0x%x\n", hdr->msg_type);
+		mtp_link_set_forward_isup(link, msg, sls);
+		rc = 0;
 		break;
 	}
 

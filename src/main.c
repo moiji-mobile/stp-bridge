@@ -127,6 +127,11 @@ void mtp_link_set_forward_sccp(struct mtp_link_set *link, struct msgb *_msg, int
 	msc_send_msg(&bsc, rc, &result, _msg);
 }
 
+void mtp_link_set_forward_isup(struct mtp_link_set *set, struct msgb *msg, int sls)
+{
+	LOGP(DINP, LOGL_ERROR, "ISUP is not handled.\n");
+}
+
 /*
  * handle local message in close down mode
  */
