@@ -39,7 +39,7 @@ struct mtp_link;
  */
 struct mtp_link_set {
 	/* routing info.. */
-	int dpc, opc, sccp_opc;
+	int dpc, opc, sccp_opc, isup_opc;
 	int ni;
 	int spare;
 

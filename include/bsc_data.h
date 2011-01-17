@@ -91,6 +91,7 @@ struct bsc_data {
 	int dpc;
 	int opc;
 	int sccp_opc;
+	int isup_opc;
 	int src_port;
 	int udp_port;
 	char *udp_ip;

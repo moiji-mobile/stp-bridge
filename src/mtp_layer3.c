@@ -576,7 +576,7 @@ int mtp_link_set_submit_sccp_data(struct mtp_link_set *link, int sls, const uint
 int mtp_link_set_submit_isup_data(struct mtp_link_set *link, int sls,
 			      const uint8_t *data, unsigned int length)
 {
-	return mtp_int_submit(link, link->opc, sls, MTP_SI_MNT_ISUP, data, length);
+	return mtp_int_submit(link, link->isup_opc, sls, MTP_SI_MNT_ISUP, data, length);
 }
 
 static int mtp_int_submit(struct mtp_link_set *link, int pc, int sls, int type,
