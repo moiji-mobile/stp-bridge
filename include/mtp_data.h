@@ -25,7 +25,7 @@
 #include <osmocore/utils.h>
 
 struct bsc_data;
-struct link_data;
+struct mtp_link;
 
 /* MTP Level3 timers */
 
@@ -65,10 +65,33 @@ struct mtp_link_set {
 	struct timer_list delay_timer;
 
 	struct llist_head links;
-	struct link_data *slc[16];
+	struct mtp_link *slc[16];
 
 	/* custom data */
 	struct bsc_data *bsc;
+};
+
+/**
+ * One physical link to somewhere. This is the base
+ * with the interface used by the mtp_link_set. There
+ * will be specific implementations for M2UA, UDP and
+ * other transport means.
+ */
+struct mtp_link {
+	struct llist_head entry;
+
+	int pcap_fd;
+	struct mtp_link_set *the_link;
+
+	int available;
+
+	struct timer_list link_activate;
+
+	int (*start)(struct mtp_link *);
+	int (*write)(struct mtp_link *, struct msgb *msg);
+	int (*shutdown)(struct mtp_link *);
+	int (*reset)(struct mtp_link *data);
+	int (*clear_queue)(struct mtp_link *data);
 };
 
 
@@ -80,16 +103,16 @@ int mtp_link_set_submit_sccp_data(struct mtp_link_set *link, int sls, const uint
 int mtp_link_set_submit_isup_data(struct mtp_link_set *link, int sls, const uint8_t *data, unsigned int length);
 
 void mtp_link_set_init_slc(struct mtp_link_set *set);
-void mtp_link_set_add_link(struct mtp_link_set *set, struct link_data *link);
+void mtp_link_set_add_link(struct mtp_link_set *set, struct mtp_link *link);
 
 
 /* one time init function */
 void mtp_link_set_init(void);
 
 /* to be implemented for MSU sending */
-void mtp_link_set_submit(struct link_data *link, struct msgb *msg);
+void mtp_link_set_submit(struct mtp_link *link, struct msgb *msg);
 void mtp_link_set_forward_sccp(struct mtp_link_set *link, struct msgb *msg, int sls);
-void mtp_link_restart(struct link_data *link);
+void mtp_link_restart(struct mtp_link *link);
 void mtp_link_set_sccp_down(struct mtp_link_set *link);
 
 #endif

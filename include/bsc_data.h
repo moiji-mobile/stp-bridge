@@ -22,6 +22,8 @@
 #ifndef BSC_DATA_H
 #define BSC_DATA_H
 
+#include "mtp_data.h"
+
 #include <osmocore/linuxlist.h>
 #include <osmocore/select.h>
 #include <osmocore/timer.h>
@@ -38,40 +40,17 @@
 struct bsc_data;
 struct snmp_mtp_session;
 
-/**
- * A link to the underlying MTP2 library or such
- */
-struct link_data {
-	struct llist_head entry;
+struct mtp_udp_link {
+	/* subclass */
+	struct mtp_link base;
 
-	union {
-		struct {
-			struct thread_notifier *notifier;
-			struct llist_head mtp_queue;
-			struct timer_list mtp_timeout;
-		} c7;
-		struct {
-			struct write_queue write_queue;
-			struct sockaddr_in remote;
-			struct snmp_mtp_session *session;
-			int link_index;
-			int reset_timeout;
-		} udp;
-	};
-
-	int pcap_fd;
+	/* UDP specific stuff */
 	struct bsc_data *bsc;
-	struct mtp_link_set *the_link;
-
-	int available;
-
-	struct timer_list link_activate;
-
-	int (*start)(struct link_data *);
-	int (*write)(struct link_data *, struct msgb *msg);
-	int (*shutdown)(struct link_data *);
-	int (*reset)(struct link_data *data);
-	int (*clear_queue)(struct link_data *data);
+	struct write_queue write_queue;
+	struct sockaddr_in remote;
+	struct snmp_mtp_session *session;
+	int link_index;
+	int reset_timeout;
 };
 
 
@@ -131,8 +110,8 @@ struct bsc_data {
 
 /* bsc related functions */
 void release_bsc_resources(struct bsc_data *bsc);
-void mtp_link_down(struct link_data *data);
-void mtp_link_up(struct link_data *data);
+void mtp_link_down(struct mtp_link *data);
+void mtp_link_up(struct mtp_link *data);
 
 void mtp_linkset_down(struct mtp_link_set *);
 void mtp_linkset_up(struct mtp_link_set *);
@@ -150,7 +129,7 @@ void update_con_state(struct mtp_link_set *link, int rc, struct sccp_parse_resul
 unsigned int sls_for_src_ref(struct sccp_source_reference *ref);
 
 /* udp init */
-int link_udp_init(struct link_data *data, int src_port, const char *dest_ip, int port);
+int link_udp_init(struct mtp_udp_link *data, int src_port, const char *dest_ip, int port);
 int link_init(struct bsc_data *bsc);
 int link_shutdown_all(struct mtp_link_set *);
 int link_reset_all(struct mtp_link_set *);
