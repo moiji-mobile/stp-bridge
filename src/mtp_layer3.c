@@ -119,7 +119,7 @@ static struct msgb *mtp_tfp_alloc(struct mtp_link_set *link, int apoc)
 	return out;
 }
 
-static struct msgb *mtp_tra_alloc(struct mtp_link_set *link)
+static struct msgb *mtp_tra_alloc(struct mtp_link_set *link, int opc)
 {
 	struct mtp_level_3_hdr *hdr;
 	struct mtp_level_3_cmn *cmn;
@@ -130,6 +130,7 @@ static struct msgb *mtp_tra_alloc(struct mtp_link_set *link)
 
 	hdr = (struct mtp_level_3_hdr *) out->l2h;
 	hdr->ser_ind = MTP_SI_MNT_SNM_MSG;
+	hdr->addr = MTP_ADDR(0x0, link->dpc, opc);
 	cmn = (struct mtp_level_3_cmn *) msgb_put(out, sizeof(*cmn));
 	cmn->h0 = MTP_TRF_RESTR_MSG_GRP;
 	cmn->h1 = MTP_RESTR_MSG_ALLWED;
@@ -300,9 +301,18 @@ static int send_tfp(struct mtp_link_set *link, int apoc)
 	return 0;
 }
 
-static int mtp_link_sign_msg(struct mtp_link_set *link, struct mtp_level_3_hdr *hdr, int l3_len)
+static int send_tra(struct mtp_link_set *link, int opc)
 {
 	struct msgb *msg;
+	msg = mtp_tra_alloc(link, opc);
+	if (!msg)
+		return -1;
+	mtp_link_set_submit(link->slc[0], msg);
+	return 0;
+}
+
+static int mtp_link_sign_msg(struct mtp_link_set *link, struct mtp_level_3_hdr *hdr, int l3_len)
+{
 	struct mtp_level_3_cmn *cmn;
 	uint16_t *apc;
 
@@ -335,11 +345,16 @@ static int mtp_link_sign_msg(struct mtp_link_set *link, struct mtp_level_3_hdr *
 			    send_tfp(link, link->isup_opc) != 0)
 				return -1;
 
-			msg = mtp_tra_alloc(link);
-			if (!msg)
+			/* Send the TRA for all PCs */
+			if (send_tra(link, link->opc) != 0)
+				return -1;
+			if (link->sccp_opc != link->opc &&
+			    send_tra(link, link->sccp_opc) != 0)
+				return -1;
+			if (link->isup_opc != link->opc &&
+			    send_tra(link, link->isup_opc) != 0)
 				return -1;
 
-			mtp_link_set_submit(link->slc[0], msg);
 			link->sccp_up = 1;
 			link->was_up = 1;
 			LOGP(DINP, LOGL_INFO, "SCCP traffic allowed. %p\n", link);
