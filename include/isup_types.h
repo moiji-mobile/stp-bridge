@@ -30,6 +30,11 @@ struct mtp_link_set;
 /* This is from Table 4/Q.763 */
 #define ISUP_MSG_GRS	0x17
 #define ISUP_MSG_GRA	0x29
+#define ISUP_MSG_CGB	0x18
+#define ISUP_MSG_CGBA	0x1A
+#define ISUP_MSG_RLC	0x10
+#define ISUP_MSG_RSC	0x12
+
 
 struct isup_msg_hdr {
 	uint16_t cic;

@@ -61,6 +61,28 @@ static struct msgb *isup_gra_alloc(int cic, int range)
 	return msg;
 }
 
+static struct msgb *isup_rlc_alloc(int cic)
+{
+	struct isup_msg_hdr *hdr;
+	struct msgb *msg;
+
+	msg = msgb_alloc_headroom(4096, 128, "ISUP RSC");
+	if (!msg) {
+		LOGP(DISUP, LOGL_ERROR, "Allocation of GRA message failed.\n");
+		return NULL;
+	}
+
+	msg->l2h = msgb_put(msg, sizeof(*hdr));
+
+	/* write the ISUP header */
+	hdr = (struct isup_msg_hdr *) msg->l2h;
+	hdr->cic = cic;
+	hdr->msg_type = ISUP_MSG_RLC;
+
+	msgb_v_put(msg, 0);
+	return msg;
+}
+
 /* this message contains the range */
 int isup_parse_grs(const uint8_t *data, uint8_t in_length)
 {
@@ -109,6 +131,19 @@ static int handle_circuit_reset_grs(struct mtp_link_set *link, int sls, int cic,
 	return 0;
 }
 
+static int handle_circuit_reset(struct mtp_link_set *set, int sls, int cic,
+				const uint8_t *data, int size)
+{
+	struct msgb *resp;
+
+	resp = isup_rlc_alloc(cic);
+	if (!resp)
+		return -1;
+	mtp_link_set_submit_isup_data(set, sls, resp->l2h, msgb_l2len(resp));
+	msgb_free(resp);
+	return 0;
+}
+
 int mtp_link_set_isup(struct mtp_link_set *link, struct msgb *msg, int sls)
 {
 	int rc = -1;
@@ -131,6 +166,9 @@ int mtp_link_set_isup(struct mtp_link_set *link, struct msgb *msg, int sls)
 	switch (hdr->msg_type) {
 	case ISUP_MSG_GRS:
 		rc = handle_circuit_reset_grs(link, sls, hdr->cic, hdr->data, payload_size);
+		break;
+	case ISUP_MSG_RSC:
+		rc = handle_circuit_reset(link, sls, hdr->cic, hdr->data, payload_size);
 		break;
 	default:
 		mtp_link_set_forward_isup(link, msg, sls);
