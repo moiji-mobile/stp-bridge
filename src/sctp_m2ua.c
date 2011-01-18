@@ -322,7 +322,7 @@ static int m2ua_handle_data(struct sctp_m2ua_conn *conn,
 	link = &conn->trans->base;
 	if (link->pcap_fd >= 0)
 		mtp_pcap_write_msu(link->pcap_fd, msg->l2h, msgb_l2len(msg));
-	mtp_link_set_data(link->the_link, msg);
+	mtp_link_set_data(link, msg);
 	msgb_free(msg);
 
 	return 0;
