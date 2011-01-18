@@ -101,7 +101,7 @@ static struct msgb *mtp_create_slta(struct mtp_link_set *link, struct mtp_level_
 	return out;
 }
 
-static struct msgb *mtp_tfp_alloc(struct mtp_link_set *link, int apoc)
+static struct msgb *mtp_base_alloc(struct mtp_link_set *link, int msg, int apoc)
 {
 	struct mtp_level_3_hdr *hdr;
 	struct mtp_level_3_prohib *prb;
@@ -114,9 +114,19 @@ static struct msgb *mtp_tfp_alloc(struct mtp_link_set *link, int apoc)
 	hdr->ser_ind = MTP_SI_MNT_SNM_MSG;
 	prb = (struct mtp_level_3_prohib *) msgb_put(out, sizeof(*prb));
 	prb->cmn.h0 = MTP_PROHIBIT_MSG_GRP;
-	prb->cmn.h1 = MTP_PROHIBIT_MSG_SIG;
+	prb->cmn.h1 = msg;
 	prb->apoc = MTP_MAKE_APOC(apoc);
 	return out;
+}
+
+static struct msgb *mtp_tfp_alloc(struct mtp_link_set *link, int apoc)
+{
+	return mtp_base_alloc(link, MTP_PROHIBIT_MSG_SIG, apoc);
+}
+
+static struct msgb *mtp_tfa_alloc(struct mtp_link_set *link, int apoc)
+{
+	return mtp_base_alloc(link, MTP_PROHIBIT_MSG_TFA, apoc);
 }
 
 static struct msgb *mtp_tra_alloc(struct mtp_link_set *link, int opc)
@@ -311,6 +321,16 @@ static int send_tra(struct mtp_link_set *link, int opc)
 	return 0;
 }
 
+static int send_tfa(struct mtp_link_set *link, int opc)
+{
+	struct msgb *msg;
+	msg = mtp_tfa_alloc(link, opc);
+	if (!msg)
+		return -1;
+	mtp_link_set_submit(link->slc[0], msg);
+	return 0;
+}
+
 static int mtp_link_sign_msg(struct mtp_link_set *link, struct mtp_level_3_hdr *hdr, int l3_len)
 {
 	struct mtp_level_3_cmn *cmn;
@@ -349,10 +369,10 @@ static int mtp_link_sign_msg(struct mtp_link_set *link, struct mtp_level_3_hdr *
 			if (send_tra(link, link->opc) != 0)
 				return -1;
 			if (link->sccp_opc != link->opc &&
-			    send_tra(link, link->sccp_opc) != 0)
+			    send_tfa(link, link->sccp_opc) != 0)
 				return -1;
 			if (link->isup_opc != link->opc &&
-			    send_tra(link, link->isup_opc) != 0)
+			    send_tfa(link, link->isup_opc) != 0)
 				return -1;
 
 			link->sccp_up = 1;

@@ -51,7 +51,9 @@
 
 #define MTP_RESTR_MSG_ALLWED	0x01
 
+/* For the prohibit group */
 #define MTP_PROHIBIT_MSG_SIG	0x01
+#define MTP_PROHIBIT_MSG_TFA	0x05
 
 
 #define SCCP_SST	0x03
