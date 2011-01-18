@@ -289,6 +289,17 @@ void mtp_link_set_reset(struct mtp_link_set *link)
 	bsc_schedule_timer(&link->delay_timer, START_DELAY);
 }
 
+static int send_tfp(struct mtp_link_set *link, int apoc)
+{
+	struct msgb *msg;
+	msg = mtp_tfp_alloc(link, apoc);
+	if (!msg)
+		return -1;
+
+	mtp_link_set_submit(link->slc[0], msg);
+	return 0;
+}
+
 static int mtp_link_sign_msg(struct mtp_link_set *link, struct mtp_level_3_hdr *hdr, int l3_len)
 {
 	struct msgb *msg;
@@ -313,10 +324,16 @@ static int mtp_link_sign_msg(struct mtp_link_set *link, struct mtp_level_3_hdr *
 			link->sccp_up = 0;
 			mtp_link_set_sccp_down(link);
 
-			msg = mtp_tfp_alloc(link, 0);
-			if (!msg)
+			if (send_tfp(link, 0) != 0)
 				return -1;
-			mtp_link_set_submit(link->slc[0], msg);
+			if (send_tfp(link, link->opc) != 0)
+				return -1;
+			if (link->sccp_opc != link->opc &&
+			    send_tfp(link, link->sccp_opc) != 0)
+				return -1;
+			if (link->isup_opc != link->opc &&
+			    send_tfp(link, link->isup_opc) != 0)
+				return -1;
 
 			msg = mtp_tra_alloc(link);
 			if (!msg)
