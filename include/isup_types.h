@@ -32,13 +32,7 @@ struct mtp_link_set;
 #define ISUP_MSG_GRA	0x29
 
 struct isup_msg_hdr {
-#if __BYTE_ORDER == __LITTLE_ENDIAN
-	uint16_t cic   : 12,
-		 spare :  4;
-#elif __BYTE_ORDER == __BIG_ENDIAN
-	uint16_t spare :  4,
-		 cic   : 12;
-#endif
+	uint16_t cic;
 	uint8_t  msg_type;
 	uint8_t  data[0];
 } __attribute__((packed));
