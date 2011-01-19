@@ -68,14 +68,14 @@ static struct msgb *isup_status_alloc(int cic, int msg_type, uint8_t *extra, int
 	return msg;
 }
 
-static struct msgb *isup_rlc_alloc(int cic)
+static struct msgb *isup_simple_alloc(int cic, int msg_type)
 {
 	struct isup_msg_hdr *hdr;
 	struct msgb *msg;
 
-	msg = msgb_alloc_headroom(4096, 128, "ISUP RSC");
+	msg = msgb_alloc_headroom(4096, 128, "ISUP Simple MSG");
 	if (!msg) {
-		LOGP(DISUP, LOGL_ERROR, "Allocation of GRA message failed.\n");
+		LOGP(DISUP, LOGL_ERROR, "Allocation of Simple message failed.\n");
 		return NULL;
 	}
 
@@ -84,7 +84,7 @@ static struct msgb *isup_rlc_alloc(int cic)
 	/* write the ISUP header */
 	hdr = (struct isup_msg_hdr *) msg->l2h;
 	hdr->cic = cic;
-	hdr->msg_type = ISUP_MSG_RLC;
+	hdr->msg_type = msg_type;
 
 	msgb_v_put(msg, 0);
 	return msg;
@@ -162,12 +162,26 @@ static int handle_circuit_reset_cgb(struct mtp_link_set *link, int sls, int cic,
 	return 0;
 }
 
-static int handle_circuit_reset(struct mtp_link_set *set, int sls, int cic,
-				const uint8_t *data, int size)
+static int send_cgu(struct mtp_link_set *link, int sls, int cic, int range)
+{
+	struct msgb *resp;
+	uint8_t val;
+
+	val = 0;
+	resp = isup_status_alloc(cic, ISUP_MSG_CGU, &val, range, 0);
+	if (!resp)
+		return -1;
+
+	mtp_link_set_submit_isup_data(link, sls, resp->l2h, msgb_l2len(resp));
+	msgb_free(resp);
+	return 0;
+}
+
+static int handle_simple_resp(struct mtp_link_set *set, int sls, int cic, int msg_type)
 {
 	struct msgb *resp;
 
-	resp = isup_rlc_alloc(cic);
+	resp = isup_simple_alloc(cic, msg_type);
 	if (!resp)
 		return -1;
 	mtp_link_set_submit_isup_data(set, sls, resp->l2h, msgb_l2len(resp));
@@ -200,9 +214,14 @@ int mtp_link_set_isup(struct mtp_link_set *link, struct msgb *msg, int sls)
 		break;
 	case ISUP_MSG_CGB:
 		rc = handle_circuit_reset_cgb(link, sls, hdr->cic, hdr->data, payload_size);
+		if (rc == 0)
+			rc = send_cgu(link, sls, hdr->cic, 28);
+		break;
+	case ISUP_MSG_CGUA:
+		LOGP(DISUP, LOGL_NOTICE, "CIC %d is now unblocked.\n", hdr->cic);
 		break;
 	case ISUP_MSG_RSC:
-		rc = handle_circuit_reset(link, sls, hdr->cic, hdr->data, payload_size);
+		rc = handle_simple_resp(link, sls, hdr->cic, ISUP_MSG_RLC);
 		break;
 	default:
 		mtp_link_set_forward_isup(link, msg, sls);

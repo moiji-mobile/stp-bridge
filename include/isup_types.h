@@ -34,6 +34,8 @@ struct mtp_link_set;
 #define ISUP_MSG_CGBA	0x1A
 #define ISUP_MSG_RLC	0x10
 #define ISUP_MSG_RSC	0x12
+#define ISUP_MSG_CGU	0x19
+#define ISUP_MSG_CGUA	0x1B
 
 
 struct isup_msg_hdr {
