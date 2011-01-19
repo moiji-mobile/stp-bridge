@@ -137,7 +137,7 @@ static struct msgb *mtp_tra_alloc(struct mtp_link_set *link)
 }
 
 static struct msgb *mtp_sccp_alloc_scmg(struct mtp_link_set *link,
-					int type, int assn, int sls)
+					int type, int assn, int apoc, int sls)
 {
 	struct sccp_data_unitdata *udt;
 	struct sccp_con_ctrl_prt_mgt *prt;
@@ -181,7 +181,7 @@ static struct msgb *mtp_sccp_alloc_scmg(struct mtp_link_set *link,
 	prt = (struct sccp_con_ctrl_prt_mgt *) msgb_put(out, sizeof(*prt));
 	prt->sst = type;
 	prt->assn = assn;
-	prt->apoc = MTP_MAKE_APOC(link->sccp_opc);
+	prt->apoc = apoc;
 	prt->mul_ind = 0;
 
 	return out;
@@ -453,7 +453,7 @@ static int mtp_link_sccp_data(struct mtp_link_set *link, struct mtp_level_3_hdr 
 			type = SCCP_SSA;
 		}
 
-		out = mtp_sccp_alloc_scmg(link, type, prt->assn,
+		out = mtp_sccp_alloc_scmg(link, type, prt->assn, prt->apoc,
 					  MTP_LINK_SLS(hdr->addr));
 		if (!out)
 			return -1;
