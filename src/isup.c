@@ -25,11 +25,12 @@
 #include <osmocore/msgb.h>
 #include <osmocore/tlv.h>
 
-static struct msgb *isup_status_alloc(int cic, int msg_type, int range)
+static struct msgb *isup_status_alloc(int cic, int msg_type, uint8_t *extra, int range, int val)
 {
 	struct isup_msg_hdr *hdr;
 	struct msgb *msg;
 	int bits, len;
+	uint8_t *data;
 
 	msg = msgb_alloc_headroom(4096, 128, "ISUP Simple MSG");
 	if (!msg) {
@@ -44,6 +45,9 @@ static struct msgb *isup_status_alloc(int cic, int msg_type, int range)
 	hdr->cic = cic;
 	hdr->msg_type = msg_type;
 
+	if (extra)
+		msgb_v_put(msg, *extra);
+
 	/*
 	 * place the pointers here.
 	 * 1.) place the variable start after us
@@ -56,7 +60,10 @@ static struct msgb *isup_status_alloc(int cic, int msg_type, int range)
 	msgb_v_put(msg, len + 1);
 	msgb_v_put(msg, range);
 
-	msgb_put(msg, len);
+	data = msgb_put(msg, len);
+
+	/* set the status bits to val... FIXME this sets the extra bits too */
+	memset(data, val, len);
 
 	return msg;
 }
@@ -122,7 +129,31 @@ static int handle_circuit_reset_grs(struct mtp_link_set *link, int sls, int cic,
 	if (range < 0)
 		return -1;
 
-	resp = isup_status_alloc(cic, ISUP_MSG_GRA, range);
+	resp = isup_status_alloc(cic, ISUP_MSG_GRA, NULL, range, 0);
+	if (!resp)
+		return -1;
+
+	mtp_link_set_submit_isup_data(link, sls, resp->l2h, msgb_l2len(resp));
+	msgb_free(resp);
+	return 0;
+}
+
+static int handle_circuit_reset_cgb(struct mtp_link_set *link, int sls, int cic,
+				    const uint8_t *data, int size)
+{
+	struct msgb *resp;
+	int range;
+	uint8_t val;
+
+	if (size < 1)
+		return -1;
+
+	range = isup_parse_status(data + 1, size - 1);
+	if (range < 0)
+		return -1;
+
+	val = 0;
+	resp = isup_status_alloc(cic, ISUP_MSG_CGBA, &val, range, 0xff);
 	if (!resp)
 		return -1;
 
@@ -166,6 +197,9 @@ int mtp_link_set_isup(struct mtp_link_set *link, struct msgb *msg, int sls)
 	switch (hdr->msg_type) {
 	case ISUP_MSG_GRS:
 		rc = handle_circuit_reset_grs(link, sls, hdr->cic, hdr->data, payload_size);
+		break;
+	case ISUP_MSG_CGB:
+		rc = handle_circuit_reset_cgb(link, sls, hdr->cic, hdr->data, payload_size);
 		break;
 	case ISUP_MSG_RSC:
 		rc = handle_circuit_reset(link, sls, hdr->cic, hdr->data, payload_size);
