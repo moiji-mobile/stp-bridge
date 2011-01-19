@@ -67,7 +67,7 @@ int isup_parse_grs(const uint8_t *data, uint8_t in_length)
 	uint8_t ptr;
 	uint8_t length;
 
-	if (in_length > 3) {
+	if (in_length < 3) {
 		LOGP(DISUP, LOGL_ERROR, "This needs three bytes.\n");
 		return -1;	
 	}
