@@ -181,7 +181,7 @@ static struct msgb *mtp_sccp_alloc_scmg(struct mtp_link_set *link,
 	prt = (struct sccp_con_ctrl_prt_mgt *) msgb_put(out, sizeof(*prt));
 	prt->sst = type;
 	prt->assn = assn;
-	prt->apoc = MTP_MAKE_APOC(link->opc);
+	prt->apoc = MTP_MAKE_APOC(link->sccp_opc);
 	prt->mul_ind = 0;
 
 	return out;
