@@ -25,15 +25,15 @@
 #include <osmocore/msgb.h>
 #include <osmocore/tlv.h>
 
-static struct msgb *isup_gra_alloc(int cic, int range)
+static struct msgb *isup_status_alloc(int cic, int msg_type, int range)
 {
 	struct isup_msg_hdr *hdr;
 	struct msgb *msg;
 	int bits, len;
 
-	msg = msgb_alloc_headroom(4096, 128, "ISUP GRA");
+	msg = msgb_alloc_headroom(4096, 128, "ISUP Simple MSG");
 	if (!msg) {
-		LOGP(DISUP, LOGL_ERROR, "Allocation of GRA message failed.\n");
+		LOGP(DISUP, LOGL_ERROR, "Allocation of status message failed.\n");
 		return NULL;
 	}
 
@@ -42,7 +42,7 @@ static struct msgb *isup_gra_alloc(int cic, int range)
 	/* write the ISUP header */
 	hdr = (struct isup_msg_hdr *) msg->l2h;
 	hdr->cic = cic;
-	hdr->msg_type = ISUP_MSG_GRA;
+	hdr->msg_type = msg_type;
 
 	/*
 	 * place the pointers here.
@@ -84,7 +84,7 @@ static struct msgb *isup_rlc_alloc(int cic)
 }
 
 /* this message contains the range */
-int isup_parse_grs(const uint8_t *data, uint8_t in_length)
+int isup_parse_status(const uint8_t *data, uint8_t in_length)
 {
 	uint8_t ptr;
 	uint8_t length;
@@ -118,11 +118,11 @@ static int handle_circuit_reset_grs(struct mtp_link_set *link, int sls, int cic,
 	struct msgb *resp;
 	int range;
 
-	range = isup_parse_grs(data, size);
+	range = isup_parse_status(data, size);
 	if (range < 0)
 		return -1;
 
-	resp = isup_gra_alloc(cic, range);
+	resp = isup_status_alloc(cic, ISUP_MSG_GRA, range);
 	if (!resp)
 		return -1;
 

@@ -47,7 +47,7 @@ static void test_grs_parsing()
 	int range;
 
 	hdr = (struct isup_msg_hdr *) isup_grs;
-	range = isup_parse_grs(&hdr->data[0], 3);
+	range = isup_parse_status(&hdr->data[0], 3);
 
 	ASSERT(range, 28);
 }
