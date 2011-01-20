@@ -112,8 +112,6 @@ struct bsc_data {
 
 /* bsc related functions */
 void release_bsc_resources(struct bsc_data *bsc);
-void mtp_link_down(struct mtp_link *data);
-void mtp_link_up(struct mtp_link *data);
 
 void mtp_linkset_down(struct mtp_link_set *);
 void mtp_linkset_up(struct mtp_link_set *);

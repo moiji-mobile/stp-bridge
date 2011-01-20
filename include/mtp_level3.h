@@ -65,7 +65,7 @@
 #define SCCP_SSA	0x01
 
 #define MTP_LINK_MASK	    0x0F
-#define MTP_ADDR_MASK	    0x0FFF
+#define MTP_ADDR_MASK	    0x3FFF
 #define MTP_APOC_MASK 0x3f
 
 
@@ -77,6 +77,10 @@
 	 ((link) & MTP_LINK_MASK) << 28)
 #define MTP_MAKE_APOC(apoc) \
 	(apoc & 0x3fff)
+#define MTP_ADDR_DPC(addr) \
+	(addr & MTP_ADDR_MASK)
+#define MTP_ADDR_OPC(addr) \
+	((addr >> 14) & MTP_ADDR_MASK)
 #elif __BYTE_ORDER == __BIG_ENDIAN
 static inline uint32_t c_swap_32(uint32_t in)
 {
@@ -97,6 +101,10 @@ static inline uint16_t c_swap_16(uint16_t in)
          ((link) & MTP_LINK_MASK) << 28)
 #define MTP_MAKE_APOC(apoc) \
 	c_swap_16((apoc & 0x3fff))
+#define MTP_ADDR_DPC(addr) \
+	(c_swap_32(addr) & MTP_ADDR_MASK)
+#define MTP_ADDR_OPC(addr) \
+	((c_swap_32(addr) >> 14) & MTP_ADDR_MASK)
 #endif
 
 

@@ -26,6 +26,7 @@
 
 struct bsc_data;
 struct mtp_link;
+struct mtp_level_3_mng *mng;
 
 /* MTP Level3 timers */
 
@@ -48,24 +49,14 @@ struct mtp_link_set {
 	int available;
 	int running;
 	int sccp_up;
+	int linkset_up;
 
 	int last_sls;
 
-	/* misc data */
-	uint8_t test_ptrn[14];
-
-	int sltm_pending;
-	int sltm_once;
-	int was_up;
-
-	int slta_misses;
-	struct timer_list t1_timer;
-	struct timer_list t2_timer;
-
-	struct timer_list delay_timer;
-
 	struct llist_head links;
+	int nr_links;
 	struct mtp_link *slc[16];
+	int sltm_once;
 
 	/* special handling */
 	int pass_all_isup;
@@ -84,12 +75,24 @@ struct mtp_link {
 	struct llist_head entry;
 
 	int pcap_fd;
-	struct mtp_link_set *the_link;
+	struct mtp_link_set *set;
 
 	int available;
 
 	struct timer_list link_activate;
 
+	/* link test routine */
+	uint8_t test_ptrn[14];
+
+	int link_no;
+	int sltm_pending;
+	int was_up;
+
+	int slta_misses;
+	struct timer_list t1_timer;
+	struct timer_list t2_timer;
+
+	/* callback's to implement */
 	int (*start)(struct mtp_link *);
 	int (*write)(struct mtp_link *, struct msgb *msg);
 	int (*shutdown)(struct mtp_link *);
@@ -117,6 +120,19 @@ void mtp_link_set_submit(struct mtp_link *link, struct msgb *msg);
 void mtp_link_set_forward_sccp(struct mtp_link_set *link, struct msgb *msg, int sls);
 void mtp_link_set_forward_isup(struct mtp_link_set *link, struct msgb *msg, int sls);
 void mtp_link_restart(struct mtp_link *link);
-void mtp_link_set_sccp_down(struct mtp_link_set *link);
+
+/* link related routines */
+void mtp_link_down(struct mtp_link *data);
+void mtp_link_up(struct mtp_link *data);
+
+void mtp_link_init(struct mtp_link *link);
+void mtp_link_start_link_test(struct mtp_link *link);
+void mtp_link_stop_link_test(struct mtp_link *link);
+int mtp_link_slta(struct mtp_link *link, uint16_t l3_len, struct mtp_level_3_mng *mng);
+
+void mtp_link_failure(struct mtp_link *fail);
+
+/* internal routines */
+struct msgb *mtp_msg_alloc(struct mtp_link_set *link);
 
 #endif

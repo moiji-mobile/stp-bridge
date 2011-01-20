@@ -46,29 +46,30 @@ void mtp_link_down(struct mtp_link *link)
 
 	was_up = link->available;
 	link->available = 0;
-	one_up = is_one_up(link->the_link);
+	link->was_up = 0;
+	one_up = is_one_up(link->set);
 
 	/* our linkset is now unsuable */
 	if (was_up && !one_up)
-		mtp_linkset_down(link->the_link);
+		mtp_linkset_down(link->set);
 	link->clear_queue(link);
-	mtp_link_set_init_slc(link->the_link);
+	mtp_link_stop_link_test(link);
+	mtp_link_set_init_slc(link->set);
 }
 
 void mtp_link_up(struct mtp_link *link)
 {
 	int one_up;
 
-	one_up = is_one_up(link->the_link);
+	one_up = is_one_up(link->set);
 	link->available = 1;
+	link->was_up = 0;
 
-	mtp_link_set_init_slc(link->the_link);
+	mtp_link_set_init_slc(link->set);
 	if (!one_up)
-		mtp_linkset_up(link->the_link);
-}
-
-void mtp_link_set_sccp_down(struct mtp_link_set *link)
-{
+		mtp_linkset_up(link->set);
+	else
+		mtp_link_start_link_test(link);
 }
 
 void mtp_link_set_submit(struct mtp_link *link, struct msgb *msg)
@@ -112,7 +113,6 @@ int link_init(struct bsc_data *bsc)
 
 	lnk = talloc_zero(bsc->link_set, struct mtp_udp_link);
 	lnk->base.pcap_fd = bsc->pcap_fd;
-	lnk->base.the_link = bsc->link_set;
 	lnk->bsc = bsc;
 	lnk->link_index = 1;
 	lnk->reset_timeout = bsc->udp_reset_timeout;

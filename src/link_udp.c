@@ -81,7 +81,7 @@ static int udp_read_cb(struct bsc_fd *fd)
 	}
 
 	/* throw away data as the link is down */
-	if (link->the_link->available == 0) {
+	if (link->set->available == 0) {
 		LOGP(DINP, LOGL_ERROR, "The link is down. Not forwarding.\n");
 		rc = 0;
 		goto exit;
@@ -91,12 +91,11 @@ static int udp_read_cb(struct bsc_fd *fd)
 
 	if (hdr->data_type == UDP_DATA_RETR_COMPL || hdr->data_type == UDP_DATA_RETR_IMPOS) {
 		LOGP(DINP, LOGL_ERROR, "Link retrieval done. Restarting the link.\n");
-		mtp_link_down(link);
-		mtp_link_up(link);
+		mtp_link_failure(link);
 		goto exit;
 	} else if (hdr->data_type > UDP_DATA_MSU_PRIO_3) {
 		LOGP(DINP, LOGL_ERROR, "Link failure. retrieved message.\n");
-		mtp_link_down(link);
+		mtp_link_failure(link);
 		goto exit;
 	}
 
