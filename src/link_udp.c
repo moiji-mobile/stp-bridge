@@ -113,7 +113,7 @@ static int udp_read_cb(struct bsc_fd *fd)
 	LOGP(DINP, LOGL_DEBUG, "MSU data on: %p data %s.\n", link, hexdump(msg->data, msg->len));
 	if (link->pcap_fd >= 0)
 		mtp_pcap_write_msu(link->pcap_fd, msg->l2h, msgb_l2len(msg));
-	mtp_link_set_data(link->the_link, msg);
+	mtp_link_set_data(link, msg);
 
 exit:
 	msgb_free(msg);

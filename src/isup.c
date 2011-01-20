@@ -1,6 +1,6 @@
 /*
- * (C) 2010 by Holger Hans Peter Freyther <zecke@selfish.org>
- * (C) 2010 by On-Waves
+ * (C) 2010-2011 by Holger Hans Peter Freyther <zecke@selfish.org>
+ * (C) 2010-2011 by On-Waves
  * All Rights Reserved
  *
  * This program is free software: you can redistribute it and/or modify
@@ -25,15 +25,16 @@
 #include <osmocore/msgb.h>
 #include <osmocore/tlv.h>
 
-static struct msgb *isup_gra_alloc(int cic, int range)
+static struct msgb *isup_status_alloc(int cic, int msg_type, uint8_t *extra, int range, int val)
 {
 	struct isup_msg_hdr *hdr;
 	struct msgb *msg;
 	int bits, len;
+	uint8_t *data;
 
-	msg = msgb_alloc_headroom(4096, 128, "ISUP GRA");
+	msg = msgb_alloc_headroom(4096, 128, "ISUP Simple MSG");
 	if (!msg) {
-		LOGP(DISUP, LOGL_ERROR, "Allocation of GRA message failed.\n");
+		LOGP(DISUP, LOGL_ERROR, "Allocation of status message failed.\n");
 		return NULL;
 	}
 
@@ -42,7 +43,10 @@ static struct msgb *isup_gra_alloc(int cic, int range)
 	/* write the ISUP header */
 	hdr = (struct isup_msg_hdr *) msg->l2h;
 	hdr->cic = cic;
-	hdr->msg_type = ISUP_MSG_GRA;
+	hdr->msg_type = msg_type;
+
+	if (extra)
+		msgb_v_put(msg, *extra);
 
 	/*
 	 * place the pointers here.
@@ -56,18 +60,43 @@ static struct msgb *isup_gra_alloc(int cic, int range)
 	msgb_v_put(msg, len + 1);
 	msgb_v_put(msg, range);
 
-	msgb_put(msg, len);
+	data = msgb_put(msg, len);
+
+	/* set the status bits to val... FIXME this sets the extra bits too */
+	memset(data, val, len);
 
 	return msg;
 }
 
+static struct msgb *isup_simple_alloc(int cic, int msg_type)
+{
+	struct isup_msg_hdr *hdr;
+	struct msgb *msg;
+
+	msg = msgb_alloc_headroom(4096, 128, "ISUP Simple MSG");
+	if (!msg) {
+		LOGP(DISUP, LOGL_ERROR, "Allocation of Simple message failed.\n");
+		return NULL;
+	}
+
+	msg->l2h = msgb_put(msg, sizeof(*hdr));
+
+	/* write the ISUP header */
+	hdr = (struct isup_msg_hdr *) msg->l2h;
+	hdr->cic = cic;
+	hdr->msg_type = msg_type;
+
+	msgb_v_put(msg, 0);
+	return msg;
+}
+
 /* this message contains the range */
-int isup_parse_grs(const uint8_t *data, uint8_t in_length)
+int isup_parse_status(const uint8_t *data, uint8_t in_length)
 {
 	uint8_t ptr;
 	uint8_t length;
 
-	if (in_length > 3) {
+	if (in_length < 3) {
 		LOGP(DISUP, LOGL_ERROR, "This needs three bytes.\n");
 		return -1;	
 	}
@@ -96,11 +125,11 @@ static int handle_circuit_reset_grs(struct mtp_link_set *link, int sls, int cic,
 	struct msgb *resp;
 	int range;
 
-	range = isup_parse_grs(data, size);
+	range = isup_parse_status(data, size);
 	if (range < 0)
 		return -1;
 
-	resp = isup_gra_alloc(cic, range);
+	resp = isup_status_alloc(cic, ISUP_MSG_GRA, NULL, range, 0);
 	if (!resp)
 		return -1;
 
@@ -109,7 +138,58 @@ static int handle_circuit_reset_grs(struct mtp_link_set *link, int sls, int cic,
 	return 0;
 }
 
-int mtp_link_set_forward_isup(struct mtp_link_set *link, struct msgb *msg, int sls)
+static int handle_circuit_reset_cgb(struct mtp_link_set *link, int sls, int cic,
+				    const uint8_t *data, int size)
+{
+	struct msgb *resp;
+	int range;
+	uint8_t val;
+
+	if (size < 1)
+		return -1;
+
+	range = isup_parse_status(data + 1, size - 1);
+	if (range < 0)
+		return -1;
+
+	val = 0;
+	resp = isup_status_alloc(cic, ISUP_MSG_CGBA, &val, range, 0xff);
+	if (!resp)
+		return -1;
+
+	mtp_link_set_submit_isup_data(link, sls, resp->l2h, msgb_l2len(resp));
+	msgb_free(resp);
+	return 0;
+}
+
+static int send_cgu(struct mtp_link_set *link, int sls, int cic, int range)
+{
+	struct msgb *resp;
+	uint8_t val;
+
+	val = 0;
+	resp = isup_status_alloc(cic, ISUP_MSG_CGU, &val, range, 0);
+	if (!resp)
+		return -1;
+
+	mtp_link_set_submit_isup_data(link, sls, resp->l2h, msgb_l2len(resp));
+	msgb_free(resp);
+	return 0;
+}
+
+static int handle_simple_resp(struct mtp_link_set *set, int sls, int cic, int msg_type)
+{
+	struct msgb *resp;
+
+	resp = isup_simple_alloc(cic, msg_type);
+	if (!resp)
+		return -1;
+	mtp_link_set_submit_isup_data(set, sls, resp->l2h, msgb_l2len(resp));
+	msgb_free(resp);
+	return 0;
+}
+
+int mtp_link_set_isup(struct mtp_link_set *link, struct msgb *msg, int sls)
 {
 	int rc = -1;
 	int payload_size;
@@ -120,6 +200,11 @@ int mtp_link_set_forward_isup(struct mtp_link_set *link, struct msgb *msg, int s
 		return -1;
 	}
 
+	if (link->pass_all_isup) {
+		mtp_link_set_forward_isup(link, msg, sls);
+		return 0;
+	}
+
 	hdr = (struct isup_msg_hdr *) msg->l3h;
 	payload_size = msgb_l3len(msg) - sizeof(*hdr);
 
@@ -127,8 +212,20 @@ int mtp_link_set_forward_isup(struct mtp_link_set *link, struct msgb *msg, int s
 	case ISUP_MSG_GRS:
 		rc = handle_circuit_reset_grs(link, sls, hdr->cic, hdr->data, payload_size);
 		break;
+	case ISUP_MSG_CGB:
+		rc = handle_circuit_reset_cgb(link, sls, hdr->cic, hdr->data, payload_size);
+		if (rc == 0)
+			rc = send_cgu(link, sls, hdr->cic, 28);
+		break;
+	case ISUP_MSG_CGUA:
+		LOGP(DISUP, LOGL_NOTICE, "CIC %d is now unblocked.\n", hdr->cic);
+		break;
+	case ISUP_MSG_RSC:
+		rc = handle_simple_resp(link, sls, hdr->cic, ISUP_MSG_RLC);
+		break;
 	default:
-		LOGP(DISUP, LOGL_NOTICE, "ISUP msg not handled: 0x%x\n", hdr->msg_type);
+		mtp_link_set_forward_isup(link, msg, sls);
+		rc = 0;
 		break;
 	}
 

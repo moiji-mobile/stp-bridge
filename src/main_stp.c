@@ -4,18 +4,19 @@
  * (C) 2010-2011 by On-Waves
  * All Rights Reserved
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
+ * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
  */
 
@@ -26,6 +27,7 @@
 #include <bsc_data.h>
 #include <snmp_mtp.h>
 #include <cellmgr_debug.h>
+#include <sctp_m2ua.h>
 
 #include <osmocore/talloc.h>
 
@@ -57,7 +59,7 @@
 
 static struct log_target *stderr_target;
 
-static char *config = "udt_relay.cfg";
+static char *config = "osmo_stp.cfg";
 
 struct bsc_data bsc;
 extern void cell_vty_init(void);
@@ -67,21 +69,24 @@ extern void cell_vty_init(void);
  */
 void mtp_link_set_forward_sccp(struct mtp_link_set *link, struct msgb *_msg, int sls)
 {
-	msc_send_direct(&bsc, _msg);
+	struct mtp_link_set *target;
+
+	target = bsc.m2ua_set == link ? bsc.link_set : bsc.m2ua_set;
+	mtp_link_set_submit_sccp_data(target, sls, _msg->l2h, msgb_l2len(_msg));
 }
 
 void mtp_link_set_forward_isup(struct mtp_link_set *set, struct msgb *msg, int sls)
 {
-	LOGP(DINP, LOGL_ERROR, "ISUP is not handled.\n");
+	struct mtp_link_set *target;
+
+	target = bsc.m2ua_set == set ? bsc.link_set : bsc.m2ua_set;
+	mtp_link_set_submit_isup_data(target, sls, msg->l3h, msgb_l3len(msg));
 }
 
 void mtp_linkset_down(struct mtp_link_set *set)
 {
 	set->available = 0;
 	mtp_link_set_stop(set);
-
-	/* If we have an A link send a reset to the MSC */
-	msc_send_reset(set->bsc);
 }
 
 void mtp_linkset_up(struct mtp_link_set *set)
@@ -92,7 +97,7 @@ void mtp_linkset_up(struct mtp_link_set *set)
 
 static void print_usage()
 {
-	printf("Usage: cellmgr_ng\n");
+	printf("Usage: osmo-stp\n");
 }
 
 static void sigint()
@@ -114,12 +119,6 @@ static void sigint()
 
 out:
 	pthread_mutex_unlock(&exit_mutex);
-}
-
-static void sigusr2()
-{
-	printf("Closing the MSC connection on demand.\n");
-	msc_close_connection(&bsc);
 }
 
 static void print_help()
@@ -181,6 +180,8 @@ static void handle_options(int argc, char **argv)
 int main(int argc, char **argv)
 {
 	int rc;
+	struct mtp_link *data;
+	struct mtp_m2ua_link *lnk;
 	INIT_LLIST_HEAD(&bsc.sccp_connections);
 
 	bsc.dpc = 1;
@@ -224,7 +225,6 @@ int main(int argc, char **argv)
 
 	signal(SIGPIPE, SIG_IGN);
 	signal(SIGINT, sigint);
-	signal(SIGUSR2, sigusr2);
 	srand(time(NULL));
 
 	cell_vty_init();
@@ -240,6 +240,26 @@ int main(int argc, char **argv)
 	if (link_init(&bsc) != 0)
 		return -1;
 
+	bsc.m2ua_set = mtp_link_set_alloc();
+	bsc.m2ua_set->dpc = 92;
+	bsc.m2ua_set->opc = 9;
+	bsc.m2ua_set->sccp_opc = 9;
+	bsc.m2ua_set->isup_opc = 9;
+	bsc.m2ua_set->ni = 3;
+	bsc.m2ua_set->bsc = &bsc;
+
+	/* for both links we want to have all isup messages */
+	bsc.m2ua_set->pass_all_isup = 1;
+	bsc.link_set->pass_all_isup = 1;
+
+	lnk = sctp_m2ua_transp_create("0.0.0.0", 2904);
+	lnk->base.pcap_fd = bsc.pcap_fd;
+	lnk->base.the_link = bsc.m2ua_set;
+	mtp_link_set_add_link(bsc.m2ua_set, (struct mtp_link *) lnk);
+
+	llist_for_each_entry(data, &bsc.m2ua_set->links, entry)
+		data->start(data);
+
         while (1) {
 		bsc_select_main(0);
         }
@@ -247,40 +267,9 @@ int main(int argc, char **argv)
 	return 0;
 }
 
-void release_bsc_resources(struct bsc_data *bsc)
-{
-}
-
-struct msgb *create_sccp_rlc(struct sccp_source_reference *src_ref,
-			     struct sccp_source_reference *dst)
-{
-	LOGP(DMSC, LOGL_NOTICE, "Refusing to create connection handling.\n");
-	return NULL;
-}
-
-struct msgb *create_reset()
-{
-	LOGP(DMSC, LOGL_NOTICE, "Refusing to create a GSM0808 reset message.\n");
-	return NULL;
-}
-
-void update_con_state(struct mtp_link_set *link, int rc, struct sccp_parse_result *res, struct msgb *msg, int from_msc, int sls)
-{
-	LOGP(DMSC, LOGL_ERROR, "Should not be called.\n");
-	return;
-}
-
-unsigned int sls_for_src_ref(struct sccp_source_reference *ref)
-{
-	return 13;
-}
-
-int bsc_ussd_handle_in_msg(struct bsc_data *bsc, struct sccp_parse_result *res, struct msgb *msg)
+/* dummy for links */
+int msc_init(struct bsc_data *data, int dummy)
 {
 	return 0;
 }
 
-int bsc_ussd_handle_out_msg(struct bsc_data *bsc, struct sccp_parse_result *res, struct msgb *msg)
-{
-	return 0;
-}

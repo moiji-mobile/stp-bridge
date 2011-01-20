@@ -19,6 +19,7 @@
 #include <bsc_data.h>
 #include <cellmgr_debug.h>
 #include <mtp_data.h>
+#include <mtp_pcap.h>
 
 #include <osmocore/talloc.h>
 
@@ -296,6 +297,7 @@ static int m2ua_handle_data(struct sctp_m2ua_conn *conn,
 {
 	struct msgb *msg;
 	struct m2ua_msg_part *data;
+	struct mtp_link *link;
 
 	data = m2ua_msg_find_tag(m2ua, M2UA_TAG_DATA);
 	if (!data) {
@@ -316,7 +318,11 @@ static int m2ua_handle_data(struct sctp_m2ua_conn *conn,
 
 	msg->l2h = msgb_put(msg, data->len);
 	memcpy(msg->l2h, data->dat, data->len);
-	mtp_link_set_data(conn->trans->base.the_link, msg);
+
+	link = &conn->trans->base;
+	if (link->pcap_fd >= 0)
+		mtp_pcap_write_msu(link->pcap_fd, msg->l2h, msgb_l2len(msg));
+	mtp_link_set_data(link, msg);
 	msgb_free(msg);
 
 	return 0;
@@ -456,6 +462,9 @@ static int sctp_m2ua_write(struct mtp_link *link, struct msgb *msg)
 	m2ua = m2ua_msg_alloc();
 	if (!m2ua)
 		return -1;
+
+	if (link->pcap_fd >= 0)
+		mtp_pcap_write_msu(link->pcap_fd, msg->data, msg->len);
 
 	m2ua->hdr.msg_class = M2UA_CLS_MAUP;
 	m2ua->hdr.msg_type = M2UA_MAUP_DATA;

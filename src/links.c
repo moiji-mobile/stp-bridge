@@ -104,6 +104,7 @@ int link_init(struct bsc_data *bsc)
 	bsc->link_set->dpc = bsc->dpc;
 	bsc->link_set->opc = bsc->opc;
 	bsc->link_set->sccp_opc = bsc->sccp_opc > -1 ? bsc->sccp_opc : bsc->opc;
+	bsc->link_set->isup_opc = bsc->isup_opc > -1 ? bsc->isup_opc : bsc->opc;
 	bsc->link_set->sltm_once = bsc->once;
 	bsc->link_set->ni = bsc->ni_ni;
 	bsc->link_set->spare = bsc->ni_spare;

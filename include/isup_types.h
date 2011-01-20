@@ -30,15 +30,16 @@ struct mtp_link_set;
 /* This is from Table 4/Q.763 */
 #define ISUP_MSG_GRS	0x17
 #define ISUP_MSG_GRA	0x29
+#define ISUP_MSG_CGB	0x18
+#define ISUP_MSG_CGBA	0x1A
+#define ISUP_MSG_RLC	0x10
+#define ISUP_MSG_RSC	0x12
+#define ISUP_MSG_CGU	0x19
+#define ISUP_MSG_CGUA	0x1B
+
 
 struct isup_msg_hdr {
-#if __BYTE_ORDER == __LITTLE_ENDIAN
-	uint16_t cic   : 12,
-		 spare :  4;
-#elif __BYTE_ORDER == __BIG_ENDIAN
-	uint16_t spare :  4,
-		 cic   : 12;
-#endif
+	uint16_t cic;
 	uint8_t  msg_type;
 	uint8_t  data[0];
 } __attribute__((packed));
@@ -47,8 +48,8 @@ struct isup_msg_grs {
 	uint8_t  pointer_int;
 };
 
-int mtp_link_set_forward_isup(struct mtp_link_set *link, struct msgb *msg, int sls);
+int mtp_link_set_isup(struct mtp_link_set *link, struct msgb *msg, int sls);
 
-int isup_parse_grs(const uint8_t *data, uint8_t length);
+int isup_parse_status(const uint8_t *data, uint8_t length);
 
 #endif

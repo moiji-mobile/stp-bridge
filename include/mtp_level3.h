@@ -43,6 +43,7 @@
 
 #define MTP_TST_MSG_GRP		0x01
 #define MTP_PROHIBIT_MSG_GRP	0x04
+#define MTP_SROUTE_MSG_GRP	0x05
 #define MTP_TRF_RESTR_MSG_GRP	0x07
 
 /* h1 values for different groups */
@@ -51,7 +52,12 @@
 
 #define MTP_RESTR_MSG_ALLWED	0x01
 
+/* For the prohibit group */
 #define MTP_PROHIBIT_MSG_SIG	0x01
+#define MTP_PROHIBIT_MSG_TFA	0x05
+
+/* For the Signalling-route-set-test */
+#define MTP_SROUTE_MSG_TEST	0x01
 
 
 #define SCCP_SST	0x03

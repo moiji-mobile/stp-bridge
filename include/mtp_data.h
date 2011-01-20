@@ -39,7 +39,7 @@ struct mtp_link;
  */
 struct mtp_link_set {
 	/* routing info.. */
-	int dpc, opc, sccp_opc;
+	int dpc, opc, sccp_opc, isup_opc;
 	int ni;
 	int spare;
 
@@ -66,6 +66,9 @@ struct mtp_link_set {
 
 	struct llist_head links;
 	struct mtp_link *slc[16];
+
+	/* special handling */
+	int pass_all_isup;
 
 	/* custom data */
 	struct bsc_data *bsc;
@@ -98,7 +101,7 @@ struct mtp_link {
 struct mtp_link_set *mtp_link_set_alloc(void);
 void mtp_link_set_stop(struct mtp_link_set *link);
 void mtp_link_set_reset(struct mtp_link_set *link);
-int mtp_link_set_data(struct mtp_link_set *link, struct msgb *msg);
+int mtp_link_set_data(struct mtp_link *link, struct msgb *msg);
 int mtp_link_set_submit_sccp_data(struct mtp_link_set *link, int sls, const uint8_t *data, unsigned int length);
 int mtp_link_set_submit_isup_data(struct mtp_link_set *link, int sls, const uint8_t *data, unsigned int length);
 
@@ -112,6 +115,7 @@ void mtp_link_set_init(void);
 /* to be implemented for MSU sending */
 void mtp_link_set_submit(struct mtp_link *link, struct msgb *msg);
 void mtp_link_set_forward_sccp(struct mtp_link_set *link, struct msgb *msg, int sls);
+void mtp_link_set_forward_isup(struct mtp_link_set *link, struct msgb *msg, int sls);
 void mtp_link_restart(struct mtp_link *link);
 void mtp_link_set_sccp_down(struct mtp_link_set *link);
 
