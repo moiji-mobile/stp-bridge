@@ -414,6 +414,12 @@ static int mtp_link_regular_msg(struct mtp_link_set *link, struct mtp_level_3_hd
 		return -1;
 	}
 
+	if (MTP_ADDR_DPC(hdr->addr) != link->opc) {
+		LOGP(DINP, LOGL_ERROR, "MSG for 0x%x not handled by 0x%x\n",
+			MTP_ADDR_DPC(hdr->addr), link->opc);
+		return -1;
+	}
+
 	mng = (struct mtp_level_3_mng *) &hdr->data[0];
 	LOGP(DINP, LOGL_DEBUG, "reg msg: h0: 0x%x h1: 0x%x\n",
              mng->cmn.h0, mng->cmn.h1);
