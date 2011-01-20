@@ -54,6 +54,7 @@ struct mtp_link_set {
 	int last_sls;
 
 	struct llist_head links;
+	int nr_links;
 	struct mtp_link *slc[16];
 	int sltm_once;
 
@@ -83,6 +84,7 @@ struct mtp_link {
 	/* link test routine */
 	uint8_t test_ptrn[14];
 
+	int link_no;
 	int sltm_pending;
 	int was_up;
 
