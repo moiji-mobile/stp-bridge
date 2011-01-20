@@ -352,7 +352,7 @@ static int mtp_link_regular_msg(struct mtp_link *link, struct mtp_level_3_hdr *h
 			out = mtp_create_slta(link->set, mng, l3_len);
 			if (!out)
 				return -1;
-			mtp_link_set_submit(link->set->slc[0], out);
+			mtp_link_set_submit(link, out);
 			return 0;
 			break;
 		case MTP_TST_MSG_SLTA:
@@ -514,11 +514,6 @@ static int mtp_int_submit(struct mtp_link_set *link, int pc, int sls, int type,
 
 	mtp_link_set_submit(link->slc[sls % 16], msg);
 	return 0;
-}
-
-void mtp_link_set_trasmit(struct mtp_link *link, int sls, struct msgb *msg)
-{
-	return mtp_link_set_submit(link->set->slc[sls % 16], msg);
 }
 
 static struct mtp_link *find_next_link(struct mtp_link_set *set,

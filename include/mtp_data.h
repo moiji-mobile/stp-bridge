@@ -134,6 +134,5 @@ void mtp_link_failure(struct mtp_link *fail);
 
 /* internal routines */
 struct msgb *mtp_msg_alloc(struct mtp_link_set *link);
-void mtp_link_set_trasmit(struct mtp_link *link, int sls, struct msgb *msg);
 
 #endif
