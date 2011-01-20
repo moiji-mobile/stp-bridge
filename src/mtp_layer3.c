@@ -543,7 +543,7 @@ int mtp_link_set_data(struct mtp_link *link, struct msgb *msg)
 	if (!msg->l2h || msgb_l2len(msg) < sizeof(*hdr))
 		return -1;
 
-	if (!link->the_link->running) {
+	if (!link->set->running) {
 		LOGP(DINP, LOGL_ERROR, "Link is not running. Call mtp_link_reset first: %p\n", link);
 		return -1;
 	}
@@ -553,17 +553,17 @@ int mtp_link_set_data(struct mtp_link *link, struct msgb *msg)
 
 	switch (hdr->ser_ind) {
 	case MTP_SI_MNT_SNM_MSG:
-		rc = mtp_link_sign_msg(link->the_link, hdr, l3_len);
+		rc = mtp_link_sign_msg(link->set, hdr, l3_len);
 		break;
 	case MTP_SI_MNT_REG_MSG:
-		rc = mtp_link_regular_msg(link->the_link, hdr, l3_len);
+		rc = mtp_link_regular_msg(link->set, hdr, l3_len);
 		break;
 	case MTP_SI_MNT_SCCP:
-		rc = mtp_link_sccp_data(link->the_link, hdr, msg, l3_len);
+		rc = mtp_link_sccp_data(link->set, hdr, msg, l3_len);
 		break;
 	case MTP_SI_MNT_ISUP:
 		msg->l3h = &hdr->data[0];
-		rc = mtp_link_set_isup(link->the_link, msg, MTP_LINK_SLS(hdr->addr));
+		rc = mtp_link_set_isup(link->set, msg, MTP_LINK_SLS(hdr->addr));
 		break;
 	default:
 		fprintf(stderr, "Unhandled: %u\n", hdr->ser_ind);
@@ -665,5 +665,6 @@ void mtp_link_set_init_slc(struct mtp_link_set *set)
 void mtp_link_set_add_link(struct mtp_link_set *set, struct mtp_link *lnk)
 {
 	llist_add_tail(&lnk->entry, &set->links);
+	lnk->set = set;
 	mtp_link_set_init_slc(set);
 }

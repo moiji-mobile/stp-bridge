@@ -83,7 +83,7 @@ struct mtp_link {
 	struct llist_head entry;
 
 	int pcap_fd;
-	struct mtp_link_set *the_link;
+	struct mtp_link_set *set;
 
 	int available;
 

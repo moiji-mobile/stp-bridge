@@ -81,7 +81,7 @@ static int udp_read_cb(struct bsc_fd *fd)
 	}
 
 	/* throw away data as the link is down */
-	if (link->the_link->available == 0) {
+	if (link->set->available == 0) {
 		LOGP(DINP, LOGL_ERROR, "The link is down. Not forwarding.\n");
 		rc = 0;
 		goto exit;
