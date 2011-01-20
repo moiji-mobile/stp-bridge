@@ -78,7 +78,7 @@ static void mtp_sltm_t1_timeout(void *_link)
 	} else {
 		LOGP(DINP, LOGL_ERROR, "Two missing SLTAs. Restart link: %p\n", link);
 		bsc_del_timer(&link->t2_timer);
-		link->reset(link);
+		mtp_link_failure(link);
 	}
 }
 
@@ -147,4 +147,10 @@ int mtp_link_slta(struct mtp_link *link, uint16_t l3_len,
 	link->was_up = 1;
 
 	return 0;
+}
+
+void mtp_link_failure(struct mtp_link *link)
+{
+	LOGP(DINP, LOGL_ERROR, "Link has failed. Resetting it: 0x%p\n", link);
+	link->reset(link);
 }

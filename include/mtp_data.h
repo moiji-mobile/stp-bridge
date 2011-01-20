@@ -128,6 +128,8 @@ void mtp_link_start_link_test(struct mtp_link *link);
 void mtp_link_stop_link_test(struct mtp_link *link);
 int mtp_link_slta(struct mtp_link *link, uint16_t l3_len, struct mtp_level_3_mng *mng);
 
+void mtp_link_failure(struct mtp_link *fail);
+
 /* internal routines */
 struct msgb *mtp_msg_alloc(struct mtp_link_set *link);
 void mtp_link_set_trasmit(struct mtp_link *link, int sls, struct msgb *msg);
