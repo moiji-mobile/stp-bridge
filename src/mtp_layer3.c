@@ -200,7 +200,6 @@ void mtp_link_set_stop(struct mtp_link_set *link)
 	link->sccp_up = 0;
 	link->running = 0;
 	link->linkset_up = 0;
-	mtp_link_set_sccp_down(link);
 }
 
 void mtp_link_set_reset(struct mtp_link_set *link)
@@ -297,9 +296,6 @@ static int mtp_link_sign_msg(struct mtp_link_set *link, struct mtp_level_3_hdr *
 		switch (cmn->h1) {
 		case MTP_RESTR_MSG_ALLWED:
 			LOGP(DINP, LOGL_INFO, "Received Restart Allowed. SST could be next: %p\n", link);
-			link->sccp_up = 0;
-			mtp_link_set_sccp_down(link);
-
 			link->sccp_up = 1;
 			LOGP(DINP, LOGL_INFO, "SCCP traffic allowed. %p\n", link);
 			return 0;

@@ -78,7 +78,7 @@ static void mtp_sltm_t1_timeout(void *_link)
 	} else {
 		LOGP(DINP, LOGL_ERROR, "Two missing SLTAs. Restart link: %p\n", link);
 		bsc_del_timer(&link->t2_timer);
-		mtp_link_down(link);
+		link->reset(link);
 	}
 }
 
