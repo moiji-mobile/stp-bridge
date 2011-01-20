@@ -46,12 +46,14 @@ void mtp_link_down(struct mtp_link *link)
 
 	was_up = link->available;
 	link->available = 0;
+	link->was_up = 0;
 	one_up = is_one_up(link->set);
 
 	/* our linkset is now unsuable */
 	if (was_up && !one_up)
 		mtp_linkset_down(link->set);
 	link->clear_queue(link);
+	mtp_link_stop_link_test(link);
 	mtp_link_set_init_slc(link->set);
 }
 
@@ -61,10 +63,13 @@ void mtp_link_up(struct mtp_link *link)
 
 	one_up = is_one_up(link->set);
 	link->available = 1;
+	link->was_up = 0;
 
 	mtp_link_set_init_slc(link->set);
 	if (!one_up)
 		mtp_linkset_up(link->set);
+	else
+		mtp_link_start_link_test(link);
 }
 
 void mtp_link_set_sccp_down(struct mtp_link_set *link)
