@@ -112,7 +112,6 @@ int link_init(struct bsc_data *bsc)
 
 	lnk = talloc_zero(bsc->link_set, struct mtp_udp_link);
 	lnk->base.pcap_fd = bsc->pcap_fd;
-	lnk->base.the_link = bsc->link_set;
 	lnk->bsc = bsc;
 	lnk->link_index = 1;
 	lnk->reset_timeout = bsc->udp_reset_timeout;
