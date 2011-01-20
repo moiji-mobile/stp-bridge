@@ -230,6 +230,7 @@ static void mtp_sltm_t1_timeout(void *_link)
 		LOGP(DINP, LOGL_ERROR, "Two missing SLTAs. Restart link: %p\n", link);
 		link->sccp_up = 0;
 		link->running = 0;
+		link->linkset_up = 0;
 		bsc_del_timer(&link->t2_timer);
 		mtp_link_set_sccp_down(link);
 		mtp_link_restart(link->slc[0]);
@@ -288,6 +289,7 @@ void mtp_link_set_stop(struct mtp_link_set *link)
 	bsc_del_timer(&link->delay_timer);
 	link->sccp_up = 0;
 	link->running = 0;
+	link->linkset_up = 0;
 	link->sltm_pending = 0;
 
 	mtp_link_set_sccp_down(link);
@@ -331,6 +333,39 @@ static int send_tfa(struct mtp_link_set *link, int opc)
 	return 0;
 }
 
+static int linkset_up(struct mtp_link_set *set)
+{
+	/* the link set is already up */
+	if (set->linkset_up)
+		return 0;
+
+	if (send_tfp(set, 0) != 0)
+		return -1;
+	if (send_tfp(set, set->opc) != 0)
+		return -1;
+	if (set->sccp_opc != set->opc &&
+	    send_tfp(set, set->sccp_opc) != 0)
+		return -1;
+	if (set->isup_opc != set->opc &&
+	    send_tfp(set, set->isup_opc) != 0)
+		return -1;
+
+	/* Send the TRA for all PCs */
+	if (send_tra(set, set->opc) != 0)
+		return -1;
+	if (set->sccp_opc != set->opc &&
+	    send_tfa(set, set->sccp_opc) != 0)
+		return -1;
+	if (set->isup_opc != set->opc &&
+	    send_tfa(set, set->isup_opc) != 0)
+		return -1;
+
+	set->linkset_up = 1;
+	LOGP(DINP, LOGL_NOTICE,
+	     "The linkset %p is considered running.\n", set);
+	return 0;
+}
+
 static int mtp_link_sign_msg(struct mtp_link_set *link, struct mtp_level_3_hdr *hdr, int l3_len)
 {
 	struct mtp_level_3_cmn *cmn;
@@ -353,27 +388,6 @@ static int mtp_link_sign_msg(struct mtp_link_set *link, struct mtp_level_3_hdr *
 			LOGP(DINP, LOGL_INFO, "Received Restart Allowed. SST could be next: %p\n", link);
 			link->sccp_up = 0;
 			mtp_link_set_sccp_down(link);
-
-			if (send_tfp(link, 0) != 0)
-				return -1;
-			if (send_tfp(link, link->opc) != 0)
-				return -1;
-			if (link->sccp_opc != link->opc &&
-			    send_tfp(link, link->sccp_opc) != 0)
-				return -1;
-			if (link->isup_opc != link->opc &&
-			    send_tfp(link, link->isup_opc) != 0)
-				return -1;
-
-			/* Send the TRA for all PCs */
-			if (send_tra(link, link->opc) != 0)
-				return -1;
-			if (link->sccp_opc != link->opc &&
-			    send_tfa(link, link->sccp_opc) != 0)
-				return -1;
-			if (link->isup_opc != link->opc &&
-			    send_tfa(link, link->isup_opc) != 0)
-				return -1;
 
 			link->sccp_up = 1;
 			link->was_up = 1;
@@ -454,6 +468,10 @@ static int mtp_link_regular_msg(struct mtp_link_set *link, struct mtp_level_3_hd
 			/* we had a matching slta */
 			bsc_del_timer(&link->t1_timer);
 			link->sltm_pending = 0;
+
+			/* This link of the linkset is now proven */
+			linkset_up(link);
+
 			return 0;
 			break;
 		}

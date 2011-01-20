@@ -48,6 +48,7 @@ struct mtp_link_set {
 	int available;
 	int running;
 	int sccp_up;
+	int linkset_up;
 
 	int last_sls;
 
