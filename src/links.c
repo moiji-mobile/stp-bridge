@@ -114,6 +114,7 @@ int link_init(struct bsc_data *bsc)
 	lnk = talloc_zero(bsc->link_set, struct mtp_udp_link);
 	lnk->base.pcap_fd = bsc->pcap_fd;
 	lnk->bsc = bsc;
+	lnk->data = &bsc->udp_data;
 	lnk->link_index = 1;
 	lnk->reset_timeout = bsc->udp_reset_timeout;
 	mtp_link_set_add_link(bsc->link_set, (struct mtp_link *) lnk);
@@ -126,12 +127,15 @@ int link_init(struct bsc_data *bsc)
 	LOGP(DINP, LOGL_NOTICE, "Using UDP MTP mode.\n");
 
 	/* setup SNMP first, it is blocking */
-	lnk->session = snmp_mtp_session_create(bsc->udp_ip);
-	if (!lnk->session)
+	bsc->udp_data.session = snmp_mtp_session_create(bsc->udp_ip);
+	if (!bsc->udp_data.session)
+		return -1;
+
+	if (link_global_init(&bsc->udp_data, bsc->src_port) != 0)
 		return -1;
 
 	/* now connect to the transport */
-	if (link_udp_init(lnk, bsc->src_port, bsc->udp_ip, bsc->udp_port) != 0)
+	if (link_udp_init(lnk, bsc->udp_ip, bsc->udp_port) != 0)
 		return -1;
 
 	/*
@@ -140,7 +144,7 @@ int link_init(struct bsc_data *bsc)
 	 * SLTM and it begins a reset. Then we will take it up
 	 * again and do the usual business.
 	 */
-	snmp_mtp_deactivate(lnk->session,
+	snmp_mtp_deactivate(lnk->data->session,
 			    lnk->link_index);
 	bsc->start_timer.cb = start_rest;
 	bsc->start_timer.data = &bsc;

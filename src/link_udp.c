@@ -35,12 +35,30 @@
 #include <string.h>
 #include <unistd.h>
 
+static struct mtp_udp_link *find_link(struct mtp_udp_data *data, uint16_t link_index)
+{
+	struct mtp_udp_link *lnk;
+
+	llist_for_each_entry(lnk, &data->links, entry)
+		if (lnk->link_index == link_index)
+			return lnk;
+
+	return NULL;
+}
+
+
 static int udp_write_cb(struct bsc_fd *fd, struct msgb *msg)
 {
+	struct mtp_udp_data *data;
 	struct mtp_udp_link *link;
 	int rc;
 
-	link = fd->data;
+	data = fd->data;
+	link = find_link(data, msg->cb[0]);
+	if (!link) {
+		LOGP(DINP, LOGL_ERROR, "Failed to find link with %lu\n", msg->cb[0]);
+		return -1;
+	}
 
 	LOGP(DINP, LOGL_DEBUG, "Sending MSU: %s\n", hexdump(msg->data, msg->len));
 	if (link->base.pcap_fd >= 0)
@@ -59,6 +77,7 @@ static int udp_write_cb(struct bsc_fd *fd, struct msgb *msg)
 
 static int udp_read_cb(struct bsc_fd *fd)
 {
+	struct mtp_udp_data *data;
 	struct mtp_link *link;
 	struct udp_data_hdr *hdr;
 	struct msgb *msg;
@@ -72,7 +91,7 @@ static int udp_read_cb(struct bsc_fd *fd)
 	}
 	    
 
-	link = (struct mtp_link *) fd->data;
+	data = (struct mtp_udp_data *) fd->data;
 	rc = read(fd->fd, msg->data, 2096);
 	if (rc < sizeof(*hdr)) {
 		LOGP(DINP, LOGL_ERROR, "Failed to read at least size of the header: %d\n", rc);
@@ -80,14 +99,22 @@ static int udp_read_cb(struct bsc_fd *fd)
 		goto exit;
 	}
 
+	hdr = (struct udp_data_hdr *) msgb_put(msg, sizeof(*hdr));
+	link = (struct mtp_link *) find_link(data, ntohs(hdr->data_link_index));
+
+	if (!link) {
+		LOGP(DINP, LOGL_ERROR, "No link registered for %d\n",
+		     ntohs(hdr->data_link_index));
+		goto exit;
+	}
+
+
 	/* throw away data as the link is down */
 	if (link->set->available == 0) {
 		LOGP(DINP, LOGL_ERROR, "The link is down. Not forwarding.\n");
 		rc = 0;
 		goto exit;
 	}
-
-	hdr = (struct udp_data_hdr *) msgb_put(msg, sizeof(*hdr));
 
 	if (hdr->data_type == UDP_DATA_RETR_COMPL || hdr->data_type == UDP_DATA_RETR_IMPOS) {
 		LOGP(DINP, LOGL_ERROR, "Link retrieval done. Restarting the link.\n");
@@ -129,7 +156,7 @@ static void do_start(void *_data)
 {
 	struct mtp_udp_link *link = (struct mtp_udp_link *) _data;
 
-	snmp_mtp_activate(link->session, link->link_index);
+	snmp_mtp_activate(link->data->session, link->link_index);
 	mtp_link_up(&link->base);
 }
 
@@ -142,7 +169,7 @@ static int udp_link_reset(struct mtp_link *link)
 	LOGP(DINP, LOGL_NOTICE, "Will restart SLTM transmission in %d seconds.\n",
 	     ulnk->reset_timeout);
 
-	snmp_mtp_deactivate(ulnk->session, ulnk->link_index);
+	snmp_mtp_deactivate(ulnk->data->session, ulnk->link_index);
 	mtp_link_down(link);
 
 	/* restart the link in 90 seconds... to force a timeout on the BSC */
@@ -166,7 +193,9 @@ static int udp_link_write(struct mtp_link *link, struct msgb *msg)
 	hdr->user_context = 0;
 	hdr->data_length = htonl(msgb_l2len(msg));
 
-	if (write_queue_enqueue(&ulnk->write_queue, msg) != 0) {
+	msg->cb[0] = ulnk->link_index;
+
+	if (write_queue_enqueue(&ulnk->data->write_queue, msg) != 0) {
 		LOGP(DINP, LOGL_ERROR, "Failed to enqueue msg.\n");
 		msgb_free(msg);
 		return -1;
@@ -182,14 +211,8 @@ static int udp_link_start(struct mtp_link *link)
 	return 0;
 }
 
-int link_udp_init(struct mtp_udp_link *link, int src_port, const char *remote, int remote_port)
+int link_udp_init(struct mtp_udp_link *link, const char *remote, int port)
 {
-	struct sockaddr_in addr;
-	int fd;
-	int on;
-
-	write_queue_init(&link->write_queue, 100);
-
 	/* function table */
 	link->base.shutdown = udp_link_dummy;
 	link->base.clear_queue = udp_link_dummy;
@@ -198,13 +221,33 @@ int link_udp_init(struct mtp_udp_link *link, int src_port, const char *remote, i
 	link->base.start = udp_link_start;
 	link->base.write = udp_link_write;
 
-	/* socket creation */
-	link->write_queue.bfd.data = link;
-	link->write_queue.bfd.when = BSC_FD_READ;
-	link->write_queue.read_cb = udp_read_cb;
-	link->write_queue.write_cb = udp_write_cb;
+	/* prepare the remote */
+	memset(&link->remote, 0, sizeof(link->remote));
+	link->remote.sin_family = AF_INET;
+	link->remote.sin_port = htons(port);
+	inet_aton(remote, &link->remote.sin_addr);
 
-	link->write_queue.bfd.fd = fd = socket(AF_INET, SOCK_DGRAM, 0);
+	/* add it to the list of udp connections */
+	llist_add(&link->entry, &link->data->links);
+	return 0;
+}
+
+int link_global_init(struct mtp_udp_data *data, int src_port)
+{
+	struct sockaddr_in addr;
+	int fd;
+	int on;
+
+	INIT_LLIST_HEAD(&data->links);
+	write_queue_init(&data->write_queue, 100);
+
+	/* socket creation */
+	data->write_queue.bfd.data = data;
+	data->write_queue.bfd.when = BSC_FD_READ;
+	data->write_queue.read_cb = udp_read_cb;
+	data->write_queue.write_cb = udp_write_cb;
+
+	data->write_queue.bfd.fd = fd = socket(AF_INET, SOCK_DGRAM, 0);
 	if (fd < 0) {
 		LOGP(DINP, LOGL_ERROR, "Failed to create UDP socket.\n");
 		return -1;
@@ -225,12 +268,7 @@ int link_udp_init(struct mtp_udp_link *link, int src_port, const char *remote, i
 	}
 
 	/* now connect the socket to the remote */
-	memset(&link->remote, 0, sizeof(link->remote));
-	link->remote.sin_family = AF_INET;
-	link->remote.sin_port = htons(remote_port);
-	inet_aton(remote, &link->remote.sin_addr);
-
-	if (bsc_register_fd(&link->write_queue.bfd) != 0) {
+	if (bsc_register_fd(&data->write_queue.bfd) != 0) {
 		LOGP(DINP, LOGL_ERROR, "Failed to register BFD.\n");
 		close(fd);
 		return -1;
