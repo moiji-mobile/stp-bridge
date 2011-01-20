@@ -589,6 +589,18 @@ int main(int argc, char **argv)
 	tests[2].hdr.addr = MTP_ADDR(0x00, 136, 91);
 	tests[2].prohib.apoc = MTP_MAKE_APOC(86);
 
+	addr = MTP_ADDR(0x00, 0x2AAA, 0x1555);
+	if (MTP_ADDR_OPC(addr) != 0x1555) {
+		fprintf(stderr, "Failed to extract OPC: %d\n",
+			MTP_ADDR_OPC(addr));
+		abort();
+	}
+	if (MTP_ADDR_DPC(addr) != 0x2AAA) {
+		fprintf(stderr, "Failed to extract DPC: %d\n",
+			MTP_ADDR_DPC(addr));
+		abort();
+	}
+
 	for (i = 0; i < ARRAY_SIZE(tests); ++i) {
 		check_hdr(tests[i].input, &tests[i].hdr);
 		if (tests[i].has_mng)
