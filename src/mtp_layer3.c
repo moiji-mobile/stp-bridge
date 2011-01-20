@@ -53,7 +53,8 @@ struct msgb *mtp_msg_alloc(struct mtp_link_set *link)
 	return msg;
 }
 
-static struct msgb *mtp_create_slta(struct mtp_link_set *link, struct mtp_level_3_mng *in_mng, int l3_len)
+static struct msgb *mtp_create_slta(struct mtp_link_set *link, int sls,
+				    struct mtp_level_3_mng *in_mng, int l3_len)
 {
 	struct mtp_level_3_hdr *hdr;
 	struct mtp_level_3_mng *mng;
@@ -64,6 +65,8 @@ static struct msgb *mtp_create_slta(struct mtp_link_set *link, struct mtp_level_
 
 	hdr = (struct mtp_level_3_hdr *) out->l2h;
 	hdr->ser_ind = MTP_SI_MNT_REG_MSG;
+	hdr->addr = MTP_ADDR(sls, link->dpc, link->opc);
+
 	mng = (struct mtp_level_3_mng *) msgb_put(out, sizeof(*mng));
 	mng->cmn.h0 = MTP_TST_MSG_GRP;
 	mng->cmn.h1 = MTP_TST_MSG_SLTA;
@@ -349,7 +352,9 @@ static int mtp_link_regular_msg(struct mtp_link *link, struct mtp_level_3_hdr *h
 		switch (mng->cmn.h1) {
 		case MTP_TST_MSG_SLTM:
 			/* simply respond to the request... */
-			out = mtp_create_slta(link->set, mng, l3_len);
+			out = mtp_create_slta(link->set,
+					      MTP_LINK_SLS(hdr->addr),
+					      mng, l3_len);
 			if (!out)
 				return -1;
 			mtp_link_set_submit(link, out);

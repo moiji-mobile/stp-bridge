@@ -37,6 +37,7 @@ static struct msgb *mtp_create_sltm(struct mtp_link *link)
 
 	hdr = (struct mtp_level_3_hdr *) msg->l2h;
 	hdr->ser_ind = MTP_SI_MNT_REG_MSG;
+	hdr->addr = MTP_ADDR(link->link_no % 16, link->set->dpc, link->set->opc);
 
 	mng = (struct mtp_level_3_mng *) msgb_put(msg, sizeof(*mng));
 	mng->cmn.h0 = MTP_TST_MSG_GRP;
