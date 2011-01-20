@@ -63,8 +63,6 @@ struct mtp_link_set {
 	struct timer_list t1_timer;
 	struct timer_list t2_timer;
 
-	struct timer_list delay_timer;
-
 	struct llist_head links;
 	struct mtp_link *slc[16];
 

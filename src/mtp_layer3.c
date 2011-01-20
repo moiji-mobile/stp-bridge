@@ -257,11 +257,6 @@ static void mtp_sltm_t2_timeout(void *_link)
 		bsc_schedule_timer(&link->t2_timer, MTP_T2);
 }
 
-static void mtp_delayed_start(void *link)
-{
-	mtp_sltm_t2_timeout(link);
-}
-
 struct mtp_link_set *mtp_link_set_alloc(void)
 {
 	struct mtp_link_set *link;
@@ -275,8 +270,6 @@ struct mtp_link_set *mtp_link_set_alloc(void)
 	link->t1_timer.cb = mtp_sltm_t1_timeout;
 	link->t2_timer.data = link;
 	link->t2_timer.cb = mtp_sltm_t2_timeout;
-	link->delay_timer.data = link;
-	link->delay_timer.cb = mtp_delayed_start;
 	INIT_LLIST_HEAD(&link->links);
 
 	return link;
@@ -286,7 +279,6 @@ void mtp_link_set_stop(struct mtp_link_set *link)
 {
 	bsc_del_timer(&link->t1_timer);
 	bsc_del_timer(&link->t2_timer);
-	bsc_del_timer(&link->delay_timer);
 	link->sccp_up = 0;
 	link->running = 0;
 	link->linkset_up = 0;
@@ -299,7 +291,7 @@ void mtp_link_set_reset(struct mtp_link_set *link)
 {
 	mtp_link_set_stop(link);
 	link->running = 1;
-	bsc_schedule_timer(&link->delay_timer, START_DELAY);
+	mtp_sltm_t2_timeout(link);
 }
 
 static int send_tfp(struct mtp_link_set *link, int apoc)
