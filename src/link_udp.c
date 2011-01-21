@@ -157,7 +157,6 @@ static void do_start(void *_data)
 	struct mtp_udp_link *link = (struct mtp_udp_link *) _data;
 
 	snmp_mtp_activate(link->data->session, link->link_index);
-	mtp_link_up(&link->base);
 }
 
 static int udp_link_reset(struct mtp_link *link)
@@ -166,16 +165,7 @@ static int udp_link_reset(struct mtp_link *link)
 
 	ulnk = (struct mtp_udp_link *) link;
 
-	LOGP(DINP, LOGL_NOTICE, "Will restart SLTM transmission in %d seconds.\n",
-	     ulnk->reset_timeout);
-
 	snmp_mtp_deactivate(ulnk->data->session, ulnk->link_index);
-	mtp_link_down(link);
-
-	/* restart the link in 90 seconds... to force a timeout on the BSC */
-	link->link_activate.cb = do_start;
-	link->link_activate.data = link;
-	bsc_schedule_timer(&link->link_activate, ulnk->reset_timeout, 0);
 	return 0;
 }
 
@@ -239,11 +229,17 @@ static void snmp_poll(void *_data)
 	bsc_schedule_timer(&data->snmp_poll, 0, 5000);
 }
 
-int link_global_init(struct mtp_udp_data *data, int src_port)
+int link_global_init(struct mtp_udp_data *data, char *udp_ip, int src_port)
 {
 	struct sockaddr_in addr;
 	int fd;
 	int on;
+
+	/* setup SNMP first, it is blocking */
+	data->session = snmp_mtp_session_create(udp_ip);
+	if (!data->session)
+		return -1;
+	data->session->data = data;
 
 	INIT_LLIST_HEAD(&data->links);
 	write_queue_init(&data->write_queue, 100);
@@ -286,4 +282,46 @@ int link_global_init(struct mtp_udp_data *data, int src_port)
 	snmp_poll(data);
 
 	return 0;
+}
+
+void snmp_mtp_callback(struct snmp_mtp_session *session,
+		      int area, int res, int link_id)
+{
+	struct mtp_udp_data *data;
+	struct mtp_udp_link *ulink;
+	struct mtp_link *link;
+
+	data = session->data;
+	ulink = find_link(data, link_id);
+	if (!ulink)
+		return LOGP(DINP, LOGL_ERROR, "Failed to find link %d\n", link_id);
+
+	link = &ulink->base;
+
+	if (res == SNMP_STATUS_TIMEOUT) {
+		LOGP(DINP, LOGL_ERROR, "Failed to restart link: %d\n", link_id);
+		udp_link_reset(link);
+		return;
+	}
+
+	switch (area) {
+	case SNMP_LINK_UP:
+		mtp_link_up(link);
+		break;
+	case SNMP_LINK_DOWN:
+		mtp_link_down(link);
+
+		/*
+		 * restart the link in 90 seconds...
+		 * to force a timeout on the BSC
+		 */
+		link->link_activate.cb = do_start;
+		link->link_activate.data = link;
+		bsc_schedule_timer(&link->link_activate, ulink->reset_timeout, 0);
+		LOGP(DINP, LOGL_NOTICE,
+		     "Will restart SLTM transmission in %d seconds.\n", ulink->reset_timeout);
+		break;
+	default:
+		LOGP(DINP, LOGL_ERROR, "Unknown event %d\n", area);
+	}
 }

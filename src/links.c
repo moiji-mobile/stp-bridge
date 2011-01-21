@@ -126,12 +126,7 @@ int link_init(struct bsc_data *bsc)
 
 	LOGP(DINP, LOGL_NOTICE, "Using UDP MTP mode.\n");
 
-	/* setup SNMP first, it is blocking */
-	bsc->udp_data.session = snmp_mtp_session_create(bsc->udp_ip);
-	if (!bsc->udp_data.session)
-		return -1;
-
-	if (link_global_init(&bsc->udp_data, bsc->src_port) != 0)
+	if (link_global_init(&bsc->udp_data, bsc->udp_ip, bsc->src_port) != 0)
 		return -1;
 
 	/* now connect to the transport */
