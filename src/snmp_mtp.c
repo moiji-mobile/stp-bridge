@@ -41,39 +41,83 @@ static void add_pdu_var(netsnmp_pdu *pdu, const char *mib_name, int id, const ch
 	}
 }
 
-static void send_pdu(netsnmp_session *ss, netsnmp_pdu *pdu)
+static int link_up_cb(int op, netsnmp_session *ss,
+		      int reqid, netsnmp_pdu *pdu, void *data)
 {
-	int status;
-	netsnmp_pdu *response;
+	struct snmp_mtp_session *mtp = ss->myvoid;
+	int link_index = (int) data;
 
-	status = snmp_synch_response(ss, pdu, &response);
-	if (status == STAT_ERROR) {
-		snmp_sess_perror("set failed", ss);
-	} else if (status == STAT_TIMEOUT) {
-		fprintf(stderr, "Timeout for SNMP.\n");
-	}
+	if (mtp->last_up_req != reqid)
+		return 0;
 
-	if (response)
-		snmp_free_pdu(response);
+	mtp->last_up_req = 0;
+	snmp_mtp_callback(mtp, SNMP_LINK_UP,
+			  op == STAT_TIMEOUT ? SNMP_STATUS_TIMEOUT : SNMP_STATUS_OK,
+			  link_index);
+	return 0;
 }
 
-void snmp_mtp_start_c7_datalink(struct snmp_mtp_session *session, int link_id)
+static int link_down_cb(int op, netsnmp_session *ss,
+			int reqid, netsnmp_pdu *pdu, void *data)
 {
+	struct snmp_mtp_session *mtp = ss->myvoid;
+	int link_index = (int) data;
+
+	if (mtp->last_do_req != reqid)
+		return 0;
+
+	mtp->last_do_req = 0;
+	snmp_mtp_callback(mtp, SNMP_LINK_DOWN,
+			  op == STAT_TIMEOUT ? SNMP_STATUS_TIMEOUT : SNMP_STATUS_OK,
+			  link_index);
+	return 0;
+}
+
+static int send_pdu(netsnmp_session *ss, netsnmp_pdu *pdu, int kind, int link_id)
+{
+	int status;
+	netsnmp_callback cb;
+
+	cb = kind == SNMP_LINK_UP ? link_up_cb : link_down_cb;
+
+	status = snmp_async_send(ss, pdu, cb, (void *) link_id);
+	if (status == 0) {
+		snmp_log(LOG_ERR, "Failed to send async request.\n");
+		snmp_free_pdu(pdu);
+	}
+
+	return status;
+}
+
+static void snmp_mtp_start_c7_datalink(struct snmp_mtp_session *session, int link_id)
+{
+	int status;
 	netsnmp_pdu *pdu;
 	pdu = snmp_pdu_create(SNMP_MSG_SET);
 
 	add_pdu_var(pdu, "PTI-NexusWareC7-MIB::nwc7DatalinkCommand", link_id, "nwc7DatalinkCmdPowerOn");
 	add_pdu_var(pdu, "PTI-NexusWareC7-MIB::nwc7Mtp2Active", link_id, "true");
-	send_pdu(session->ss, pdu);
+	status = send_pdu(session->ss, pdu, SNMP_LINK_UP, link_id);
+
+	if (status == 0)
+		snmp_mtp_callback(session, SNMP_LINK_UP, SNMP_STATUS_TIMEOUT, link_id);
+	else
+		session->last_up_req = status;
+
 }
 
-void snmp_mtp_stop_c7_datalink(struct snmp_mtp_session *session, int link_id)
+static void snmp_mtp_stop_c7_datalink(struct snmp_mtp_session *session, int link_id)
 {
+	int status;
 	netsnmp_pdu *pdu;
 	pdu = snmp_pdu_create(SNMP_MSG_SET);
 
 	add_pdu_var(pdu, "PTI-NexusWareC7-MIB::nwc7Mtp2Active", link_id, "false");
-	send_pdu(session->ss, pdu);
+	status = send_pdu(session->ss, pdu, SNMP_LINK_DOWN, link_id);
+	if (status == 0)
+		snmp_mtp_callback(session, SNMP_LINK_DOWN, SNMP_STATUS_TIMEOUT, link_id);
+	else
+		session->last_do_req = status;
 }
 
 struct snmp_mtp_session *snmp_mtp_session_create(char *host)
@@ -88,6 +132,7 @@ struct snmp_mtp_session *snmp_mtp_session_create(char *host)
 	session->session.version = SNMP_VERSION_1;
 	session->session.community = (unsigned char *) "private";
 	session->session.community_len = strlen((const char *) session->session.community);
+	session->session.myvoid = session;
 
 	session->ss = snmp_open(&session->session);
 	if (!session->ss) {
@@ -108,4 +153,31 @@ void snmp_mtp_deactivate(struct snmp_mtp_session *session, int index)
 void snmp_mtp_activate(struct snmp_mtp_session *session, int index)
 {
 	snmp_mtp_start_c7_datalink(session, index);
+}
+
+/**
+ * This is the easiest way to integrate SNMP without
+ * introducing threads. It would be nicer if it could
+ * register a timeout and the fd it wants to have selected
+ * for reading. We could try to find the fd's it is using
+ * for the session but there is no difference in performance
+ */
+void snmp_mtp_poll()
+{
+	int num_fds = 0, block = 0;
+	fd_set fds;
+	FD_ZERO(&fds);
+	struct timeval tv;
+	int rc;
+
+	snmp_select_info(&num_fds, &fds, &tv, &block);
+
+
+	memset(&tv, 0, sizeof(tv));
+
+	rc = select(num_fds, &fds, NULL, NULL, &tv);
+	if (rc == 0)
+		snmp_timeout();
+	else
+		snmp_read(&fds);
 }

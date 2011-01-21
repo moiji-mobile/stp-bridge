@@ -26,13 +26,35 @@
 
 struct snmp_mtp_session {
 	netsnmp_session session, *ss;
+	void *data;
+
+	/*
+	 * The callbacks will be called multiple times. Even if
+	 * we only toggle one object. Remember which request we
+	 * are handling here and then we will claim success on the
+	 * first of a series of PDUs. This is the easies to manage
+	 * and if a link fails to come up the SLTM will catch it.
+	 */
+	int last_up_req;
+	int last_do_req;
 };
 
-void snmp_mtp_start_c7_datalink(struct snmp_mtp_session *, int link_id);
-void snmp_mtp_stop_c7_datalink(struct snmp_mtp_session *, int link_id);
+enum {
+	SNMP_LINK_UP,
+	SNMP_LINK_DOWN,
+};
+
+enum {
+	SNMP_STATUS_OK,
+	SNMP_STATUS_TIMEOUT,
+};
 
 struct snmp_mtp_session *snmp_mtp_session_create(char *host);
 void snmp_mtp_deactivate(struct snmp_mtp_session *, int link_id);
 void snmp_mtp_activate(struct snmp_mtp_session *, int link_id);
+void snmp_mtp_poll();
+
+/* to be implemented by the handler */
+void snmp_mtp_callback(struct snmp_mtp_session *, int area, int res, int link_id);
 
 #endif

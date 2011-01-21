@@ -40,19 +40,28 @@
 struct bsc_data;
 struct snmp_mtp_session;
 
+struct mtp_udp_data {
+	struct write_queue write_queue;
+	struct snmp_mtp_session *session;
+	struct timer_list snmp_poll;
+
+	struct llist_head links;
+};
+
 struct mtp_udp_link {
 	/* subclass */
 	struct mtp_link base;
 
 	/* UDP specific stuff */
 	struct bsc_data *bsc;
-	struct write_queue write_queue;
-	struct sockaddr_in remote;
-	struct snmp_mtp_session *session;
 	int link_index;
 	int reset_timeout;
-};
 
+	struct sockaddr_in remote;
+
+	struct mtp_udp_data *data;
+	struct llist_head entry;
+};
 
 struct bsc_data {
 	/* MSC */
@@ -87,6 +96,9 @@ struct bsc_data {
 
 	/* mgcp messgaes */
 	struct write_queue mgcp_agent;
+
+	/* udp code */
+	struct mtp_udp_data udp_data;
 
 	int dpc;
 	int opc;
@@ -129,7 +141,8 @@ void update_con_state(struct mtp_link_set *link, int rc, struct sccp_parse_resul
 unsigned int sls_for_src_ref(struct sccp_source_reference *ref);
 
 /* udp init */
-int link_udp_init(struct mtp_udp_link *data, int src_port, const char *dest_ip, int port);
+int link_global_init(struct mtp_udp_data *data, char *dest_ip, int src_port);
+int link_udp_init(struct mtp_udp_link *data, const char *dest_ip, int port);
 int link_init(struct bsc_data *bsc);
 int link_shutdown_all(struct mtp_link_set *);
 int link_reset_all(struct mtp_link_set *);
