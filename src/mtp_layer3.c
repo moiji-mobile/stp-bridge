@@ -23,6 +23,7 @@
 #include <bsc_data.h>
 #include <cellmgr_debug.h>
 #include <isup_types.h>
+#include <counter.h>
 
 #include <osmocore/talloc.h>
 
@@ -35,6 +36,13 @@
 static void *tall_mtp_ctx = NULL;
 
 static int mtp_int_submit(struct mtp_link_set *link, int pc, int sls, int type, const uint8_t *data, unsigned int length);
+
+void mtp_link_set_submit(struct mtp_link *link, struct msgb *msg)
+{
+	rate_ctr_inc(&link->set->ctrg->ctr[MTP_LSET_TOTA_OUT_MSG]);
+	link->write(link, msg);
+}
+
 
 struct msgb *mtp_msg_alloc(struct mtp_link_set *link)
 {
@@ -182,11 +190,21 @@ void mtp_link_set_init(void)
 
 struct mtp_link_set *mtp_link_set_alloc(void)
 {
+	static int linkset_no = 0;
 	struct mtp_link_set *link;
 
 	link = talloc_zero(tall_mtp_ctx, struct mtp_link_set);
 	if (!link)
 		return NULL;
+
+	link->ctrg = rate_ctr_group_alloc(link,
+					  mtp_link_set_rate_ctr_desc(),
+					  linkset_no++);
+	if (!link->ctrg) {
+		LOGP(DINP, LOGL_ERROR, "Failed to allocate counter.\n");
+		return NULL;
+	}
+
 
 	link->ni = MTP_NI_NATION_NET;
 	INIT_LLIST_HEAD(&link->links);
@@ -429,6 +447,7 @@ static int mtp_link_sccp_data(struct mtp_link_set *link, struct mtp_level_3_hdr 
 		return 0;
 	}
 
+	rate_ctr_inc(&link->ctrg->ctr[MTP_LSET_SCCP_IN_MSG]);
 	mtp_link_set_forward_sccp(link, msg, MTP_LINK_SLS(hdr->addr));
 	return 0;
 }
@@ -450,6 +469,8 @@ int mtp_link_set_data(struct mtp_link *link, struct msgb *msg)
 	hdr = (struct mtp_level_3_hdr *) msg->l2h;
 	l3_len = msgb_l2len(msg) - sizeof(*hdr);
 
+	rate_ctr_inc(&link->set->ctrg->ctr[MTP_LSET_TOTA_IN_MSG]);
+
 	switch (hdr->ser_ind) {
 	case MTP_SI_MNT_SNM_MSG:
 		rc = mtp_link_sign_msg(link->set, hdr, l3_len);
@@ -462,6 +483,7 @@ int mtp_link_set_data(struct mtp_link *link, struct msgb *msg)
 		break;
 	case MTP_SI_MNT_ISUP:
 		msg->l3h = &hdr->data[0];
+		rate_ctr_inc(&link->set->ctrg->ctr[MTP_LSET_IUSP_IN_MSG]);
 		rc = mtp_link_set_isup(link->set, msg, MTP_LINK_SLS(hdr->addr));
 		break;
 	default:
@@ -485,12 +507,14 @@ int mtp_link_set_submit_sccp_data(struct mtp_link_set *link, int sls, const uint
 		link->last_sls = (link->last_sls + 1) % 16;
 	}
 
+	rate_ctr_inc(&link->ctrg->ctr[MTP_LSET_SCCP_OUT_MSG]);
 	return mtp_int_submit(link, link->sccp_opc, sls, MTP_SI_MNT_SCCP, data, length);
 }
 
 int mtp_link_set_submit_isup_data(struct mtp_link_set *link, int sls,
 			      const uint8_t *data, unsigned int length)
 {
+	rate_ctr_inc(&link->ctrg->ctr[MTP_LSET_ISUP_OUT_MSG]);
 	return mtp_int_submit(link, link->isup_opc, sls, MTP_SI_MNT_ISUP, data, length);
 }
 

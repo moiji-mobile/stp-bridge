@@ -72,11 +72,6 @@ void mtp_link_up(struct mtp_link *link)
 		mtp_link_start_link_test(link);
 }
 
-void mtp_link_set_submit(struct mtp_link *link, struct msgb *msg)
-{
-	link->write(link, msg);
-}
-
 void mtp_link_restart(struct mtp_link *link)
 {
 	LOGP(DINP, LOGL_ERROR, "Need to restart the SS7 link.\n");

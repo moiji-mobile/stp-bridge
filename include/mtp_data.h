@@ -27,6 +27,7 @@
 struct bsc_data;
 struct mtp_link;
 struct mtp_level_3_mng *mng;
+struct rate_ctr_group;
 
 /* MTP Level3 timers */
 
@@ -60,6 +61,9 @@ struct mtp_link_set {
 
 	/* special handling */
 	int pass_all_isup;
+
+	/* statistics */
+	struct rate_ctr_group *ctrg;
 
 	/* custom data */
 	struct bsc_data *bsc;
