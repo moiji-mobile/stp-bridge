@@ -539,6 +539,11 @@ void msc_send_rlc(struct bsc_data *bsc,
 {
 	struct msgb *msg;
 
+	if (bsc->msc_link_down) {
+		LOGP(DMSC, LOGL_NOTICE, "Not releasing connection due lack of connection.\n");
+		return;
+	}
+
 	msg = create_sccp_rlc(src, dst);
 	if (!msg)
 		return;
@@ -549,6 +554,11 @@ void msc_send_rlc(struct bsc_data *bsc,
 void msc_send_reset(struct bsc_data *bsc)
 {
 	struct msgb *msg;
+
+	if (bsc->msc_link_down) {
+		LOGP(DMSC, LOGL_NOTICE, "Not sending reset due lack of connection.\n");
+		return;
+	}
 
 	msg = create_reset();
 	if (!msg)
