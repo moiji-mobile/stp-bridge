@@ -109,3 +109,30 @@ void snmp_mtp_activate(struct snmp_mtp_session *session, int index)
 {
 	snmp_mtp_start_c7_datalink(session, index);
 }
+
+/**
+ * This is the easiest way to integrate SNMP without
+ * introducing threads. It would be nicer if it could
+ * register a timeout and the fd it wants to have selected
+ * for reading. We could try to find the fd's it is using
+ * for the session but there is no difference in performance
+ */
+void snmp_mtp_poll()
+{
+	int num_fds = 0, block = 0;
+	fd_set fds;
+	FD_ZERO(&fds);
+	struct timeval tv;
+	int rc;
+
+	snmp_select_info(&num_fds, &fds, &tv, &block);
+
+
+	memset(&tv, 0, sizeof(tv));
+
+	rc = select(num_fds, &fds, NULL, NULL, &tv);
+	if (rc == 0)
+		snmp_timeout();
+	else
+		snmp_read(&fds);
+}

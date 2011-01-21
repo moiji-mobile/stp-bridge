@@ -43,6 +43,7 @@ struct snmp_mtp_session;
 struct mtp_udp_data {
 	struct write_queue write_queue;
 	struct snmp_mtp_session *session;
+	struct timer_list snmp_poll;
 
 	struct llist_head links;
 };

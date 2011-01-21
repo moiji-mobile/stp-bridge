@@ -232,6 +232,13 @@ int link_udp_init(struct mtp_udp_link *link, const char *remote, int port)
 	return 0;
 }
 
+static void snmp_poll(void *_data)
+{
+	struct mtp_udp_data *data = _data;
+	snmp_mtp_poll();
+	bsc_schedule_timer(&data->snmp_poll, 0, 5000);
+}
+
 int link_global_init(struct mtp_udp_data *data, int src_port)
 {
 	struct sockaddr_in addr;
@@ -273,6 +280,10 @@ int link_global_init(struct mtp_udp_data *data, int src_port)
 		close(fd);
 		return -1;
 	}
+
+	data->snmp_poll.data = data;
+	data->snmp_poll.cb = snmp_poll;
+	snmp_poll(data);
 
 	return 0;
 }
