@@ -28,9 +28,6 @@ struct snmp_mtp_session {
 	netsnmp_session session, *ss;
 };
 
-void snmp_mtp_start_c7_datalink(struct snmp_mtp_session *, int link_id);
-void snmp_mtp_stop_c7_datalink(struct snmp_mtp_session *, int link_id);
-
 struct snmp_mtp_session *snmp_mtp_session_create(char *host);
 void snmp_mtp_deactivate(struct snmp_mtp_session *, int link_id);
 void snmp_mtp_activate(struct snmp_mtp_session *, int link_id);

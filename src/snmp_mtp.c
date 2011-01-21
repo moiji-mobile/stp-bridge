@@ -57,7 +57,7 @@ static void send_pdu(netsnmp_session *ss, netsnmp_pdu *pdu)
 		snmp_free_pdu(response);
 }
 
-void snmp_mtp_start_c7_datalink(struct snmp_mtp_session *session, int link_id)
+static void snmp_mtp_start_c7_datalink(struct snmp_mtp_session *session, int link_id)
 {
 	netsnmp_pdu *pdu;
 	pdu = snmp_pdu_create(SNMP_MSG_SET);
@@ -67,7 +67,7 @@ void snmp_mtp_start_c7_datalink(struct snmp_mtp_session *session, int link_id)
 	send_pdu(session->ss, pdu);
 }
 
-void snmp_mtp_stop_c7_datalink(struct snmp_mtp_session *session, int link_id)
+static void snmp_mtp_stop_c7_datalink(struct snmp_mtp_session *session, int link_id)
 {
 	netsnmp_pdu *pdu;
 	pdu = snmp_pdu_create(SNMP_MSG_SET);
