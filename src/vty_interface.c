@@ -23,6 +23,7 @@
 
 #include <osmocore/talloc.h>
 #include <osmocore/gsm48.h>
+#include <osmocore/rate_ctr.h>
 
 #include <osmocom/vty/command.h>
 #include <osmocom/vty/vty.h>
@@ -275,6 +276,62 @@ DEFUN(cfg_lac, cfg_lac_cmd,
 	return CMD_SUCCESS;
 }
 
+static void dump_stats(struct vty *vty, struct mtp_link_set *set)
+{
+	struct mtp_link *link;
+
+	vty_out(vty, "Linkset opc: %d%s", set->opc, VTY_NEWLINE);
+	vty_out_rate_ctr_group(vty, " ", set->ctrg);
+
+	llist_for_each_entry(link, &set->links, entry) {
+		vty_out(vty, " Link %d%s", link->link_no, VTY_NEWLINE);
+		vty_out_rate_ctr_group(vty, "  ", link->ctrg);
+	}
+}
+
+DEFUN(show_stats, show_stats_cmd,
+      "show statistics",
+      SHOW_STR "Display Linkset statistics\n")
+{
+	if (bsc.link_set)
+		dump_stats(vty, bsc.link_set);
+	if (bsc.m2ua_set)
+		dump_stats(vty, bsc.m2ua_set);
+	return CMD_SUCCESS;
+}
+
+static void dump_state(struct vty *vty, const char *name, struct mtp_link_set *set)
+{
+	struct mtp_link *link;
+
+	if (!set) {
+		vty_out(vty, "LinkSet for %s is not configured.%s", name, VTY_NEWLINE);
+		return;
+	}
+
+	vty_out(vty, "LinkSet for %s is %s, remote sccp is %s.%s",
+		name,
+		set->available == 0 ? "not available" : "available",
+		set->sccp_up == 0? "not established" : "established",
+		VTY_NEWLINE);
+
+	llist_for_each_entry(link, &set->links, entry) {
+		vty_out(vty, " Link %d is %s.%s",
+			link->link_no,
+			link->available == 0 ? "not available" : "available",
+			VTY_NEWLINE);
+	}
+}
+
+DEFUN(show_linksets, show_linksets_cmd,
+      "show link-sets",
+      SHOW_STR "Display current state of linksets\n")
+{
+	dump_state(vty, "MTP ", bsc.link_set);
+	dump_state(vty, "M2UA", bsc.m2ua_set);
+	return CMD_SUCCESS;
+}
+
 void cell_vty_init(void)
 {
 	cmd_init(1);
@@ -303,6 +360,11 @@ void cell_vty_init(void)
 	install_element(CELLMGR_NODE, &cfg_mcc_cmd);
 	install_element(CELLMGR_NODE, &cfg_mnc_cmd);
 	install_element(CELLMGR_NODE, &cfg_lac_cmd);
+
+
+	/* show commands */
+	install_element_ve(&show_stats_cmd);
+	install_element_ve(&show_linksets_cmd);
 }
 
 const char *openbsc_copyright = "";

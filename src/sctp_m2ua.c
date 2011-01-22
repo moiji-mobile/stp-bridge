@@ -18,6 +18,7 @@
 #include <sctp_m2ua.h>
 #include <bsc_data.h>
 #include <cellmgr_debug.h>
+#include <counter.h>
 #include <mtp_data.h>
 #include <mtp_pcap.h>
 
@@ -31,6 +32,12 @@
 
 extern struct bsc_data bsc;
 
+static void link_down(struct mtp_link *link)
+{
+	rate_ctr_inc(&link->ctrg->ctr[MTP_LNK_ERROR]);
+	mtp_link_down(link);
+}
+
 static void m2ua_conn_destroy(struct sctp_m2ua_conn *conn)
 {
 	close(conn->queue.bfd.fd);
@@ -39,7 +46,7 @@ static void m2ua_conn_destroy(struct sctp_m2ua_conn *conn)
 	llist_del(&conn->entry);
 
 	if (conn->asp_up && conn->asp_active && conn->established)
-		mtp_link_down(&conn->trans->base);
+		link_down(&conn->trans->base);
 	talloc_free(conn);
 
 	#warning "Notify any other AS(P) for failover scenario"
@@ -286,7 +293,7 @@ static int m2ua_handle_rel_req(struct sctp_m2ua_conn *conn,
 
 	conn->established = 0;
 	LOGP(DINP, LOGL_NOTICE, "M2UA/Link is released.\n");
-	mtp_link_down(&conn->trans->base);
+	link_down(&conn->trans->base);
 	m2ua_msg_free(conf);
 	return 0;
 }

@@ -27,6 +27,7 @@
 struct bsc_data;
 struct mtp_link;
 struct mtp_level_3_mng *mng;
+struct rate_ctr_group;
 
 /* MTP Level3 timers */
 
@@ -61,6 +62,9 @@ struct mtp_link_set {
 	/* special handling */
 	int pass_all_isup;
 
+	/* statistics */
+	struct rate_ctr_group *ctrg;
+
 	/* custom data */
 	struct bsc_data *bsc;
 };
@@ -92,6 +96,9 @@ struct mtp_link {
 	struct timer_list t1_timer;
 	struct timer_list t2_timer;
 
+	/* statistics */
+	struct rate_ctr_group *ctrg;
+
 	/* callback's to implement */
 	int (*start)(struct mtp_link *);
 	int (*write)(struct mtp_link *, struct msgb *msg);
@@ -109,7 +116,7 @@ int mtp_link_set_submit_sccp_data(struct mtp_link_set *link, int sls, const uint
 int mtp_link_set_submit_isup_data(struct mtp_link_set *link, int sls, const uint8_t *data, unsigned int length);
 
 void mtp_link_set_init_slc(struct mtp_link_set *set);
-void mtp_link_set_add_link(struct mtp_link_set *set, struct mtp_link *link);
+int mtp_link_set_add_link(struct mtp_link_set *set, struct mtp_link *link);
 
 
 /* one time init function */
@@ -125,7 +132,7 @@ void mtp_link_restart(struct mtp_link *link);
 void mtp_link_down(struct mtp_link *data);
 void mtp_link_up(struct mtp_link *data);
 
-void mtp_link_init(struct mtp_link *link);
+int mtp_link_init(struct mtp_link *link);
 void mtp_link_start_link_test(struct mtp_link *link);
 void mtp_link_stop_link_test(struct mtp_link *link);
 int mtp_link_slta(struct mtp_link *link, uint16_t l3_len, struct mtp_level_3_mng *mng);

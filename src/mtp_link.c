@@ -22,6 +22,7 @@
 #include <mtp_data.h>
 #include <mtp_level3.h>
 #include <cellmgr_debug.h>
+#include <counter.h>
 
 #include <string.h>
 
@@ -71,6 +72,8 @@ static void mtp_sltm_t1_timeout(void *_link)
 {
 	struct mtp_link *link = (struct mtp_link *) _link;
 
+	rate_ctr_inc(&link->ctrg->ctr[MTP_LNK_SLTM_TOUT]);
+
 	if (link->slta_misses == 0) {
 		LOGP(DINP, LOGL_ERROR, "No SLTM response. Retrying. Link: %p\n", link);
 		++link->slta_misses;
@@ -103,12 +106,20 @@ static void mtp_sltm_t2_timeout(void *_link)
 		bsc_schedule_timer(&link->t2_timer, MTP_T2);
 }
 
-void mtp_link_init(struct mtp_link *link)
+int mtp_link_init(struct mtp_link *link)
 {
+	link->ctrg = rate_ctr_group_alloc(link,
+					  mtp_link_rate_ctr_desc(), link->link_no);
+	if (!link->ctrg) {
+		LOGP(DINP, LOGL_ERROR, "Failed to allocate rate_ctr.\n");
+		return -1;
+	}
+
 	link->t1_timer.data = link;
 	link->t1_timer.cb = mtp_sltm_t1_timeout;
 	link->t2_timer.data = link;
 	link->t2_timer.cb = mtp_sltm_t2_timeout;
+	return 0;
 }
 
 void mtp_link_stop_link_test(struct mtp_link *link)
@@ -153,5 +164,6 @@ int mtp_link_slta(struct mtp_link *link, uint16_t l3_len,
 void mtp_link_failure(struct mtp_link *link)
 {
 	LOGP(DINP, LOGL_ERROR, "Link has failed. Resetting it: 0x%p\n", link);
+	rate_ctr_inc(&link->ctrg->ctr[MTP_LNK_ERROR]);
 	link->reset(link);
 }
