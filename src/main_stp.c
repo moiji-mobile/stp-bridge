@@ -249,13 +249,14 @@ int main(int argc, char **argv)
 	bsc.m2ua_set->isup_opc = 9;
 	bsc.m2ua_set->ni = 3;
 	bsc.m2ua_set->bsc = &bsc;
+	bsc.m2ua_set->pcap_fd = bsc.pcap_fd;
 
 	/* for both links we want to have all isup messages */
 	bsc.m2ua_set->pass_all_isup = 1;
 	bsc.link_set->pass_all_isup = 1;
 
 	lnk = sctp_m2ua_transp_create("0.0.0.0", 2904);
-	lnk->base.pcap_fd = bsc.pcap_fd;
+	lnk->base.pcap_fd = -1;
 	mtp_link_set_add_link(bsc.m2ua_set, (struct mtp_link *) lnk);
 
 	llist_for_each_entry(data, &bsc.m2ua_set->links, entry)

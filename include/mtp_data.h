@@ -59,6 +59,8 @@ struct mtp_link_set {
 	struct mtp_link *slc[16];
 	int sltm_once;
 
+	int pcap_fd;
+
 	/* special handling */
 	int pass_all_isup;
 

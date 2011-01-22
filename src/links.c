@@ -107,6 +107,7 @@ int link_init(struct bsc_data *bsc)
 	bsc->link_set->ni = bsc->ni_ni;
 	bsc->link_set->spare = bsc->ni_spare;
 	bsc->link_set->bsc = bsc;
+	bsc->link_set->pcap_fd = bsc->pcap_fd;
 
 	if (!bsc->src_port) {
 		LOGP(DINP, LOGL_ERROR, "You need to set a UDP address.\n");
@@ -121,7 +122,7 @@ int link_init(struct bsc_data *bsc)
 
 	for (i = 1; i <= bsc->udp_nr_links; ++i) {
 		lnk = talloc_zero(bsc->link_set, struct mtp_udp_link);
-		lnk->base.pcap_fd = bsc->pcap_fd;
+		lnk->base.pcap_fd = -1;
 		lnk->bsc = bsc;
 		lnk->data = &bsc->udp_data;
 		lnk->link_index = i;
@@ -180,7 +181,8 @@ int link_clear_all(struct mtp_link_set *set)
 int mtp_handle_pcap(struct mtp_link *link, int dir, const uint8_t *data, int len)
 {
 	if (link->pcap_fd < 0)
-		return 0;
-	mtp_pcap_write_msu(link->pcap_fd, data, len);
+		mtp_pcap_write_msu(link->pcap_fd, data, len);
+	if (link->set->pcap_fd < 0)
+		mtp_pcap_write_msu(link->set->pcap_fd, data, len);
 	return 0;
 }
