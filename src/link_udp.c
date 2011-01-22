@@ -61,7 +61,7 @@ static int udp_write_cb(struct bsc_fd *fd, struct msgb *msg)
 	}
 
 	LOGP(DINP, LOGL_DEBUG, "Sending MSU: %s\n", hexdump(msg->data, msg->len));
-	mtp_handle_pcap(&link->base, msg->l2h, msgb_l2len(msg));
+	mtp_handle_pcap(&link->base, NET_OUT, msg->l2h, msgb_l2len(msg));
 
 	/* the assumption is we have connected the socket to the remote */
 	rc = sendto(fd->fd, msg->data, msg->len, 0,
@@ -136,7 +136,7 @@ static int udp_read_cb(struct bsc_fd *fd)
 	msg->l2h = msgb_put(msg, length);
 
 	LOGP(DINP, LOGL_DEBUG, "MSU data on: %p data %s.\n", link, hexdump(msg->data, msg->len));
-	mtp_handle_pcap(link, msg->l2h, msgb_l2len(msg));
+	mtp_handle_pcap(link, NET_IN, msg->l2h, msgb_l2len(msg));
 	mtp_link_set_data(link, msg);
 
 exit:

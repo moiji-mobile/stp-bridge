@@ -161,6 +161,10 @@ int link_clear_all(struct mtp_link_set *);
 void mgcp_forward(struct bsc_data *bsc, const uint8_t *data, unsigned int length);
 
 /* pcap */
-int mtp_handle_pcap(struct mtp_link *, const uint8_t *data, int length);
+enum {
+	NET_IN,
+	NET_OUT,
+};
+int mtp_handle_pcap(struct mtp_link *, int dir, const uint8_t *data, int length);
 
 #endif

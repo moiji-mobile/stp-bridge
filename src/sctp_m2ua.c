@@ -327,7 +327,7 @@ static int m2ua_handle_data(struct sctp_m2ua_conn *conn,
 	memcpy(msg->l2h, data->dat, data->len);
 
 	link = &conn->trans->base;
-	mtp_handle_pcap(link, msg->l2h, msgb_l2len(msg));
+	mtp_handle_pcap(link, NET_IN, msg->l2h, msgb_l2len(msg));
 	mtp_link_set_data(link, msg);
 	msgb_free(msg);
 
@@ -469,7 +469,7 @@ static int sctp_m2ua_write(struct mtp_link *link, struct msgb *msg)
 	if (!m2ua)
 		return -1;
 
-	mtp_handle_pcap(link, msg->data, msg->len);
+	mtp_handle_pcap(link, NET_OUT, msg->data, msg->len);
 
 	m2ua->hdr.msg_class = M2UA_CLS_MAUP;
 	m2ua->hdr.msg_type = M2UA_MAUP_DATA;
