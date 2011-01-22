@@ -39,6 +39,7 @@ static int mtp_int_submit(struct mtp_link_set *link, int pc, int sls, int type, 
 
 void mtp_link_set_submit(struct mtp_link *link, struct msgb *msg)
 {
+	rate_ctr_inc(&link->ctrg->ctr[MTP_LNK_OUT]);
 	rate_ctr_inc(&link->set->ctrg->ctr[MTP_LSET_TOTA_OUT_MSG]);
 	link->write(link, msg);
 }
@@ -585,12 +586,14 @@ void mtp_link_set_init_slc(struct mtp_link_set *set)
 	}
 }
 
-void mtp_link_set_add_link(struct mtp_link_set *set, struct mtp_link *lnk)
+int mtp_link_set_add_link(struct mtp_link_set *set, struct mtp_link *lnk)
 {
 	lnk->set = set;
 	lnk->link_no = set->nr_links++;
-	mtp_link_init(lnk);
+	if (mtp_link_init(lnk) != 0)
+		return -1;
 
 	llist_add_tail(&lnk->entry, &set->links);
 	mtp_link_set_init_slc(set);
+	return 0;
 }
