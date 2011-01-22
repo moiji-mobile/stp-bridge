@@ -289,11 +289,11 @@ DEFUN(cfg_lac, cfg_lac_cmd,
 	return CMD_SUCCESS;
 }
 
-static void dump_stats(struct vty *vty, struct mtp_link_set *set)
+static void dump_stats(struct vty *vty, const char *name, struct mtp_link_set *set)
 {
 	struct mtp_link *link;
 
-	vty_out(vty, "Linkset opc: %d%s", set->opc, VTY_NEWLINE);
+	vty_out(vty, "Linkset name: %s opc: %d%s", name, set->opc, VTY_NEWLINE);
 	vty_out_rate_ctr_group(vty, " ", set->ctrg);
 
 	llist_for_each_entry(link, &set->links, entry) {
@@ -307,9 +307,9 @@ DEFUN(show_stats, show_stats_cmd,
       SHOW_STR "Display Linkset statistics\n")
 {
 	if (bsc.link_set)
-		dump_stats(vty, bsc.link_set);
+		dump_stats(vty, "MTP ", bsc.link_set);
 	if (bsc.m2ua_set && bsc.app == APP_STP)
-		dump_stats(vty, bsc.m2ua_set);
+		dump_stats(vty, "M2UA", bsc.m2ua_set);
 	return CMD_SUCCESS;
 }
 
