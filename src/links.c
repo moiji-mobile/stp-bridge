@@ -184,5 +184,8 @@ int mtp_handle_pcap(struct mtp_link *link, int dir, const uint8_t *data, int len
 		mtp_pcap_write_msu(link->pcap_fd, data, len);
 	if (link->set->pcap_fd < 0)
 		mtp_pcap_write_msu(link->set->pcap_fd, data, len);
+
+	/* This might be too expensive? */
+	LOGP(DPCAP, LOGL_NOTICE, "Packet: %s\n", hexdump(data, len));
 	return 0;
 }
