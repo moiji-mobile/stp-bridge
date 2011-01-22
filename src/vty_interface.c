@@ -20,6 +20,7 @@
  */
 
 #include <bsc_data.h>
+#include <mtp_pcap.h>
 
 #include <osmocore/talloc.h>
 #include <osmocore/gsm48.h>
@@ -30,6 +31,9 @@
 
 #include <unistd.h>
 #include <netdb.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #undef PACKAGE_NAME
 #undef PACKAGE_VERSION
@@ -353,6 +357,61 @@ DEFUN(show_msc, show_msc_cmd,
 	return CMD_SUCCESS;
 }
 
+DEFUN(pcap_set, pcap_set_cmd,
+      "trace-pcap set (m2ua|mtp) FILE",
+      "Trace to a PCAP file\n" "Trace a linkset\n"
+      "OPC of the linkset\n" "Filename to trace\n")
+{
+	struct mtp_link_set *set = NULL;
+
+	if (bsc.link_set && strcmp(argv[0], "mtp") == 0)
+		set = bsc.link_set;
+	else if (bsc.m2ua_set && strcmp(argv[0], "m2ua") == 0)
+		set = bsc.m2ua_set;
+
+	if (!set) {
+		vty_out(vty, "Failed to find linkset.%s", VTY_NEWLINE);
+		return CMD_WARNING;
+	}
+
+
+	if (set->pcap_fd >= 0 && bsc.pcap_fd != set->pcap_fd)
+		close(set->pcap_fd);
+	set->pcap_fd = open(argv[1], O_WRONLY | O_TRUNC | O_CREAT,
+			    S_IRUSR | S_IWUSR | S_IRGRP| S_IROTH);
+	if (set->pcap_fd < 0) {
+		vty_out(vty, "Failed to open file for writing.%s", VTY_NEWLINE);
+		return CMD_WARNING;
+	}
+
+	mtp_pcap_write_header(set->pcap_fd);
+	return CMD_SUCCESS;
+}
+
+DEFUN(pcap_set_stop, pcap_set_stop_cmd,
+      "trace-pcap set <1-16383> stop",
+      "Trace to a PCAP file\n" "Trace a linkset\n"
+      "OPC for the linkset\n" "Stop the tracing\n")
+{
+	struct mtp_link_set *set = NULL;
+
+	if (bsc.link_set && strcmp(argv[0], "mtp") == 0)
+		set = bsc.link_set;
+	else if (bsc.m2ua_set && strcmp(argv[0], "m2ua") == 0)
+		set = bsc.m2ua_set;
+
+	if (!set) {
+		vty_out(vty, "Failed to find linkset.%s", VTY_NEWLINE);
+		return CMD_WARNING;
+	}
+
+	if (set->pcap_fd >= 0 && bsc.pcap_fd != set->pcap_fd)
+		close(set->pcap_fd);
+	set->pcap_fd = -1;
+	return CMD_SUCCESS;
+}
+
+
 void cell_vty_init(void)
 {
 	cmd_init(1);
@@ -383,6 +442,9 @@ void cell_vty_init(void)
 	install_element(CELLMGR_NODE, &cfg_mnc_cmd);
 	install_element(CELLMGR_NODE, &cfg_lac_cmd);
 
+	/* special commands */
+	install_element(ENABLE_NODE, &pcap_set_cmd);
+	install_element(ENABLE_NODE, &pcap_set_stop_cmd);
 
 	/* show commands */
 	install_element_ve(&show_stats_cmd);
