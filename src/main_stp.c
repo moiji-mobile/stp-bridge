@@ -29,6 +29,8 @@
 #include <cellmgr_debug.h>
 #include <sctp_m2ua.h>
 
+#include <osmocom/m2ua/m2ua_msg.h>
+
 #include <osmocore/talloc.h>
 
 #include <osmocom/vty/vty.h>
@@ -213,6 +215,7 @@ int main(int argc, char **argv)
 	log_set_use_color(stderr_target, 0);
 
 	sccp_set_log_area(DSCCP);
+	m2ua_set_log_area(DM2UA);
 
 	bsc.setup = 0;
 	bsc.msc_address = "127.0.0.1";
