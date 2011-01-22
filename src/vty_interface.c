@@ -27,6 +27,7 @@
 #include <osmocore/rate_ctr.h>
 
 #include <osmocom/vty/command.h>
+#include <osmocom/vty/logging.h>
 #include <osmocom/vty/vty.h>
 
 #include <unistd.h>
@@ -416,6 +417,7 @@ void cell_vty_init(void)
 {
 	cmd_init(1);
 	vty_init(&vty_info);
+	logging_vty_add_cmds();
 
 	install_element(CONFIG_NODE, &cfg_cell_cmd);
 	install_node(&cell_node, config_write_cell);
