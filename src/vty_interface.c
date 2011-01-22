@@ -333,6 +333,17 @@ DEFUN(show_linksets, show_linksets_cmd,
 	return CMD_SUCCESS;
 }
 
+DEFUN(show_msc, show_msc_cmd,
+      "show msc",
+      SHOW_STR "Display the status of the MSC\n")
+{
+	vty_out(vty, "MSC link is %s and had %s.%s",
+		bsc.msc_link_down == 0 ? "down" : "up",
+		bsc.first_contact == 1 ? "no contact" : "contact",
+		VTY_NEWLINE);
+	return CMD_SUCCESS;
+}
+
 void cell_vty_init(void)
 {
 	cmd_init(1);
@@ -366,6 +377,10 @@ void cell_vty_init(void)
 	/* show commands */
 	install_element_ve(&show_stats_cmd);
 	install_element_ve(&show_linksets_cmd);
+
+	if (bsc.app != APP_STP) {
+		install_element_ve(&show_msc_cmd);
+	}
 }
 
 const char *openbsc_copyright = "";
