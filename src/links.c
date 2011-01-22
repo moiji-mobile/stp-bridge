@@ -94,6 +94,7 @@ static void start_rest(void *start)
 
 int link_init(struct bsc_data *bsc)
 {
+	int i;
 	struct mtp_udp_link *lnk;
 
 	bsc->link_set = mtp_link_set_alloc();
@@ -106,14 +107,6 @@ int link_init(struct bsc_data *bsc)
 	bsc->link_set->spare = bsc->ni_spare;
 	bsc->link_set->bsc = bsc;
 
-	lnk = talloc_zero(bsc->link_set, struct mtp_udp_link);
-	lnk->base.pcap_fd = bsc->pcap_fd;
-	lnk->bsc = bsc;
-	lnk->data = &bsc->udp_data;
-	lnk->link_index = 1;
-	lnk->reset_timeout = bsc->udp_reset_timeout;
-	mtp_link_set_add_link(bsc->link_set, (struct mtp_link *) lnk);
-
 	if (!bsc->src_port) {
 		LOGP(DINP, LOGL_ERROR, "You need to set a UDP address.\n");
 		return -1;
@@ -124,22 +117,34 @@ int link_init(struct bsc_data *bsc)
 	if (link_global_init(&bsc->udp_data, bsc->udp_ip, bsc->src_port) != 0)
 		return -1;
 
-	/* now connect to the transport */
-	if (link_udp_init(lnk, bsc->udp_ip, bsc->udp_port) != 0)
-		return -1;
 
-	/*
-	 * We will ask the MTP link to be taken down for two
-	 * timeouts of the BSC to make sure we are missing the
-	 * SLTM and it begins a reset. Then we will take it up
-	 * again and do the usual business.
-	 */
-	snmp_mtp_deactivate(lnk->data->session,
-			    lnk->link_index);
-	bsc->start_timer.cb = start_rest;
-	bsc->start_timer.data = &bsc;
-	bsc_schedule_timer(&bsc->start_timer, lnk->reset_timeout, 0);
-	LOGP(DMSC, LOGL_NOTICE, "Making sure SLTM will timeout.\n");
+	for (i = 1; i <= bsc->udp_nr_links; ++i) {
+		lnk = talloc_zero(bsc->link_set, struct mtp_udp_link);
+		lnk->base.pcap_fd = bsc->pcap_fd;
+		lnk->bsc = bsc;
+		lnk->data = &bsc->udp_data;
+		lnk->link_index = i;
+		lnk->reset_timeout = bsc->udp_reset_timeout;
+		mtp_link_set_add_link(bsc->link_set, (struct mtp_link *) lnk);
+
+
+		/* now connect to the transport */
+		if (link_udp_init(lnk, bsc->udp_ip, bsc->udp_port) != 0)
+			return -1;
+
+		/*
+		 * We will ask the MTP link to be taken down for two
+		 * timeouts of the BSC to make sure we are missing the
+		 * SLTM and it begins a reset. Then we will take it up
+		 * again and do the usual business.
+		 */
+		snmp_mtp_deactivate(lnk->data->session,
+				    lnk->link_index);
+		bsc->start_timer.cb = start_rest;
+		bsc->start_timer.data = &bsc;
+		bsc_schedule_timer(&bsc->start_timer, lnk->reset_timeout, 0);
+		LOGP(DMSC, LOGL_NOTICE, "Making sure SLTM will timeout.\n");
+	}
 
 	return 0;
 }

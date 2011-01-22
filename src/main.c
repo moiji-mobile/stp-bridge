@@ -633,6 +633,7 @@ int main(int argc, char **argv)
 	bsc.isup_opc = -1;
 	bsc.udp_port = 3456;
 	bsc.udp_ip = NULL;
+	bsc.udp_nr_links = 1;
 	bsc.src_port = 1313;
 	bsc.ni_ni = MTP_NI_NATION_NET;
 	bsc.ni_spare = 0;

@@ -193,6 +193,7 @@ int main(int argc, char **argv)
 	bsc.src_port = 1313;
 	bsc.ni_ni = MTP_NI_NATION_NET;
 	bsc.ni_spare = 0;
+	bsc.udp_nr_links = 1;
 
 	mtp_link_set_init();
 	thread_init();

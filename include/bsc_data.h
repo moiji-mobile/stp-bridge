@@ -115,6 +115,7 @@ struct bsc_data {
 	int src_port;
 	int udp_port;
 	char *udp_ip;
+	int udp_nr_links;
 	int once;
 
 	/* the network header to use */

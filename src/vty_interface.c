@@ -74,6 +74,7 @@ static int config_write_cell(struct vty *vty)
 	vty_out(vty, " udp dest port %d%s", bsc.udp_port, VTY_NEWLINE);
 	vty_out(vty, " udp src port %d%s", bsc.src_port, VTY_NEWLINE);
 	vty_out(vty, " udp reset %d%s", bsc.udp_reset_timeout, VTY_NEWLINE);
+	vty_out(vty, " udp number-links %d%s", bsc.udp_nr_links, VTY_NEWLINE);
 	vty_out(vty, " msc ip %s%s", bsc.msc_address, VTY_NEWLINE);
 	vty_out(vty, " msc ip-dscp %d%s", bsc.msc_ip_dscp, VTY_NEWLINE);
 	vty_out(vty, " msc token %s%s", bsc.token, VTY_NEWLINE);
@@ -168,6 +169,14 @@ DEFUN(cfg_udp_reset, cfg_udp_reset_cmd,
       "Set the timeout to take the link down")
 {
 	bsc.udp_reset_timeout = atoi(argv[0]);
+	return CMD_SUCCESS;
+}
+
+DEFUN(cfg_udp_nr_links, cfg_udp_nr_links_cmd,
+      "udp number-links <1-32>",
+      "Set the number of links to use\n")
+{
+	bsc.udp_nr_links = atoi(argv[0]);
 	return CMD_SUCCESS;
 }
 
@@ -361,6 +370,7 @@ void cell_vty_init(void)
 	install_element(CELLMGR_NODE, &cfg_udp_dst_port_cmd);
 	install_element(CELLMGR_NODE, &cfg_udp_src_port_cmd);
 	install_element(CELLMGR_NODE, &cfg_udp_reset_cmd);
+	install_element(CELLMGR_NODE, &cfg_udp_nr_links_cmd);
 	install_element(CELLMGR_NODE, &cfg_sltm_once_cmd);
 	install_element(CELLMGR_NODE, &cfg_msc_ip_cmd);
 	install_element(CELLMGR_NODE, &cfg_msc_token_cmd);
