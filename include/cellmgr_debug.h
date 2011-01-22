@@ -11,6 +11,8 @@ enum {
 	DSCCP,
 	DMGCP,
 	DISUP,
+	DM2UA,
+	DPCAP,
 };
 
 extern const struct log_info log_info;

@@ -49,6 +49,16 @@ static const struct log_info_cat default_categories[] = {
 		.description = "ISUP",
 		.enabled = 1, .loglevel = LOGL_NOTICE,
 	},
+	[DM2UA] = {
+		.name = "DM2UA",
+		.description = "M2UA handling",
+		.enabled = 1, .loglevel = LOGL_NOTICE,
+	},
+	[DPCAP] = {
+		.name = "DPCAP",
+		.description = "Dump traffic",
+		.enabled = 0, .loglevel = LOGL_NOTICE,
+	},
 };
 
 static int filter_fn(const struct log_context *ctx,
