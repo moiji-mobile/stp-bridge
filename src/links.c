@@ -23,6 +23,7 @@
 #include <bsc_data.h>
 #include <cellmgr_debug.h>
 #include <mtp_data.h>
+#include <mtp_pcap.h>
 #include <snmp_mtp.h>
 
 #include <osmocore/talloc.h>
@@ -173,5 +174,13 @@ int link_clear_all(struct mtp_link_set *set)
 
 	llist_for_each_entry(lnk, &set->links, entry)
 		lnk->clear_queue(lnk);
+	return 0;
+}
+
+int mtp_handle_pcap(struct mtp_link *link, const uint8_t *data, int len)
+{
+	if (link->pcap_fd < 0)
+		return 0;
+	mtp_pcap_write_msu(link->pcap_fd, data, len);
 	return 0;
 }
