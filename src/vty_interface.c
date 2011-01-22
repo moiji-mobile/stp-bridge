@@ -1,7 +1,7 @@
 /* VTY code for the Cellmgr */
 /*
- * (C) 2010 by Holger Hans Peter Freyther <zecke@selfish.org>
- * (C) 2010 by On-Waves
+ * (C) 2010-2011 by Holger Hans Peter Freyther <zecke@selfish.org>
+ * (C) 2010-2011 by On-Waves
  * All Rights Reserved
  *
  * This program is free software: you can redistribute it and/or modify
@@ -295,7 +295,7 @@ DEFUN(show_stats, show_stats_cmd,
 {
 	if (bsc.link_set)
 		dump_stats(vty, bsc.link_set);
-	if (bsc.m2ua_set)
+	if (bsc.m2ua_set && bsc.app == APP_STP)
 		dump_stats(vty, bsc.m2ua_set);
 	return CMD_SUCCESS;
 }
@@ -328,7 +328,8 @@ DEFUN(show_linksets, show_linksets_cmd,
       SHOW_STR "Display current state of linksets\n")
 {
 	dump_state(vty, "MTP ", bsc.link_set);
-	dump_state(vty, "M2UA", bsc.m2ua_set);
+	if (bsc.app == APP_STP)
+		dump_state(vty, "M2UA", bsc.m2ua_set);
 	return CMD_SUCCESS;
 }
 

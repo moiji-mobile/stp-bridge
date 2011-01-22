@@ -184,6 +184,7 @@ int main(int argc, char **argv)
 	struct mtp_m2ua_link *lnk;
 	INIT_LLIST_HEAD(&bsc.sccp_connections);
 
+	bsc.app = APP_STP;
 	bsc.dpc = 1;
 	bsc.opc = 0;
 	bsc.sccp_opc = -1;

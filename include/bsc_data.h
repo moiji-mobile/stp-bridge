@@ -63,7 +63,15 @@ struct mtp_udp_link {
 	struct llist_head entry;
 };
 
+enum {
+	APP_CELLMGR,
+	APP_RELAY,
+	APP_STP,
+};
+
 struct bsc_data {
+	int app;
+
 	/* MSC */
 	char *msc_address;
 	struct write_queue msc_connection;

@@ -626,6 +626,7 @@ int main(int argc, char **argv)
 	int rc;
 	INIT_LLIST_HEAD(&bsc.sccp_connections);
 
+	bsc.app = APP_CELLMGR;
 	bsc.dpc = 1;
 	bsc.opc = 0;
 	bsc.sccp_opc = -1;
