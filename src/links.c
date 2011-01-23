@@ -180,9 +180,9 @@ int link_clear_all(struct mtp_link_set *set)
 
 int mtp_handle_pcap(struct mtp_link *link, int dir, const uint8_t *data, int len)
 {
-	if (link->pcap_fd < 0)
+	if (link->pcap_fd >= 0)
 		mtp_pcap_write_msu(link->pcap_fd, data, len);
-	if (link->set->pcap_fd < 0)
+	if (link->set->pcap_fd >= 0)
 		mtp_pcap_write_msu(link->set->pcap_fd, data, len);
 
 	/* This might be too expensive? */
