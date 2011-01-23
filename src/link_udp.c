@@ -107,6 +107,11 @@ static int udp_read_cb(struct bsc_fd *fd)
 		goto exit;
 	}
 
+	if (link->blocked) {
+		LOGP(DINP, LOGL_ERROR, "The link is blocked.\n");
+		rc = 0;
+		goto exit;
+	}
 
 	/* throw away data as the link is down */
 	if (link->set->available == 0) {
@@ -167,6 +172,11 @@ static int udp_link_reset(struct mtp_link *link)
 	return 0;
 }
 
+static int udp_link_shutdown(struct mtp_link *link)
+{
+	return udp_link_reset(link);
+}
+
 static int udp_link_write(struct mtp_link *link, struct msgb *msg)
 {
 	struct mtp_udp_link *ulnk;
@@ -202,7 +212,7 @@ static int udp_link_start(struct mtp_link *link)
 int link_udp_init(struct mtp_udp_link *link, const char *remote, int port)
 {
 	/* function table */
-	link->base.shutdown = udp_link_dummy;
+	link->base.shutdown = udp_link_shutdown;
 	link->base.clear_queue = udp_link_dummy;
 
 	link->base.reset = udp_link_reset;
@@ -296,7 +306,7 @@ void snmp_mtp_callback(struct snmp_mtp_session *session,
 
 	link = &ulink->base;
 
-	if (res == SNMP_STATUS_TIMEOUT) {
+	if (res == SNMP_STATUS_TIMEOUT && !link->blocked) {
 		LOGP(DINP, LOGL_ERROR, "Failed to restart link: %d\n", link_id);
 		udp_link_reset(link);
 		return;
@@ -313,11 +323,13 @@ void snmp_mtp_callback(struct snmp_mtp_session *session,
 		 * restart the link in 90 seconds...
 		 * to force a timeout on the BSC
 		 */
-		link->link_activate.cb = do_start;
-		link->link_activate.data = link;
-		bsc_schedule_timer(&link->link_activate, ulink->reset_timeout, 0);
-		LOGP(DINP, LOGL_NOTICE,
-		     "Will restart SLTM transmission in %d seconds.\n", ulink->reset_timeout);
+		if (!link->blocked) {
+			link->link_activate.cb = do_start;
+			link->link_activate.data = link;
+			bsc_schedule_timer(&link->link_activate, ulink->reset_timeout, 0);
+			LOGP(DINP, LOGL_NOTICE,
+			     "Will restart SLTM transmission in %d seconds.\n", ulink->reset_timeout);
+		}
 		break;
 	default:
 		LOGP(DINP, LOGL_ERROR, "Unknown event %d\n", area);

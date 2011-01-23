@@ -327,8 +327,10 @@ static int m2ua_handle_data(struct sctp_m2ua_conn *conn,
 	memcpy(msg->l2h, data->dat, data->len);
 
 	link = &conn->trans->base;
-	mtp_handle_pcap(link, NET_IN, msg->l2h, msgb_l2len(msg));
-	mtp_link_set_data(link, msg);
+	if (!link->blocked) {
+		mtp_handle_pcap(link, NET_IN, msg->l2h, msgb_l2len(msg));
+		mtp_link_set_data(link, msg);
+	}
 	msgb_free(msg);
 
 	return 0;
@@ -526,6 +528,12 @@ static int sctp_trans_accept(struct bsc_fd *fd, unsigned int what)
 		return -1;
 	}
 
+	if (!trans->base.blocked) {
+		LOGP(DINP, LOGL_NOTICE, "The link is blocked.\n");
+		close(s);
+		return -1;
+	}
+
 	LOGP(DINP, LOGL_NOTICE, "Got a new SCTP connection.\n");
 	conn = talloc_zero(fd->data, struct sctp_m2ua_conn);
 	if (!conn) {
@@ -621,7 +629,7 @@ struct mtp_m2ua_link *sctp_m2ua_transp_create(const char *ip, int port)
 		return NULL;
 	}
 
-	trans->base.shutdown = sctp_m2ua_dummy;
+	trans->base.shutdown = sctp_m2ua_reset;
 	trans->base.clear_queue = sctp_m2ua_dummy;
 	trans->base.reset = sctp_m2ua_reset;
 	trans->base.start = sctp_m2ua_start;

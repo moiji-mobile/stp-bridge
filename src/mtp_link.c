@@ -167,3 +167,17 @@ void mtp_link_failure(struct mtp_link *link)
 	rate_ctr_inc(&link->ctrg->ctr[MTP_LNK_ERROR]);
 	link->reset(link);
 }
+
+void mtp_link_block(struct mtp_link *link)
+{
+	link->blocked = 1;
+	link->shutdown(link);
+}
+
+void mtp_link_unblock(struct mtp_link *link)
+{
+	if (!link->blocked)
+		return;
+	link->blocked = 0;
+	link->reset(link);
+}

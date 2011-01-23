@@ -90,6 +90,8 @@ struct mtp_link {
 	/* link test routine */
 	uint8_t test_ptrn[14];
 
+	int blocked;
+
 	int link_no;
 	int sltm_pending;
 	int was_up;
@@ -119,6 +121,9 @@ int mtp_link_set_submit_isup_data(struct mtp_link_set *link, int sls, const uint
 
 void mtp_link_set_init_slc(struct mtp_link_set *set);
 int mtp_link_set_add_link(struct mtp_link_set *set, struct mtp_link *link);
+
+void mtp_link_block(struct mtp_link *link);
+void mtp_link_unblock(struct mtp_link *link);
 
 
 /* one time init function */
