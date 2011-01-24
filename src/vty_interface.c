@@ -362,6 +362,36 @@ DEFUN(show_msc, show_msc_cmd,
 	return CMD_SUCCESS;
 }
 
+DEFUN(show_slc, show_slc_cmd,
+      "show link-set (mtp|m2ua) slc",
+      SHOW_STR "LinkSet\n" "MTP Linkset\n" "M2UA LinkSet\n" "SLS to SLC\n")
+{
+	struct mtp_link_set *set = NULL;
+	int i;
+
+	if (bsc.link_set && strcmp(argv[0], "mtp") == 0)
+		set = bsc.link_set;
+	else if (bsc.m2ua_set && strcmp(argv[0], "m2ua") == 0)
+		set = bsc.m2ua_set;
+
+	if (!set) {
+		vty_out(vty, "Failed to find linkset.%s", VTY_NEWLINE);
+		return CMD_WARNING;
+	}
+
+	vty_out(vty, "LinkSet for %s.%s", argv[0], VTY_NEWLINE);
+	for (i = 0; i < ARRAY_SIZE(set->slc); ++i) {
+		if (set->slc[i])
+			vty_out(vty, " SLC[%.2d] is on link %d.%s",
+				i, set->slc[i]->link_no, VTY_NEWLINE);
+		else
+			vty_out(vty, " SLC[%d] is down.%s",
+				i, VTY_NEWLINE);
+	}
+
+	return CMD_SUCCESS;
+}
+
 DEFUN(pcap_set, pcap_set_cmd,
       "trace-pcap set (m2ua|mtp) FILE",
       "Trace to a PCAP file\n" "Trace a linkset\n"
@@ -513,6 +543,7 @@ void cell_vty_init(void)
 	/* show commands */
 	install_element_ve(&show_stats_cmd);
 	install_element_ve(&show_linksets_cmd);
+	install_element_ve(&show_slc_cmd);
 
 	if (bsc.app != APP_STP) {
 		install_element_ve(&show_msc_cmd);
