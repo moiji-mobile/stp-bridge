@@ -130,7 +130,7 @@ void mtp_link_unblock(struct mtp_link *link);
 void mtp_link_set_init(void);
 
 /* to be implemented for MSU sending */
-void mtp_link_set_submit(struct mtp_link *link, struct msgb *msg);
+void mtp_link_submit(struct mtp_link *link, struct msgb *msg);
 void mtp_link_set_forward_sccp(struct mtp_link_set *link, struct msgb *msg, int sls);
 void mtp_link_set_forward_isup(struct mtp_link_set *link, struct msgb *msg, int sls);
 void mtp_link_restart(struct mtp_link *link);

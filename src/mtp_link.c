@@ -65,7 +65,7 @@ static void mtp_send_sltm(struct mtp_link *link)
 		return;
 	}
 
-	link->write(link, msg);
+	mtp_link_submit(link, msg);
 }
 
 static void mtp_sltm_t1_timeout(void *_link)

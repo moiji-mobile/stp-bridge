@@ -37,7 +37,7 @@ static void *tall_mtp_ctx = NULL;
 
 static int mtp_int_submit(struct mtp_link_set *link, int pc, int sls, int type, const uint8_t *data, unsigned int length);
 
-void mtp_link_set_submit(struct mtp_link *link, struct msgb *msg)
+void mtp_link_submit(struct mtp_link *link, struct msgb *msg)
 {
 	rate_ctr_inc(&link->ctrg->ctr[MTP_LNK_OUT]);
 	rate_ctr_inc(&link->set->ctrg->ctr[MTP_LSET_TOTA_OUT_MSG]);
@@ -241,7 +241,7 @@ static int send_tfp(struct mtp_link_set *link, int apoc)
 	if (!msg)
 		return -1;
 
-	mtp_link_set_submit(link->slc[0], msg);
+	mtp_link_submit(link->slc[0], msg);
 	return 0;
 }
 
@@ -251,7 +251,7 @@ static int send_tra(struct mtp_link_set *link, int opc)
 	msg = mtp_tra_alloc(link, opc);
 	if (!msg)
 		return -1;
-	mtp_link_set_submit(link->slc[0], msg);
+	mtp_link_submit(link->slc[0], msg);
 	return 0;
 }
 
@@ -261,7 +261,7 @@ static int send_tfa(struct mtp_link_set *link, int opc)
 	msg = mtp_tfa_alloc(link, opc);
 	if (!msg)
 		return -1;
-	mtp_link_set_submit(link->slc[0], msg);
+	mtp_link_submit(link->slc[0], msg);
 	return 0;
 }
 
@@ -376,7 +376,7 @@ static int mtp_link_regular_msg(struct mtp_link *link, struct mtp_level_3_hdr *h
 					      mng, l3_len);
 			if (!out)
 				return -1;
-			mtp_link_set_submit(link, out);
+			mtp_link_submit(link, out);
 			return 0;
 			break;
 		case MTP_TST_MSG_SLTA:
@@ -444,7 +444,7 @@ static int mtp_link_sccp_data(struct mtp_link_set *link, struct mtp_level_3_hdr 
 		if (!out)
 			return -1;
 
-		mtp_link_set_submit(link->slc[MTP_LINK_SLS(hdr->addr)], out);
+		mtp_link_submit(link->slc[MTP_LINK_SLS(hdr->addr)], out);
 		return 0;
 	}
 
@@ -542,7 +542,7 @@ static int mtp_int_submit(struct mtp_link_set *link, int pc, int sls, int type,
 	put_ptr = msgb_put(msg, length);
 	memcpy(put_ptr, data, length);
 
-	mtp_link_set_submit(link->slc[sls % 16], msg);
+	mtp_link_submit(link->slc[sls % 16], msg);
 	return 0;
 }
 
