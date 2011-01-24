@@ -330,10 +330,14 @@ static void dump_state(struct vty *vty, const char *name, struct mtp_link_set *s
 		VTY_NEWLINE);
 
 	llist_for_each_entry(link, &set->links, entry) {
-		vty_out(vty, " Link %d is %s.%s",
-			link->link_no,
-			link->available == 0 ? "not available" : "available",
-			VTY_NEWLINE);
+		if (link->blocked)
+			vty_out(vty, " Link %d is blocked.%s",
+				link->link_no, VTY_NEWLINE);
+		else
+			vty_out(vty, " Link %d is %s.%s",
+				link->link_no,
+				link->available == 0 ? "not available" : "available",
+				VTY_NEWLINE);
 	}
 }
 
