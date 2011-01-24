@@ -116,7 +116,7 @@ int link_init(struct bsc_data *bsc)
 
 	LOGP(DINP, LOGL_NOTICE, "Using UDP MTP mode.\n");
 
-	if (link_global_init(&bsc->udp_data, bsc->udp_ip, bsc->src_port) != 0)
+	if (link_global_init(&bsc->udp_data, bsc->src_port) != 0)
 		return -1;
 
 
@@ -140,7 +140,7 @@ int link_init(struct bsc_data *bsc)
 		 * SLTM and it begins a reset. Then we will take it up
 		 * again and do the usual business.
 		 */
-		snmp_mtp_deactivate(lnk->data->session,
+		snmp_mtp_deactivate(lnk->session,
 				    lnk->link_index);
 		bsc->start_timer.cb = start_rest;
 		bsc->start_timer.data = &bsc;
