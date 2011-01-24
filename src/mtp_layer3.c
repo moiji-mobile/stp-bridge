@@ -470,6 +470,7 @@ int mtp_link_set_data(struct mtp_link *link, struct msgb *msg)
 	hdr = (struct mtp_level_3_hdr *) msg->l2h;
 	l3_len = msgb_l2len(msg) - sizeof(*hdr);
 
+	rate_ctr_inc(&link->ctrg->ctr[MTP_LNK_IN]);
 	rate_ctr_inc(&link->set->ctrg->ctr[MTP_LSET_TOTA_IN_MSG]);
 
 	switch (hdr->ser_ind) {
