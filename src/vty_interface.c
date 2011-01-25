@@ -356,7 +356,7 @@ DEFUN(show_msc, show_msc_cmd,
       SHOW_STR "Display the status of the MSC\n")
 {
 	vty_out(vty, "MSC link is %s and had %s.%s",
-		bsc.msc_link_down == 0 ? "down" : "up",
+		bsc.msc_link_down == 0 ? "up" : "down",
 		bsc.first_contact == 1 ? "no contact" : "contact",
 		VTY_NEWLINE);
 	return CMD_SUCCESS;
