@@ -92,6 +92,7 @@ struct mtp_link {
 
 	int blocked;
 
+	int first_sls;
 	int link_no;
 	int sltm_pending;
 	int was_up;

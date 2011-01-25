@@ -577,13 +577,19 @@ static struct mtp_link *find_next_link(struct mtp_link_set *set,
 
 void mtp_link_set_init_slc(struct mtp_link_set *set)
 {
-	struct mtp_link *link = NULL;
+	struct mtp_link *link = NULL, *tmp;
 	int i;
+
+	llist_for_each_entry(tmp, &set->links, entry)
+		tmp->first_sls = 100;
 
 
 	for (i = 0; i < ARRAY_SIZE(set->slc); ++i) {
 		link = find_next_link(set, link);
 		set->slc[i] = link;
+
+		if (link && i < link->first_sls)
+			link->first_sls = i;
 	}
 }
 
