@@ -105,28 +105,28 @@ static struct msgb *mtp_base_alloc(struct mtp_link_set *link, int msg, int apoc)
 	return out;
 }
 
-static struct msgb *mtp_tfp_alloc(struct mtp_link_set *link, int apoc)
+static struct msgb *mtp_tfp_alloc(struct mtp_link *link, int apoc)
 {
-	return mtp_base_alloc(link, MTP_PROHIBIT_MSG_SIG, apoc);
+	return mtp_base_alloc(link->set, MTP_PROHIBIT_MSG_SIG, apoc);
 }
 
-static struct msgb *mtp_tfa_alloc(struct mtp_link_set *link, int apoc)
+static struct msgb *mtp_tfa_alloc(struct mtp_link *link, int apoc)
 {
-	return mtp_base_alloc(link, MTP_PROHIBIT_MSG_TFA, apoc);
+	return mtp_base_alloc(link->set, MTP_PROHIBIT_MSG_TFA, apoc);
 }
 
-static struct msgb *mtp_tra_alloc(struct mtp_link_set *link, int opc)
+static struct msgb *mtp_tra_alloc(struct mtp_link *link, int opc)
 {
 	struct mtp_level_3_hdr *hdr;
 	struct mtp_level_3_cmn *cmn;
-	struct msgb *out = mtp_msg_alloc(link);
+	struct msgb *out = mtp_msg_alloc(link->set);
 
 	if (!out)
 		return NULL;
 
 	hdr = (struct mtp_level_3_hdr *) out->l2h;
 	hdr->ser_ind = MTP_SI_MNT_SNM_MSG;
-	hdr->addr = MTP_ADDR(0x0, link->dpc, opc);
+	hdr->addr = MTP_ADDR(0x0, link->set->dpc, opc);
 	cmn = (struct mtp_level_3_cmn *) msgb_put(out, sizeof(*cmn));
 	cmn->h0 = MTP_TRF_RESTR_MSG_GRP;
 	cmn->h1 = MTP_RESTR_MSG_ALLWED;
@@ -234,62 +234,64 @@ void mtp_link_set_reset(struct mtp_link_set *link)
 		mtp_link_start_link_test(lnk);
 }
 
-static int send_tfp(struct mtp_link_set *link, int apoc)
+static int send_tfp(struct mtp_link *link, int apoc)
 {
 	struct msgb *msg;
 	msg = mtp_tfp_alloc(link, apoc);
 	if (!msg)
 		return -1;
 
-	mtp_link_submit(link->slc[0], msg);
+	mtp_link_submit(link, msg);
 	return 0;
 }
 
-static int send_tra(struct mtp_link_set *link, int opc)
+static int send_tra(struct mtp_link *link, int opc)
 {
 	struct msgb *msg;
 	msg = mtp_tra_alloc(link, opc);
 	if (!msg)
 		return -1;
-	mtp_link_submit(link->slc[0], msg);
+	mtp_link_submit(link, msg);
 	return 0;
 }
 
-static int send_tfa(struct mtp_link_set *link, int opc)
+static int send_tfa(struct mtp_link *link, int opc)
 {
 	struct msgb *msg;
 	msg = mtp_tfa_alloc(link, opc);
 	if (!msg)
 		return -1;
-	mtp_link_submit(link->slc[0], msg);
+	mtp_link_submit(link, msg);
 	return 0;
 }
 
-static int linkset_up(struct mtp_link_set *set)
+static int linkset_up(struct mtp_link *link)
 {
+	struct mtp_link_set *set = link->set;
+
 	/* the link set is already up */
 	if (set->linkset_up)
 		return 0;
 
-	if (send_tfp(set, 0) != 0)
+	if (send_tfp(link, 0) != 0)
 		return -1;
-	if (send_tfp(set, set->opc) != 0)
+	if (send_tfp(link, set->opc) != 0)
 		return -1;
 	if (set->sccp_opc != set->opc &&
-	    send_tfp(set, set->sccp_opc) != 0)
+	    send_tfp(link, set->sccp_opc) != 0)
 		return -1;
 	if (set->isup_opc != set->opc &&
-	    send_tfp(set, set->isup_opc) != 0)
+	    send_tfp(link, set->isup_opc) != 0)
 		return -1;
 
 	/* Send the TRA for all PCs */
-	if (send_tra(set, set->opc) != 0)
+	if (send_tra(link, set->opc) != 0)
 		return -1;
 	if (set->sccp_opc != set->opc &&
-	    send_tfa(set, set->sccp_opc) != 0)
+	    send_tfa(link, set->sccp_opc) != 0)
 		return -1;
 	if (set->isup_opc != set->opc &&
-	    send_tfa(set, set->isup_opc) != 0)
+	    send_tfa(link, set->isup_opc) != 0)
 		return -1;
 
 	set->linkset_up = 1;
@@ -382,7 +384,7 @@ static int mtp_link_regular_msg(struct mtp_link *link, struct mtp_level_3_hdr *h
 		case MTP_TST_MSG_SLTA:
 			/* If this link is proven set it up */
 			if (mtp_link_slta(link, l3_len, mng) == 0)
-				linkset_up(link->set);
+				linkset_up(link);
 			break;
 		}
 		break;
