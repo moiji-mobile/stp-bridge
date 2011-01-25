@@ -2,8 +2,8 @@
 /* The protocol implementation */
 
 /*
- * (C) 2009-2010 by Holger Hans Peter Freyther <zecke@selfish.org>
- * (C) 2009-2010 by On-Waves
+ * (C) 2009-2011 by Holger Hans Peter Freyther <zecke@selfish.org>
+ * (C) 2009-2011 by On-Waves
  * All Rights Reserved
  *
  * This program is free software: you can redistribute it and/or modify
@@ -89,6 +89,7 @@ static struct msgb *handle_create_con(struct mgcp_config *cfg, struct msgb *msg)
 static struct msgb *handle_delete_con(struct mgcp_config *cfg, struct msgb *msg);
 static struct msgb *handle_modify_con(struct mgcp_config *cfg, struct msgb *msg);
 static struct msgb *handle_rsip(struct mgcp_config *cfg, struct msgb *msg);
+static struct msgb *handle_noti_req(struct mgcp_config *cfg, struct msgb *msg);
 
 static uint32_t generate_call_id(struct mgcp_config *cfg)
 {
@@ -120,6 +121,7 @@ static const struct mgcp_request mgcp_requests [] = {
 	MGCP_REQUEST("CRCX", handle_create_con, "CreateConnection")
 	MGCP_REQUEST("DLCX", handle_delete_con, "DeleteConnection")
 	MGCP_REQUEST("MDCX", handle_modify_con, "ModifiyConnection")
+	MGCP_REQUEST("RQNT", handle_noti_req, "NotificationRequest")
 
 	/* SPEC extension */
 	MGCP_REQUEST("RSIP", handle_rsip, "ReSetInProgress")
@@ -744,6 +746,29 @@ static struct msgb *handle_rsip(struct mgcp_config *cfg, struct msgb *msg)
 	if (cfg->reset_cb)
 		cfg->reset_cb(cfg);
 	return NULL;
+}
+
+/*
+ * This can request like DTMF detection and forward, fax detection... it
+ * can also request when the notification should be send and such. We don't
+ * do this right now.
+ */
+static struct msgb *handle_noti_req(struct mgcp_config *cfg, struct msgb *msg)
+{
+	struct mgcp_msg_ptr data_ptrs[6];
+	const char *trans_id;
+	struct mgcp_endpoint *endp;
+	int found;
+
+	found = mgcp_analyze_header(cfg, msg, data_ptrs, ARRAY_SIZE(data_ptrs), &trans_id, &endp);
+	if (found != 0)
+		return create_err_response(400, "RQNT", trans_id);
+
+	if (endp->ci == CI_UNUSED) {
+		LOGP(DMGCP, LOGL_ERROR, "Endpoint is not used. 0x%x\n", ENDPOINT_NUMBER(endp));
+		return create_err_response(400, "RQNT", trans_id);
+	}
+	return create_ok_response(200, "RQNT", trans_id);
 }
 
 struct mgcp_config *mgcp_config_alloc(void)
