@@ -528,7 +528,7 @@ static int sctp_trans_accept(struct bsc_fd *fd, unsigned int what)
 		return -1;
 	}
 
-	if (!trans->base.blocked) {
+	if (trans->base.blocked) {
 		LOGP(DINP, LOGL_NOTICE, "The link is blocked.\n");
 		close(s);
 		return -1;
