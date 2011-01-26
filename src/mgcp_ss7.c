@@ -977,7 +977,6 @@ DEFUN(endpoint_offset, endpoint_offset_cmd,
       "Offset to the CIC map\n" "Value to set\n")
 {
 	s_endp_offset = atoi(argv[0]);
-	vty_out(vty, "New offset is %d.%s", s_endp_offset, VTY_NEWLINE);
 	return CMD_SUCCESS;
 }
 
@@ -995,6 +994,7 @@ void mgcp_write_extra(struct vty *vty)
 	vty_out(vty, "  downstream-adaptation-rate %d%s", s_dwnstr_adp_rate, VTY_NEWLINE);
 	vty_out(vty, "  downstream-max-applied-gain %d%s", s_dwnstr_max_gain, VTY_NEWLINE);
 	vty_out(vty, "  downstream-target-level %d%s", s_dwnstr_target_lvl, VTY_NEWLINE);
+	vty_out(vty, "  endpoint-offset %d%s", s_endp_offset, VTY_NEWLINE);
 }
 
 static void mgcp_mgw_vty_init(void)
@@ -1016,8 +1016,7 @@ static void mgcp_mgw_vty_init(void)
 	install_element(MGCP_NODE, &cfg_mgcp_dwnstr_adp_cmd);
 	install_element(MGCP_NODE, &cfg_mgcp_dwnstr_max_gain_cmd);
 	install_element(MGCP_NODE, &cfg_mgcp_dwnstr_target_cmd);
-
-	install_element(ENABLE_NODE, &endpoint_offset_cmd);
+	install_element(MGCP_NODE, &endpoint_offset_cmd);
 }
 
 
