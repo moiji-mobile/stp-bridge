@@ -429,7 +429,7 @@ static int m2ua_conn_read(struct bsc_fd *fd)
 	memset(&addr, 0, sizeof(addr));
 	rc = sctp_recvmsg(fd->fd, msg->data, msg->data_len,
 			  (struct sockaddr *) &addr, &len, &info, NULL);
-	if (rc < 0) {
+	if (rc <= 0) {
 		LOGP(DINP, LOGL_ERROR, "Failed to read.\n");
 		m2ua_conn_destroy(fd->data);
 		return -1;
