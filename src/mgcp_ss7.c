@@ -1,7 +1,7 @@
 /* Use the UniPorte library to allocate endpoints */
 /*
- * (C) 2010 by Holger Hans Peter Freyther <zecke@selfish.org>
- * (C) 2010 by On-Waves
+ * (C) 2010-2011 by Holger Hans Peter Freyther <zecke@selfish.org>
+ * (C) 2010-2011 by On-Waves
  * All Rights Reserved
  *
  * This program is free software: you can redistribute it and/or modify
@@ -57,8 +57,10 @@ static struct log_target *stderr_target;
 static char *config_file = "mgcp_mgw.cfg";
 static int exit_on_failure = 0;
 
-#define TO_MGW_PORT(no) (no-1)
-#define FROM_MGW_PORT(no) (no+1)
+static int s_endp_offset = 1;
+
+#define TO_MGW_PORT(no) (no-s_endp_offset)
+#define FROM_MGW_PORT(no) (no+s_endp_offset)
 
 static struct mgcp_ss7 *s_ss7;
 static struct mgcp_config *g_cfg;
@@ -970,6 +972,15 @@ DEFUN(cfg_mgcp_dwnstr_target, cfg_mgcp_dwnstr_target_cmd,
 	return CMD_SUCCESS;
 }
 
+DEFUN(endpoint_offset, endpoint_offset_cmd,
+      "endpoint-offset <-60-60>",
+      "Offset to the CIC map\n" "Value to set\n")
+{
+	s_endp_offset = atoi(argv[0]);
+	vty_out(vty, "New offset is %d.%s", s_endp_offset, VTY_NEWLINE);
+	return CMD_SUCCESS;
+}
+
 void mgcp_write_extra(struct vty *vty)
 {
 	vty_out(vty, "  force-realloc %d%s", g_cfg->force_realloc, VTY_NEWLINE);
@@ -1005,6 +1016,8 @@ static void mgcp_mgw_vty_init(void)
 	install_element(MGCP_NODE, &cfg_mgcp_dwnstr_adp_cmd);
 	install_element(MGCP_NODE, &cfg_mgcp_dwnstr_max_gain_cmd);
 	install_element(MGCP_NODE, &cfg_mgcp_dwnstr_target_cmd);
+
+	install_element(ENABLE_NODE, &endpoint_offset_cmd);
 }
 
 
