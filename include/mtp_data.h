@@ -45,6 +45,8 @@ struct mtp_link_set {
 	int ni;
 	int spare;
 
+	const char *name;
+
 	/* internal state */
 	/* the MTP1 link is up */
 	int available;

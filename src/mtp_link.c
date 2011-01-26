@@ -75,12 +75,16 @@ static void mtp_sltm_t1_timeout(void *_link)
 	rate_ctr_inc(&link->ctrg->ctr[MTP_LNK_SLTM_TOUT]);
 
 	if (link->slta_misses == 0) {
-		LOGP(DINP, LOGL_ERROR, "No SLTM response. Retrying. Link: %p\n", link);
+		LOGP(DINP, LOGL_ERROR,
+		     "No SLTM response. Retrying. Link: %s/%d\n",
+		     link->set->name, link->link_no);
 		++link->slta_misses;
 		mtp_send_sltm(link);
 		bsc_schedule_timer(&link->t1_timer, MTP_T1);
 	} else {
-		LOGP(DINP, LOGL_ERROR, "Two missing SLTAs. Restart link: %p\n", link);
+		LOGP(DINP, LOGL_ERROR,
+		     "Two missing SLTAs. Restart link: %s/%d\n",
+		     link->set->name, link->link_no);
 		bsc_del_timer(&link->t2_timer);
 		mtp_link_failure(link);
 	}
@@ -91,7 +95,9 @@ static void mtp_sltm_t2_timeout(void *_link)
 	struct mtp_link *link = (struct mtp_link *) _link;
 
 	if (!link->set->running) {
-		LOGP(DINP, LOGL_INFO, "The linkset is not active. Stopping SLTM now. %p\n", link);
+		LOGP(DINP, LOGL_INFO,
+		     "The linkset is not active. Stopping SLTM now. %s/%d\n",
+		     link->set->name, link->link_no);
 		return;
 	}
 
@@ -163,7 +169,8 @@ int mtp_link_slta(struct mtp_link *link, uint16_t l3_len,
 
 void mtp_link_failure(struct mtp_link *link)
 {
-	LOGP(DINP, LOGL_ERROR, "Link has failed. Resetting it: 0x%p\n", link);
+	LOGP(DINP, LOGL_ERROR, "Link has failed. Resetting it: %s/%d\n",
+	     link->set->name, link->link_no);
 	rate_ctr_inc(&link->ctrg->ctr[MTP_LNK_ERROR]);
 	link->reset(link);
 }

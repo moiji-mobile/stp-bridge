@@ -297,7 +297,7 @@ static int linkset_up(struct mtp_link *link)
 
 	set->linkset_up = 1;
 	LOGP(DINP, LOGL_NOTICE,
-	     "The linkset %p is considered running.\n", set);
+	     "The linkset %s is considered running.\n", set->name);
 	return 0;
 }
 
@@ -320,9 +320,9 @@ static int mtp_link_sign_msg(struct mtp_link_set *link, struct mtp_level_3_hdr *
 	case MTP_TRF_RESTR_MSG_GRP:
 		switch (cmn->h1) {
 		case MTP_RESTR_MSG_ALLWED:
-			LOGP(DINP, LOGL_INFO, "Received Restart Allowed. SST could be next: %p\n", link);
+			LOGP(DINP, LOGL_INFO, "Received Restart Allowed. SST could be next: %s\n", link->name);
 			link->sccp_up = 1;
-			LOGP(DINP, LOGL_INFO, "SCCP traffic allowed. %p\n", link);
+			LOGP(DINP, LOGL_INFO, "SCCP traffic allowed. %s\n", link->name);
 			return 0;
 			break;
 		}
@@ -466,7 +466,8 @@ int mtp_link_set_data(struct mtp_link *link, struct msgb *msg)
 		return -1;
 
 	if (!link->set->running) {
-		LOGP(DINP, LOGL_ERROR, "Link is not running. Call mtp_link_reset first: %p\n", link);
+		LOGP(DINP, LOGL_ERROR, "Link is not running. Call mtp_link_reset first: %s/%d\n",
+		     link->set->name, link->link_no);
 		return -1;
 	}
 

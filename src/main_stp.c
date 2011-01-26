@@ -253,6 +253,7 @@ int main(int argc, char **argv)
 	bsc.m2ua_set->ni = 3;
 	bsc.m2ua_set->bsc = &bsc;
 	bsc.m2ua_set->pcap_fd = bsc.pcap_fd;
+	bsc.m2ua_set->name = talloc_strdup(bsc.m2ua_set, "M2UA");
 
 	/* for both links we want to have all isup messages */
 	bsc.m2ua_set->pass_all_isup = 1;

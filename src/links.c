@@ -99,6 +99,7 @@ int link_init(struct bsc_data *bsc)
 	struct mtp_udp_link *lnk;
 
 	bsc->link_set = mtp_link_set_alloc();
+	bsc->link_set->name = talloc_strdup(bsc->link_set, "MTP");
 	bsc->link_set->dpc = bsc->dpc;
 	bsc->link_set->opc = bsc->opc;
 	bsc->link_set->sccp_opc = bsc->sccp_opc > -1 ? bsc->sccp_opc : bsc->opc;
@@ -145,7 +146,9 @@ int link_init(struct bsc_data *bsc)
 		bsc->start_timer.cb = start_rest;
 		bsc->start_timer.data = &bsc;
 		bsc_schedule_timer(&bsc->start_timer, lnk->reset_timeout, 0);
-		LOGP(DMSC, LOGL_NOTICE, "Making sure SLTM will timeout.\n");
+		LOGP(DMSC, LOGL_NOTICE,
+		     "Making sure SLTM will timeout on %s/%d\n",
+		      lnk->base.set->name, lnk->base.link_no);
 	}
 
 	return 0;
