@@ -169,6 +169,12 @@ int mtp_link_slta(struct mtp_link *link, uint16_t l3_len,
 
 void mtp_link_failure(struct mtp_link *link)
 {
+	if (link->blocked) {
+		LOGP(DINP, LOGL_ERROR, "Ignoring failure on blocked link %s/%d.\n",
+		     link->set->name, link->link_no);
+		return;
+	}
+
 	LOGP(DINP, LOGL_ERROR, "Link has failed. Resetting it: %s/%d\n",
 	     link->set->name, link->link_no);
 	rate_ctr_inc(&link->ctrg->ctr[MTP_LNK_ERROR]);
