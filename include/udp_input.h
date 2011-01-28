@@ -38,6 +38,9 @@
 #define UDP_DATA_RETR_PRIO_3	19
 #define UDP_DATA_RETR_COMPL	32
 #define UDP_DATA_RETR_IMPOS	33
+#define UDP_DATA_LINK_UP	34
+#define UDP_DATA_LINK_DOWN	35
+
 
 struct udp_data_hdr {
 	uint8_t format_type;

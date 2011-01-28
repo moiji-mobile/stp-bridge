@@ -113,20 +113,30 @@ static int udp_read_cb(struct bsc_fd *fd)
 		goto exit;
 	}
 
-	/* throw away data as the link is down */
-	if (link->set->available == 0) {
-		LOGP(DINP, LOGL_ERROR, "The link is down. Not forwarding.\n");
-		rc = 0;
-		goto exit;
-	}
-
 	if (hdr->data_type == UDP_DATA_RETR_COMPL || hdr->data_type == UDP_DATA_RETR_IMPOS) {
 		LOGP(DINP, LOGL_ERROR, "Link retrieval done. Restarting the link.\n");
+		mtp_link_failure(link);
+		goto exit;
+	} else if (hdr->data_type == UDP_DATA_LINK_UP) {
+		LOGP(DINP, LOGL_NOTICE, "Link of %s/%d is up.\n",
+		     link->set->name, link->link_no);
+		mtp_link_up(link);
+		goto exit;
+	} else if (hdr->data_type == UDP_DATA_LINK_DOWN) {
+		LOGP(DINP, LOGL_NOTICE, "Link of %s/%d is down.\n",
+		     link->set->name, link->link_no);
 		mtp_link_failure(link);
 		goto exit;
 	} else if (hdr->data_type > UDP_DATA_MSU_PRIO_3) {
 		LOGP(DINP, LOGL_ERROR, "Link failure. retrieved message.\n");
 		mtp_link_failure(link);
+		goto exit;
+	}
+
+	/* throw away data as the link is down */
+	if (link->set->available == 0) {
+		LOGP(DINP, LOGL_ERROR, "The link is down. Not forwarding.\n");
+		rc = 0;
 		goto exit;
 	}
 
@@ -312,7 +322,6 @@ void snmp_mtp_callback(struct snmp_mtp_session *session,
 
 	switch (area) {
 	case SNMP_LINK_UP:
-		mtp_link_up(link);
 		break;
 	case SNMP_LINK_DOWN:
 		mtp_link_down(link);
