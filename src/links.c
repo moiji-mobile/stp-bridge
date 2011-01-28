@@ -153,7 +153,7 @@ int link_init(struct bsc_data *bsc)
 		bsc->start_timer.data = &bsc;
 		bsc_schedule_timer(&bsc->start_timer, lnk->reset_timeout, 0);
 		LOGP(DMSC, LOGL_NOTICE,
-		     "Making sure SLTM will timeout on %s/%d\n",
+		     "Forcing link alignment on %s/%d.\n",
 		      lnk->base.set->name, lnk->base.link_no);
 	}
 

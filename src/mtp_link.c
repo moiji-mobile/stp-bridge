@@ -61,7 +61,8 @@ static void mtp_send_sltm(struct mtp_link *link)
 	link->sltm_pending = 1;
 	msg = mtp_create_sltm(link);
 	if (!msg) {
-		LOGP(DINP, LOGL_ERROR, "Failed to allocate SLTM.\n");
+		LOGP(DINP, LOGL_ERROR, "Failed to allocate SLTM on %s/%d.\n",
+		     link->set->name, link->link_no);
 		return;
 	}
 
@@ -76,14 +77,14 @@ static void mtp_sltm_t1_timeout(void *_link)
 
 	if (link->slta_misses == 0) {
 		LOGP(DINP, LOGL_ERROR,
-		     "No SLTM response. Retrying. Link: %s/%d\n",
+		     "No SLTM response on link %s/%d.\n",
 		     link->set->name, link->link_no);
 		++link->slta_misses;
 		mtp_send_sltm(link);
 		bsc_schedule_timer(&link->t1_timer, MTP_T1);
 	} else {
 		LOGP(DINP, LOGL_ERROR,
-		     "Two missing SLTAs. Restart link: %s/%d\n",
+		     "Two missing SLTAs on link %s/%d.\n",
 		     link->set->name, link->link_no);
 		bsc_del_timer(&link->t2_timer);
 		mtp_link_failure(link);
@@ -96,7 +97,7 @@ static void mtp_sltm_t2_timeout(void *_link)
 
 	if (!link->set->running) {
 		LOGP(DINP, LOGL_INFO,
-		     "The linkset is not active. Stopping SLTM now. %s/%d\n",
+		     "The linkset is not active. Stopping the link test on %s/%d.\n",
 		     link->set->name, link->link_no);
 		return;
 	}
@@ -107,7 +108,8 @@ static void mtp_sltm_t2_timeout(void *_link)
 	bsc_schedule_timer(&link->t1_timer, MTP_T1);
 
 	if (link->set->sltm_once && link->was_up)
-		LOGP(DINP, LOGL_INFO, "Not sending SLTM again as configured.\n");
+		LOGP(DINP, LOGL_INFO, "Not sending SLTM again as configured on %s/%d.\n",
+		     link->set->name, link->link_no);
 	else
 		bsc_schedule_timer(&link->t2_timer, MTP_T2);
 }
@@ -175,7 +177,7 @@ void mtp_link_failure(struct mtp_link *link)
 		return;
 	}
 
-	LOGP(DINP, LOGL_ERROR, "Link has failed. Resetting it: %s/%d\n",
+	LOGP(DINP, LOGL_ERROR, "Link %s/%d has failed, going to reset it.\n",
 	     link->set->name, link->link_no);
 	rate_ctr_inc(&link->ctrg->ctr[MTP_LNK_ERROR]);
 	link->reset(link);
