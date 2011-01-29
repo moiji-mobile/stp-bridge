@@ -124,6 +124,9 @@ struct bsc_data {
 	int ni_ni;
 	int ni_spare;
 
+	/* isup handling */
+	int isup_pass;
+
 	/* LAC of the cell */
 	struct gsm48_loc_area_id lai;
 	uint16_t mcc;

@@ -256,8 +256,11 @@ int main(int argc, char **argv)
 	bsc.m2ua_set->name = talloc_strdup(bsc.m2ua_set, "M2UA");
 
 	/* for both links we want to have all isup messages */
-	bsc.m2ua_set->pass_all_isup = 1;
-	bsc.link_set->pass_all_isup = 1;
+	if (bsc.isup_pass) {
+		LOGP(DINP, LOGL_NOTICE, "Going to pass through all ISUP messages.\n");
+		bsc.m2ua_set->pass_all_isup = 1;
+		bsc.link_set->pass_all_isup = 1;
+	}
 
 	lnk = sctp_m2ua_transp_create("0.0.0.0", 2904);
 	lnk->base.pcap_fd = -1;

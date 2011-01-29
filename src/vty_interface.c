@@ -83,6 +83,7 @@ static int config_write_cell(struct vty *vty)
 	vty_out(vty, " msc ip %s%s", bsc.msc_address, VTY_NEWLINE);
 	vty_out(vty, " msc ip-dscp %d%s", bsc.msc_ip_dscp, VTY_NEWLINE);
 	vty_out(vty, " msc token %s%s", bsc.token, VTY_NEWLINE);
+	vty_out(vty, " isup pass-through %d%s", bsc.isup_pass, VTY_NEWLINE);
 
 	return CMD_SUCCESS;
 }
@@ -287,6 +288,21 @@ DEFUN(cfg_lac, cfg_lac_cmd,
 {
 	bsc.lac = atoi(argv[0]);
 	update_lai(&bsc);
+	return CMD_SUCCESS;
+}
+
+DEFUN(cfg_isup_pass, cfg_isup_pass_cmd,
+      "isup pass-through (0|1)",
+      "ISUP related functionality\n"
+      "Pass through all ISUP messages directly\n"
+      "Handle some messages locally\n" "Pass through everything\n")
+{
+	bsc.isup_pass = atoi(argv[0]);
+	if (bsc.m2ua_set)
+		bsc.m2ua_set->pass_all_isup = bsc.isup_pass;
+	if (bsc.link_set)
+		bsc.link_set->pass_all_isup = bsc.isup_pass;
+
 	return CMD_SUCCESS;
 }
 
@@ -532,6 +548,7 @@ void cell_vty_init(void)
 	install_element(CELLMGR_NODE, &cfg_mcc_cmd);
 	install_element(CELLMGR_NODE, &cfg_mnc_cmd);
 	install_element(CELLMGR_NODE, &cfg_lac_cmd);
+	install_element(CELLMGR_NODE, &cfg_isup_pass_cmd);
 
 	/* special commands */
 	install_element(ENABLE_NODE, &pcap_set_cmd);
