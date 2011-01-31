@@ -411,7 +411,7 @@ DEFUN(show_slc, show_slc_cmd,
 DEFUN(pcap_set, pcap_set_cmd,
       "trace-pcap set (m2ua|mtp) FILE",
       "Trace to a PCAP file\n" "Trace a linkset\n"
-      "OPC of the linkset\n" "Filename to trace\n")
+      "Trace m2ua linkset\n" "Trace mtp linkset\n" "Filename to trace\n")
 {
 	struct mtp_link_set *set = NULL;
 
@@ -440,9 +440,9 @@ DEFUN(pcap_set, pcap_set_cmd,
 }
 
 DEFUN(pcap_set_stop, pcap_set_stop_cmd,
-      "trace-pcap set <1-16383> stop",
+      "trace-pcap set (m2ua|mtp) stop",
       "Trace to a PCAP file\n" "Trace a linkset\n"
-      "OPC for the linkset\n" "Stop the tracing\n")
+      "Trace m2ua linkset\n" "Trace mtp linkset\n" "Stop the tracing\n")
 {
 	struct mtp_link_set *set = NULL;
 
