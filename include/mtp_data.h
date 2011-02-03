@@ -137,6 +137,7 @@ void mtp_link_submit(struct mtp_link *link, struct msgb *msg);
 void mtp_link_set_forward_sccp(struct mtp_link_set *link, struct msgb *msg, int sls);
 void mtp_link_set_forward_isup(struct mtp_link_set *link, struct msgb *msg, int sls);
 void mtp_link_restart(struct mtp_link *link);
+int mtp_link_set_send(struct mtp_link_set *set, struct msgb *msg);
 
 /* link related routines */
 void mtp_link_down(struct mtp_link *data);

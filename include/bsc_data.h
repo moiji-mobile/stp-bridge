@@ -134,6 +134,10 @@ struct bsc_data {
 	uint16_t lac;
 
 	int forward_only;
+
+	/* inject */
+	struct bsc_fd inject_fd;
+	struct llist_head inject_list;
 };
 
 /* bsc related functions */

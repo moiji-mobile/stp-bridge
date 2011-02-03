@@ -179,6 +179,122 @@ static void handle_options(int argc, char **argv)
 	}
 }
 
+static struct mtp_link_set *find_link_set(struct bsc_data *bsc,
+					  int len, const char *buf)
+{
+	if (strncmp(buf, "mtp", len) == 0)
+		return bsc->link_set;
+	else if (strncmp(buf, "m2ua", len) == 0)
+		return bsc->m2ua_set;
+	return NULL;
+}
+
+static int inject_read_cb(struct bsc_fd *fd, unsigned int what)
+{
+	struct msgb *msg;
+	struct m2ua_msg_part *data, *link;
+	struct bsc_data *bsc;
+	struct m2ua_msg *m2ua;
+	struct mtp_link_set *out_set;
+	uint8_t buf[4096];
+
+	bsc = fd->data;
+
+	int rc = read(fd->fd, buf, sizeof(buf));
+	if (rc <= 0) {
+		LOGP(DINP, LOGL_ERROR, "Failed to read from the console.\n");
+		return -1;
+	}
+
+	m2ua = m2ua_from_msg(rc, buf);
+	if (!m2ua) {
+		LOGP(DINP, LOGL_ERROR, "Failed to parse M2UA.\n");
+		return -1;
+	}
+
+	if (m2ua->hdr.msg_class == M2UA_CLS_MAUP && m2ua->hdr.msg_type == M2UA_MAUP_DATA) {
+		data = m2ua_msg_find_tag(m2ua, M2UA_TAG_DATA);
+		if (!data) {
+			LOGP(DINP, LOGL_ERROR, "MAUP Data without data.\n");
+			goto exit;
+		}
+
+		if (data->len > 2048) {
+			LOGP(DINP, LOGL_ERROR, "Data is too big for this configuration.\n");
+			goto exit;
+		}
+
+		link = m2ua_msg_find_tag(m2ua, MUA_TAG_IDENT_TEXT);
+		if (!link) {
+			LOGP(DINP, LOGL_ERROR, "Interface Identifier Text is mandantory.\n");
+			goto exit;
+		}
+
+		if (link->len > 255) {
+			LOGP(DINP, LOGL_ERROR, "Spec violation. Ident text should be shorter than 255.\n");
+			goto exit;
+		}
+
+		out_set = find_link_set(bsc, link->len, (const char *) link->dat);
+		if (!out_set) {
+			LOGP(DINP, LOGL_ERROR, "Identified linkset does not exist.\n");
+			goto exit;
+		}
+
+		msg = msgb_alloc(2048, "inject-data");
+		if (!msg) {
+			LOGP(DINP, LOGL_ERROR, "Failed to allocate storage.\n");
+			goto exit;
+		}
+
+		msg->l2h = msgb_put(msg, data->len);
+		memcpy(msg->l2h, data->dat, data->len);
+
+		/* we are diretcly going to the output. no checking of anything  */
+		if (mtp_link_set_send(out_set, msg) != 0) {
+			LOGP(DINP, LOGL_ERROR, "Failed to send message.\n");
+			msgb_free(msg);
+		}
+	}
+
+exit:
+	m2ua_msg_free(m2ua);
+	return 0;
+}
+
+static int inject_init(struct bsc_data *bsc)
+{
+	int fd;
+	struct sockaddr_in addr;
+
+	fd = socket(PF_INET, SOCK_DGRAM, 0);
+	if (fd < 0)
+		return -1;
+
+	memset(&addr, 0, sizeof(addr));
+	addr.sin_family = AF_INET;
+	addr.sin_port = htons(5001);
+
+	if (bind(fd, (struct sockaddr *) &addr, sizeof(addr)) != 0) {
+		LOGP(DINP, LOGL_ERROR, "Failed to bind to port 5001.\n");
+		close(fd);
+		return -1;
+	}
+
+	bsc->inject_fd.fd = fd;
+	bsc->inject_fd.when = BSC_FD_READ;
+	bsc->inject_fd.cb = inject_read_cb;
+	bsc->inject_fd.data = bsc;
+
+	if (bsc_register_fd(&bsc->inject_fd) != 0) {
+		LOGP(DINP, LOGL_ERROR, "Failed to register.\n");
+		close(fd);
+		return -1;
+	}
+
+	return 0;
+}
+
 int main(int argc, char **argv)
 {
 	int rc;
@@ -241,6 +357,11 @@ int main(int argc, char **argv)
 	rc = telnet_init(NULL, NULL, 4242);
 	if (rc < 0)
 		return rc;
+
+	if (inject_init(&bsc) != 0) {
+		LOGP(DINP, LOGL_NOTICE, "Failed to initialize inject interface.\n");
+		return -1;
+	}
 
 	if (link_init(&bsc) != 0)
 		return -1;

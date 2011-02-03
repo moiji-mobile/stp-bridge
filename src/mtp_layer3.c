@@ -1,7 +1,7 @@
 /* MTP layer3 main handling code */
 /*
- * (C) 2010 by Holger Hans Peter Freyther <zecke@selfish.org>
- * (C) 2010 by On-Waves
+ * (C) 2010-2011 by Holger Hans Peter Freyther <zecke@selfish.org>
+ * (C) 2010-2011 by On-Waves
  * All Rights Reserved
  *
  * This program is free software: you can redistribute it and/or modify
@@ -522,6 +522,23 @@ int mtp_link_set_submit_isup_data(struct mtp_link_set *link, int sls,
 {
 	rate_ctr_inc(&link->ctrg->ctr[MTP_LSET_ISUP_OUT_MSG]);
 	return mtp_int_submit(link, link->isup_opc, sls, MTP_SI_MNT_ISUP, data, length);
+}
+
+int mtp_link_set_send(struct mtp_link_set *set, struct msgb *msg)
+{
+	int sls;
+	struct mtp_level_3_hdr *hdr;
+
+	if (msgb_l2len(msg) < sizeof(*hdr))
+		return -1;
+
+	hdr = (struct mtp_level_3_hdr *) msg->l2h;
+	sls = MTP_LINK_SLS(hdr->addr);
+	if (!set->slc[sls])
+		return -2;
+
+	mtp_link_submit(set->slc[sls], msg);
+	return 0;
 }
 
 static int mtp_int_submit(struct mtp_link_set *link, int pc, int sls, int type,
