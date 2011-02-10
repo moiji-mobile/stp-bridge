@@ -68,6 +68,12 @@ void mtp_link_set_forward_sccp(struct mtp_link_set *link, struct msgb *_msg, int
 	struct sccp_parse_result result;
 	struct bsc_msc_forward *fw = link->fw;
 
+	if (fw->forward_only) {
+		msc_send_direct(fw, _msg);
+		return;
+	}
+
+
 	rc = bss_patch_filter_msg(_msg, &result);
 	if (rc == BSS_FILTER_RESET) {
 		LOGP(DMSC, LOGL_NOTICE, "Filtering BSS Reset from the BSC\n");
