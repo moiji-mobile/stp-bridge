@@ -164,9 +164,11 @@ static int ipaccess_a_fd_cb(struct bsc_fd *bfd)
 		int rc;
 
 		/* we can not forward it right now */
-		if (fw->forward_only && fw->bsc->sccp_up) {
-			if (send_or_queue_bsc_msg(fw->bsc, -1, msg) != 1)
-				msgb_free(msg);
+		if (fw->forward_only) {
+			if (fw->bsc->sccp_up && send_or_queue_bsc_msg(fw->bsc, -1, msg) == 1)
+				return 0;
+
+			msgb_free(msg);
 			return 0;
 		}
 
