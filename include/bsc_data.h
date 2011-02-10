@@ -123,7 +123,6 @@ struct bsc_data {
 	int setup;
 	int pcap_fd;
 	int udp_reset_timeout;
-	struct mtp_link_set *m2ua_set;
 	struct llist_head links;
 
 	/* udp code */

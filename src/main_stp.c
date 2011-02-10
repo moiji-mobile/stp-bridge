@@ -305,6 +305,7 @@ int main(int argc, char **argv)
 	int rc;
 	struct mtp_link *data;
 	struct mtp_link_set *set;
+	struct mtp_link_set *m2ua_set;
 	struct mtp_m2ua_link *lnk;
 	INIT_LLIST_HEAD(&bsc.links);
 
@@ -368,28 +369,28 @@ int main(int argc, char **argv)
 		return -1;
 	llist_add(&set->entry, &bsc.links);
 
-	bsc.m2ua_set = mtp_link_set_alloc();
-	bsc.m2ua_set->dpc = 92;
-	bsc.m2ua_set->opc = 9;
-	bsc.m2ua_set->sccp_opc = 9;
-	bsc.m2ua_set->isup_opc = 9;
-	bsc.m2ua_set->ni = 3;
-	bsc.m2ua_set->bsc = &bsc;
-	bsc.m2ua_set->pcap_fd = bsc.pcap_fd;
-	bsc.m2ua_set->name = talloc_strdup(bsc.m2ua_set, "M2UA");
-	llist_add(&bsc.m2ua_set->entry, &bsc.links);
+	m2ua_set = mtp_link_set_alloc();
+	m2ua_set->dpc = 92;
+	m2ua_set->opc = 9;
+	m2ua_set->sccp_opc = 9;
+	m2ua_set->isup_opc = 9;
+	m2ua_set->ni = 3;
+	m2ua_set->bsc = &bsc;
+	m2ua_set->pcap_fd = bsc.pcap_fd;
+	m2ua_set->name = talloc_strdup(m2ua_set, "M2UA");
+	llist_add(&m2ua_set->entry, &bsc.links);
 
 	/* setup things */
 	set->pass_all_isup = bsc.isup_pass;
-	set->forward = bsc.m2ua_set;
-	bsc.m2ua_set->pass_all_isup = bsc.isup_pass;
-	bsc.m2ua_set->forward = set;
+	set->forward = m2ua_set;
+	m2ua_set->pass_all_isup = bsc.isup_pass;
+	m2ua_set->forward = set;
 
 	lnk = sctp_m2ua_transp_create("0.0.0.0", 2904);
 	lnk->base.pcap_fd = -1;
-	mtp_link_set_add_link(bsc.m2ua_set, (struct mtp_link *) lnk);
+	mtp_link_set_add_link(m2ua_set, (struct mtp_link *) lnk);
 
-	llist_for_each_entry(data, &bsc.m2ua_set->links, entry)
+	llist_for_each_entry(data, &m2ua_set->links, entry)
 		data->start(data);
 
         while (1) {
