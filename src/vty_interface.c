@@ -71,18 +71,18 @@ static int config_write_cell(struct vty *vty)
 	vty_out(vty, " mtp ni %d%s", bsc.ni_ni, VTY_NEWLINE);
 	vty_out(vty, " mtp spare %d%s", bsc.ni_spare, VTY_NEWLINE);
 	vty_out(vty, " mtp sltm once %d%s", bsc.once, VTY_NEWLINE);
-	vty_out(vty, " country-code %d%s", bsc.mcc, VTY_NEWLINE);
-	vty_out(vty, " network-code %d%s", bsc.mnc, VTY_NEWLINE);
-	vty_out(vty, " location-area-code %d%s", bsc.lac, VTY_NEWLINE);
+	vty_out(vty, " country-code %d%s", bsc.msc_forward.mcc, VTY_NEWLINE);
+	vty_out(vty, " network-code %d%s", bsc.msc_forward.mnc, VTY_NEWLINE);
+	vty_out(vty, " location-area-code %d%s", bsc.msc_forward.lac, VTY_NEWLINE);
 	if (bsc.udp_ip)
 		vty_out(vty, " udp dest ip %s%s", bsc.udp_ip, VTY_NEWLINE);
 	vty_out(vty, " udp dest port %d%s", bsc.udp_port, VTY_NEWLINE);
 	vty_out(vty, " udp src port %d%s", bsc.src_port, VTY_NEWLINE);
 	vty_out(vty, " udp reset %d%s", bsc.udp_reset_timeout, VTY_NEWLINE);
 	vty_out(vty, " udp number-links %d%s", bsc.udp_nr_links, VTY_NEWLINE);
-	vty_out(vty, " msc ip %s%s", bsc.msc_address, VTY_NEWLINE);
-	vty_out(vty, " msc ip-dscp %d%s", bsc.msc_ip_dscp, VTY_NEWLINE);
-	vty_out(vty, " msc token %s%s", bsc.token, VTY_NEWLINE);
+	vty_out(vty, " msc ip %s%s", bsc.msc_forward.msc_address, VTY_NEWLINE);
+	vty_out(vty, " msc ip-dscp %d%s", bsc.msc_forward.msc_ip_dscp, VTY_NEWLINE);
+	vty_out(vty, " msc token %s%s", bsc.msc_forward.token, VTY_NEWLINE);
 	vty_out(vty, " isup pass-through %d%s", bsc.isup_pass, VTY_NEWLINE);
 
 	return CMD_SUCCESS;
@@ -209,7 +209,7 @@ DEFUN(cfg_msc_ip, cfg_msc_ip_cmd,
 
 	addr = (struct in_addr *) hosts->h_addr_list[0];
 
-	bsc.msc_address = talloc_strdup(NULL, inet_ntoa(*addr));
+	bsc.msc_forward.msc_address = talloc_strdup(NULL, inet_ntoa(*addr));
 	return CMD_SUCCESS;
 }
 
@@ -218,7 +218,7 @@ DEFUN(cfg_msc_ip_dscp, cfg_msc_ip_dscp_cmd,
       "Set the IP DSCP on the A-link\n"
       "Set the DSCP in IP packets to the MSC")
 {
-	bsc.msc_ip_dscp = atoi(argv[0]);
+	bsc.msc_forward.msc_ip_dscp = atoi(argv[0]);
 	return CMD_SUCCESS;
 }
 
@@ -231,7 +231,7 @@ DEFUN(cfg_msc_token, cfg_msc_token_cmd,
       "msc token TOKEN",
       "Set the Token to be used for the MSC")
 {
-	bsc.token = talloc_strdup(NULL, argv[0]);
+	bsc.msc_forward.token = talloc_strdup(NULL, argv[0]);
 	return CMD_SUCCESS;
 }
 
@@ -239,7 +239,7 @@ DEFUN(cfg_ping_time, cfg_ping_time_cmd,
       "timeout ping NR",
       "Set the PING interval. Negative to disable it")
 {
-	bsc.ping_time = atoi(argv[0]);
+	bsc.msc_forward.ping_time = atoi(argv[0]);
 	return CMD_SUCCESS;
 }
 
@@ -247,7 +247,7 @@ DEFUN(cfg_pong_time, cfg_pong_time_cmd,
       "timeout pong NR",
       "Set the PING interval. Negative to disable it")
 {
-	bsc.pong_time = atoi(argv[0]);
+	bsc.msc_forward.pong_time = atoi(argv[0]);
 	return CMD_SUCCESS;
 }
 
@@ -255,21 +255,21 @@ DEFUN(cfg_msc_time, cfg_msc_time_cmd,
       "timeout msc NR",
       "Set the MSC connect timeout")
 {
-	bsc.msc_time = atoi(argv[0]);
+	bsc.msc_forward.msc_time = atoi(argv[0]);
 	return CMD_SUCCESS;
 }
 
-static void update_lai(struct bsc_data *bsc)
+static void update_lai(struct bsc_msc_forward *fw)
 {
-	gsm48_generate_lai(&bsc->lai, bsc->mcc, bsc->mnc, bsc->lac);
+	gsm48_generate_lai(&fw->lai, fw->mcc, fw->mnc, fw->lac);
 }
 
 DEFUN(cfg_mnc, cfg_mnc_cmd,
       "network-code NR",
       "Set the Mobile Network Code\n" "Number\n")
 {
-	bsc.mnc = atoi(argv[0]);
-	update_lai(&bsc);
+	bsc.msc_forward.mnc = atoi(argv[0]);
+	update_lai(&bsc.msc_forward);
 	return CMD_SUCCESS;
 }
 
@@ -277,8 +277,8 @@ DEFUN(cfg_mcc, cfg_mcc_cmd,
       "country-code NR",
       "Set the Mobile Country Code\n" "Number\n")
 {
-	bsc.mcc = atoi(argv[0]);
-	update_lai(&bsc);
+	bsc.msc_forward.mcc = atoi(argv[0]);
+	update_lai(&bsc.msc_forward);
 	return CMD_SUCCESS;
 }
 
@@ -286,8 +286,8 @@ DEFUN(cfg_lac, cfg_lac_cmd,
       "location-area-code NR",
       "Set the Location Area Code\n" "Number\n")
 {
-	bsc.lac = atoi(argv[0]);
-	update_lai(&bsc);
+	bsc.msc_forward.lac = atoi(argv[0]);
+	update_lai(&bsc.msc_forward);
 	return CMD_SUCCESS;
 }
 
@@ -372,8 +372,8 @@ DEFUN(show_msc, show_msc_cmd,
       SHOW_STR "Display the status of the MSC\n")
 {
 	vty_out(vty, "MSC link is %s and had %s.%s",
-		bsc.msc_link_down == 0 ? "up" : "down",
-		bsc.first_contact == 1 ? "no contact" : "contact",
+		bsc.msc_forward.msc_link_down == 0 ? "up" : "down",
+		bsc.msc_forward.first_contact == 1 ? "no contact" : "contact",
 		VTY_NEWLINE);
 	return CMD_SUCCESS;
 }

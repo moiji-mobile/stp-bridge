@@ -28,9 +28,7 @@
 
 #include <string.h>
 
-extern struct bsc_data bsc;
-
-struct active_sccp_con *find_con_by_dest_ref(struct sccp_source_reference *ref)
+struct active_sccp_con *find_con_by_dest_ref(struct bsc_msc_forward *fw, struct sccp_source_reference *ref)
 {
 	struct active_sccp_con *con;
 
@@ -39,7 +37,7 @@ struct active_sccp_con *find_con_by_dest_ref(struct sccp_source_reference *ref)
 		return NULL;
 	}
 
-	llist_for_each_entry(con, &bsc.sccp_connections, entry) {
+	llist_for_each_entry(con, &fw->sccp_connections, entry) {
 		if (memcmp(&con->dst_ref, ref, sizeof(*ref)) == 0)
 			return con;
 	}
@@ -49,7 +47,7 @@ struct active_sccp_con *find_con_by_dest_ref(struct sccp_source_reference *ref)
 }
 
 
-struct active_sccp_con *find_con_by_src_ref(struct sccp_source_reference *src_ref)
+struct active_sccp_con *find_con_by_src_ref(struct bsc_msc_forward *fw, struct sccp_source_reference *src_ref)
 {
 	struct active_sccp_con *con;
 
@@ -57,7 +55,7 @@ struct active_sccp_con *find_con_by_src_ref(struct sccp_source_reference *src_re
 	if (!src_ref)
 		return NULL;
 
-	llist_for_each_entry(con, &bsc.sccp_connections, entry) {
+	llist_for_each_entry(con, &fw->sccp_connections, entry) {
 		if (memcmp(&con->src_ref, src_ref, sizeof(*src_ref)) == 0)
 			return con;
 	}
@@ -65,12 +63,13 @@ struct active_sccp_con *find_con_by_src_ref(struct sccp_source_reference *src_re
 	return NULL;
 }
 
-struct active_sccp_con *find_con_by_src_dest_ref(struct sccp_source_reference *src_ref,
+struct active_sccp_con *find_con_by_src_dest_ref(struct bsc_msc_forward *fw,
+						 struct sccp_source_reference *src_ref,
 						 struct sccp_source_reference *dst_ref)
 {
 	struct active_sccp_con *con;
 
-	llist_for_each_entry(con, &bsc.sccp_connections, entry) {
+	llist_for_each_entry(con, &fw->sccp_connections, entry) {
 		if (memcmp(src_ref, &con->src_ref, sizeof(*src_ref)) == 0 &&
 		    memcmp(dst_ref, &con->dst_ref, sizeof(*dst_ref)) == 0) {
 			return con;
@@ -80,11 +79,11 @@ struct active_sccp_con *find_con_by_src_dest_ref(struct sccp_source_reference *s
 	return NULL;
 }
 
-unsigned int sls_for_src_ref(struct sccp_source_reference *ref)
+unsigned int sls_for_src_ref(struct bsc_msc_forward *fw, struct sccp_source_reference *ref)
 {
 	struct active_sccp_con *con;
 
-	con = find_con_by_src_ref(ref);
+	con = find_con_by_src_ref(fw, ref);
 	if (!con)
 		return -1;
 	return con->sls;

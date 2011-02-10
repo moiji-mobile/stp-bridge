@@ -65,19 +65,19 @@ struct bsc_data bsc;
 extern void cell_vty_init(void);
 
 static void send_reset_ack(struct mtp_link_set *link, int sls);
-static void bsc_resources_released(struct bsc_data *bsc);
+static void bsc_resources_released(struct bsc_msc_forward *bsc);
 static void handle_local_sccp(struct mtp_link_set *link, struct msgb *inp, struct sccp_parse_result *res, int sls);
-static void clear_connections(struct bsc_data *bsc);
+static void clear_connections(struct bsc_msc_forward *bsc);
 static void send_local_rlsd(struct mtp_link_set *link, struct sccp_parse_result *res);
 
 /* send a RSIP to the MGCP GW */
-static void mgcp_reset(struct bsc_data *bsc)
+static void mgcp_reset(struct bsc_msc_forward *fw)
 {
         static const char mgcp_reset[] = {
             "RSIP 1 13@mgw MGCP 1.0\r\n"
         };
 
-	mgcp_forward(bsc, (const uint8_t *) mgcp_reset, strlen(mgcp_reset));
+	mgcp_forward(fw, (const uint8_t *) mgcp_reset, strlen(mgcp_reset));
 }
 
 /*
@@ -87,21 +87,22 @@ void mtp_link_set_forward_sccp(struct mtp_link_set *link, struct msgb *_msg, int
 {
 	int rc;
 	struct sccp_parse_result result;
+	struct bsc_msc_forward *fw = link->fw;
 
 	rc = bss_patch_filter_msg(_msg, &result);
 	if (rc == BSS_FILTER_RESET) {
 		LOGP(DMSC, LOGL_NOTICE, "Filtering BSS Reset from the BSC\n");
-		mgcp_reset(&bsc);
+		mgcp_reset(fw);
 		send_reset_ack(link, sls);
 		return;
 	}
 
 	/* special responder */
-	if (bsc.msc_link_down) {
-		if (rc == BSS_FILTER_RESET_ACK && bsc.reset_count > 0) {
+	if (fw->msc_link_down) {
+		if (rc == BSS_FILTER_RESET_ACK && fw->reset_count > 0) {
 			LOGP(DMSC, LOGL_ERROR, "Received reset ack for closing.\n");
-			clear_connections(&bsc);
-			bsc_resources_released(&bsc);
+			clear_connections(fw);
+			bsc_resources_released(fw);
 			return;
 		}
 
@@ -114,7 +115,7 @@ void mtp_link_set_forward_sccp(struct mtp_link_set *link, struct msgb *_msg, int
 	}
 
 	/* update the connection state */
-	update_con_state(link, rc, &result, _msg, 0, sls);
+	update_con_state(link->fw, rc, &result, _msg, 0, sls);
 
 	if (rc == BSS_FILTER_CLEAR_COMPL) {
 		send_local_rlsd(link, &result);
@@ -124,7 +125,7 @@ void mtp_link_set_forward_sccp(struct mtp_link_set *link, struct msgb *_msg, int
 	}
 
 
-	msc_send_msg(&bsc, rc, &result, _msg);
+	msc_send_msg(fw, rc, &result, _msg);
 }
 
 void mtp_link_set_forward_isup(struct mtp_link_set *set, struct msgb *msg, int sls)
@@ -160,7 +161,7 @@ static void handle_local_sccp(struct mtp_link_set *link, struct msgb *inpt, stru
 
 			form1 = (struct sccp_data_form1 *) inpt->l2h;
 
-			llist_for_each_entry(con, &bsc.sccp_connections, entry) {
+			llist_for_each_entry(con, &link->fw->sccp_connections, entry) {
 				if (memcmp(&form1->destination_local_reference,
 					   &con->dst_ref, sizeof(con->dst_ref)) == 0) {
 					LOGP(DINP, LOGL_DEBUG, "Sending a release request now.\n");
@@ -178,60 +179,60 @@ static void handle_local_sccp(struct mtp_link_set *link, struct msgb *inpt, stru
 	} else if (inpt->l2h[0] == SCCP_MSG_TYPE_UDT && result->data_len >= 3) {
 		if (inpt->l3h[0] == 0 && inpt->l3h[2] == BSS_MAP_MSG_RESET_ACKNOWLEDGE) {
 			LOGP(DINP, LOGL_NOTICE, "Reset ACK. Connecting to the MSC again.\n");
-			bsc_resources_released(&bsc);
+			bsc_resources_released(link->fw);
 			return;
 		}
 	}
 
 
 	/* Update the state, maybe the connection was released? */
-	update_con_state(link, 0, result, inpt, 0, sls);
-	if (llist_empty(&bsc.sccp_connections))
-		bsc_resources_released(&bsc);
+	update_con_state(link->fw, 0, result, inpt, 0, sls);
+	if (llist_empty(&link->fw->sccp_connections))
+		bsc_resources_released(link->fw);
 	return;
 }
 
-static void clear_connections(struct bsc_data *bsc)
+static void clear_connections(struct bsc_msc_forward *fw)
 {
 	struct active_sccp_con *tmp, *con;
 
-	llist_for_each_entry_safe(con, tmp, &bsc->sccp_connections, entry) {
+	llist_for_each_entry_safe(con, tmp, &fw->sccp_connections, entry) {
 		free_con(con);
 	}
 
-	link_clear_all(bsc->link_set);
+	link_clear_all(fw->bsc);
 }
 
-void bsc_resources_released(struct bsc_data *bsc)
+void bsc_resources_released(struct bsc_msc_forward *fw)
 {
-	bsc_del_timer(&bsc->reset_timeout);
+	bsc_del_timer(&fw->reset_timeout);
 }
 
 static void bsc_reset_timeout(void *_data)
 {
 	struct msgb *msg;
-	struct bsc_data *bsc = (struct bsc_data *) _data;
+	struct bsc_msc_forward *fw = _data;
 
 	/* no reset */
-	if (bsc->reset_count > 0) {
+	if (fw->reset_count > 0) {
 		LOGP(DINP, LOGL_ERROR, "The BSC did not answer the GSM08.08 reset. Restart MTP\n");
-		mtp_link_set_stop(bsc->link_set);
-		clear_connections(bsc);
-		link_reset_all(bsc->link_set);
-		bsc_resources_released(bsc);
+		mtp_link_set_stop(fw->bsc);
+		clear_connections(fw);
+		link_reset_all(fw->bsc);
+		bsc_resources_released(fw);
 		return;
 	}
 
 	msg = create_reset();
 	if (!msg) {
-		bsc_schedule_timer(&bsc->reset_timeout, 10, 0);
+		bsc_schedule_timer(&fw->reset_timeout, 10, 0);
 		return;
 	}
 
-	++bsc->reset_count;
-	mtp_link_set_submit_sccp_data(bsc->link_set, -1, msg->l2h, msgb_l2len(msg));
+	++fw->reset_count;
+	mtp_link_set_submit_sccp_data(fw->bsc, -1, msg->l2h, msgb_l2len(msg));
 	msgb_free(msg);
-	bsc_schedule_timer(&bsc->reset_timeout, 20, 0);
+	bsc_schedule_timer(&fw->reset_timeout, 20, 0);
 }
 
 /*
@@ -252,18 +253,18 @@ static void bsc_reset_timeout(void *_data)
  * MTP link is going down while we are sending. We will simply
  * reconnect to the MSC.
  */
-void release_bsc_resources(struct bsc_data *bsc)
+void release_bsc_resources(struct bsc_msc_forward *fw)
 {
 	struct active_sccp_con *tmp;
 	struct active_sccp_con *con;
 
-	bsc_del_timer(&bsc->reset_timeout);
+	bsc_del_timer(&fw->reset_timeout);
 
 	/* 2. clear the MGCP endpoints */
-	mgcp_reset(bsc);
+	mgcp_reset(fw);
 
 	/* 1. send BSSMAP Cleanup.. if we have any connection */
-	llist_for_each_entry_safe(con, tmp, &bsc->sccp_connections, entry) {
+	llist_for_each_entry_safe(con, tmp, &fw->sccp_connections, entry) {
 		if (!con->has_dst_ref) {
 			free_con(con);
 			continue;
@@ -274,18 +275,18 @@ void release_bsc_resources(struct bsc_data *bsc)
 			continue;
 
 		/* wait for the clear commands */
-		mtp_link_set_submit_sccp_data(bsc->link_set, con->sls, msg->l2h, msgb_l2len(msg));
+		mtp_link_set_submit_sccp_data(fw->bsc, con->sls, msg->l2h, msgb_l2len(msg));
 		msgb_free(msg);
 	}
 
-	if (llist_empty(&bsc->sccp_connections)) {
-		bsc_resources_released(bsc);
+	if (llist_empty(&fw->sccp_connections)) {
+		bsc_resources_released(fw);
 	} else {
 		/* Send a reset in 20 seconds if we fail to bring everything down */
-		bsc->reset_timeout.cb = bsc_reset_timeout;
-		bsc->reset_timeout.data = bsc;
-		bsc->reset_count = 0;
-		bsc_schedule_timer(&bsc->reset_timeout, 10, 0);
+		fw->reset_timeout.cb = bsc_reset_timeout;
+		fw->reset_timeout.data = fw;
+		fw->reset_count = 0;
+		bsc_schedule_timer(&fw->reset_timeout, 10, 0);
 	}
 }
 
@@ -293,11 +294,11 @@ void mtp_linkset_down(struct mtp_link_set *set)
 {
 	set->available = 0;
 	mtp_link_set_stop(set);
-	clear_connections(set->bsc);
-	mgcp_reset(set->bsc);
+	clear_connections(set->fw);
+	mgcp_reset(set->fw);
 
 	/* If we have an A link send a reset to the MSC */
-	msc_send_reset(set->bsc);
+	msc_send_reset(set->fw);
 }
 
 void mtp_linkset_up(struct mtp_link_set *set)
@@ -305,9 +306,9 @@ void mtp_linkset_up(struct mtp_link_set *set)
 	set->available = 1;
 
 	/* we have not gone through link down */
-	if (set->bsc->msc_link_down) {
-		clear_connections(set->bsc);
-		bsc_resources_released(set->bsc);
+	if (set->fw->msc_link_down) {
+		clear_connections(set->fw);
+		bsc_resources_released(set->fw);
 	}
 
 	mtp_link_set_reset(set);
@@ -328,13 +329,13 @@ static void send_rlc_to_bsc(unsigned int sls, struct sccp_source_reference *src,
 	msgb_free(msg);
 }
 
-static void handle_rlsd(struct sccp_connection_released *rlsd, int from_msc)
+static void handle_rlsd(struct bsc_msc_forward *fw, struct sccp_connection_released *rlsd, int from_msc)
 {
 	struct active_sccp_con *con;
 
 	if (from_msc) {
 		/* search for a connection, reverse src/dest for MSC */
-		con = find_con_by_src_dest_ref(&rlsd->destination_local_reference,
+		con = find_con_by_src_dest_ref(fw, &rlsd->destination_local_reference,
 					       &rlsd->source_local_reference);
 		if (con) {
 			LOGP(DINP, LOGL_DEBUG, "RLSD conn still alive: local: 0x%x remote: 0x%x\n",
@@ -346,19 +347,19 @@ static void handle_rlsd(struct sccp_connection_released *rlsd, int from_msc)
 			LOGP(DINP, LOGL_DEBUG, "Sending RLC for MSC: src: 0x%x dst: 0x%x\n",
 			     sccp_src_ref_to_int(&rlsd->destination_local_reference),
 			     sccp_src_ref_to_int(&rlsd->source_local_reference));
-			msc_send_rlc(&bsc, &rlsd->destination_local_reference,
+			msc_send_rlc(fw, &rlsd->destination_local_reference,
 				 &rlsd->source_local_reference);
 		}
 	} else {
 		unsigned int sls = -1;
-		con = find_con_by_src_dest_ref(&rlsd->source_local_reference,
+		con = find_con_by_src_dest_ref(fw, &rlsd->source_local_reference,
 					       &rlsd->destination_local_reference);
 		if (con) {
 			LOGP(DINP, LOGL_DEBUG, "Timeout on BSC. Sending RLC. src: 0x%x\n",
 			     sccp_src_ref_to_int(&rlsd->source_local_reference));
 
 			if (con->released_from_msc)
-				msc_send_rlc(&bsc, &con->src_ref, &con->dst_ref);
+				msc_send_rlc(fw, &con->src_ref, &con->dst_ref);
 			sls = con->sls;
 			free_con(con);
 		} else {
@@ -385,7 +386,7 @@ static void handle_rlsd(struct sccp_connection_released *rlsd, int from_msc)
  *      1.) We are destroying the connection, we might send a RLC to
  *          the MSC if we are waiting for one.
  */
-void update_con_state(struct mtp_link_set *link, int rc, struct sccp_parse_result *res, struct msgb *msg, int from_msc, int sls)
+void update_con_state(struct bsc_msc_forward *fw, int rc, struct sccp_parse_result *res, struct msgb *msg, int from_msc, int sls)
 {
 	struct active_sccp_con *con;
 	struct sccp_connection_request *cr;
@@ -406,7 +407,7 @@ void update_con_state(struct mtp_link_set *link, int rc, struct sccp_parse_resul
 		}
 
 		cr = (struct sccp_connection_request *) msg->l2h;
-		con = find_con_by_src_ref(&cr->source_local_reference);
+		con = find_con_by_src_ref(fw, &cr->source_local_reference);
 		if (con) {
 			LOGP(DINP, LOGL_ERROR, "Duplicate SRC reference for: 0x%x. Reusing\n",
 				sccp_src_ref_to_int(&con->src_ref));
@@ -421,8 +422,8 @@ void update_con_state(struct mtp_link_set *link, int rc, struct sccp_parse_resul
 
 		con->src_ref = cr->source_local_reference;
 		con->sls = sls;
-		con->link = link;
-		llist_add_tail(&con->entry, &bsc.sccp_connections);
+		con->link = fw->bsc;
+		llist_add_tail(&con->entry, &fw->sccp_connections);
 		LOGP(DINP, LOGL_DEBUG, "Adding CR: local ref: 0x%x\n", sccp_src_ref_to_int(&con->src_ref));
 		break;
 	case SCCP_MSG_TYPE_CC:
@@ -432,7 +433,7 @@ void update_con_state(struct mtp_link_set *link, int rc, struct sccp_parse_resul
 		}
 
 		cc = (struct sccp_connection_confirm *) msg->l2h;
-		con = find_con_by_src_ref(&cc->destination_local_reference);
+		con = find_con_by_src_ref(fw, &cc->destination_local_reference);
 		if (con) {
 			con->dst_ref = cc->source_local_reference;
 			con->has_dst_ref = 1;
@@ -451,7 +452,7 @@ void update_con_state(struct mtp_link_set *link, int rc, struct sccp_parse_resul
 		}
 
 		cref = (struct sccp_connection_refused *) msg->l2h;
-		con = find_con_by_src_ref(&cref->destination_local_reference);
+		con = find_con_by_src_ref(fw, &cref->destination_local_reference);
 		if (con) {
 			LOGP(DINP, LOGL_DEBUG, "Releasing local: 0x%x\n", sccp_src_ref_to_int(&con->src_ref));
 			free_con(con);
@@ -461,7 +462,7 @@ void update_con_state(struct mtp_link_set *link, int rc, struct sccp_parse_resul
 		LOGP(DINP, LOGL_ERROR, "CREF from BSC is not handled.\n");
 		break;
 	case SCCP_MSG_TYPE_RLSD:
-		handle_rlsd((struct sccp_connection_released *) msg->l2h, from_msc);
+		handle_rlsd(fw, (struct sccp_connection_released *) msg->l2h, from_msc);
 		break;
 	case SCCP_MSG_TYPE_RLC:
 		if (from_msc) {
@@ -470,12 +471,12 @@ void update_con_state(struct mtp_link_set *link, int rc, struct sccp_parse_resul
 		}
 
 		rlc = (struct sccp_connection_release_complete *) msg->l2h;
-		con = find_con_by_src_dest_ref(&rlc->source_local_reference,
+		con = find_con_by_src_dest_ref(fw, &rlc->source_local_reference,
 					       &rlc->destination_local_reference);
 		if (con) {
 			LOGP(DINP, LOGL_DEBUG, "Releasing local: 0x%x\n", sccp_src_ref_to_int(&con->src_ref));
 			if (con->released_from_msc)
-				msc_send_rlc(&bsc, &con->src_ref, &con->dst_ref);
+				msc_send_rlc(fw, &con->src_ref, &con->dst_ref);
 			free_con(con);
 			return;
 		}
@@ -505,7 +506,7 @@ static void send_local_rlsd_for_con(void *data)
 	++con->rls_tries;
 	LOGP(DINP, LOGL_DEBUG, "Sending RLSD for 0x%x the %d time.\n",
 	     sccp_src_ref_to_int(&con->src_ref), con->rls_tries);
-	mtp_link_set_submit_sccp_data(bsc.link_set, con->sls, rlsd->l2h, msgb_l2len(rlsd));
+	mtp_link_set_submit_sccp_data(con->link, con->sls, rlsd->l2h, msgb_l2len(rlsd));
 	msgb_free(rlsd);
 }
 
@@ -515,7 +516,7 @@ static void send_local_rlsd(struct mtp_link_set *link, struct sccp_parse_result 
 
 	LOGP(DINP, LOGL_DEBUG, "Received GSM Clear Complete. Sending RLSD locally.\n");
 
-	con = find_con_by_dest_ref(res->destination_local_reference);
+	con = find_con_by_dest_ref(link->fw, res->destination_local_reference);
 	if (!con)
 		return;
 	con->rls_tries = 0;
@@ -562,7 +563,7 @@ out:
 static void sigusr2()
 {
 	printf("Closing the MSC connection on demand.\n");
-	msc_close_connection(&bsc);
+	msc_close_connection(&bsc.msc_forward);
 }
 
 static void print_help()
@@ -621,10 +622,21 @@ static void handle_options(int argc, char **argv)
 	}
 }
 
+static void bsc_msc_forward_init(struct bsc_data *bsc,
+				 struct bsc_msc_forward *msc)
+{
+	INIT_LLIST_HEAD(&msc->sccp_connections);
+
+	msc->bsc_data = bsc;
+	msc->msc_address = "127.0.0.1";
+	msc->ping_time = 20;
+	msc->pong_time = 5;
+	msc->msc_time = 20;
+}
+
 int main(int argc, char **argv)
 {
 	int rc;
-	INIT_LLIST_HEAD(&bsc.sccp_connections);
 
 	bsc.app = APP_CELLMGR;
 	bsc.dpc = 1;
@@ -637,6 +649,9 @@ int main(int argc, char **argv)
 	bsc.src_port = 1313;
 	bsc.ni_ni = MTP_NI_NATION_NET;
 	bsc.ni_spare = 0;
+	bsc.setup = 0;
+	bsc.pcap_fd = -1;
+	bsc.udp_reset_timeout = 180;
 
 	mtp_link_set_init();
 	thread_init();
@@ -656,13 +671,8 @@ int main(int argc, char **argv)
 
 	sccp_set_log_area(DSCCP);
 
-	bsc.setup = 0;
-	bsc.msc_address = "127.0.0.1";
-	bsc.pcap_fd = -1;
-	bsc.udp_reset_timeout = 180;
-	bsc.ping_time = 20;
-	bsc.pong_time = 5;
-	bsc.msc_time = 20;
+	/* msc data */
+	bsc_msc_forward_init(&bsc, &bsc.msc_forward);
 
 	handle_options(argc, argv);
 
@@ -683,6 +693,8 @@ int main(int argc, char **argv)
 
 	if (link_init(&bsc) != 0)
 		return -1;
+	bsc.link_set->fw = &bsc.msc_forward;
+	bsc.msc_forward.bsc = bsc.link_set;
 
         while (1) {
 		bsc_select_main(0);

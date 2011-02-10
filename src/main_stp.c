@@ -305,7 +305,6 @@ int main(int argc, char **argv)
 	int rc;
 	struct mtp_link *data;
 	struct mtp_m2ua_link *lnk;
-	INIT_LLIST_HEAD(&bsc.sccp_connections);
 
 	bsc.app = APP_STP;
 	bsc.dpc = 1;
@@ -318,6 +317,9 @@ int main(int argc, char **argv)
 	bsc.ni_ni = MTP_NI_NATION_NET;
 	bsc.ni_spare = 0;
 	bsc.udp_nr_links = 1;
+	bsc.setup = 0;
+	bsc.pcap_fd = -1;
+	bsc.udp_reset_timeout = 180;
 
 	mtp_link_set_init();
 	thread_init();
@@ -337,15 +339,6 @@ int main(int argc, char **argv)
 
 	sccp_set_log_area(DSCCP);
 	m2ua_set_log_area(DM2UA);
-
-	bsc.setup = 0;
-	bsc.msc_address = "127.0.0.1";
-	bsc.pcap_fd = -1;
-	bsc.udp_reset_timeout = 180;
-	bsc.ping_time = 20;
-	bsc.pong_time = 5;
-	bsc.msc_time = 20;
-	bsc.forward_only = 1;
 
 	handle_options(argc, argv);
 
@@ -403,7 +396,7 @@ int main(int argc, char **argv)
 }
 
 /* dummy for links */
-int msc_init(struct bsc_data *data, int dummy)
+int msc_init(struct bsc_msc_forward *data, int dummy)
 {
 	return 0;
 }

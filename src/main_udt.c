@@ -69,7 +69,7 @@ extern void cell_vty_init(void);
  */
 void mtp_link_set_forward_sccp(struct mtp_link_set *link, struct msgb *_msg, int sls)
 {
-	msc_send_direct(&bsc, _msg);
+	msc_send_direct(link->fw, _msg);
 }
 
 void mtp_link_set_forward_isup(struct mtp_link_set *set, struct msgb *msg, int sls)
@@ -83,7 +83,7 @@ void mtp_linkset_down(struct mtp_link_set *set)
 	mtp_link_set_stop(set);
 
 	/* If we have an A link send a reset to the MSC */
-	msc_send_reset(set->bsc);
+	msc_send_reset(set->fw);
 }
 
 void mtp_linkset_up(struct mtp_link_set *set)
@@ -121,7 +121,7 @@ out:
 static void sigusr2()
 {
 	printf("Closing the MSC connection on demand.\n");
-	msc_close_connection(&bsc);
+	msc_close_connection(&bsc.msc_forward);
 }
 
 static void print_help()
@@ -180,10 +180,21 @@ static void handle_options(int argc, char **argv)
 	}
 }
 
+static void bsc_msc_forward_init(struct bsc_data *bsc,
+				 struct bsc_msc_forward *msc)
+{
+	INIT_LLIST_HEAD(&msc->sccp_connections);
+
+	msc->bsc_data = bsc;
+	msc->msc_address = "127.0.0.1";
+	msc->ping_time = 20;
+	msc->pong_time = 5;
+	msc->msc_time = 20;
+}
+
 int main(int argc, char **argv)
 {
 	int rc;
-	INIT_LLIST_HEAD(&bsc.sccp_connections);
 
 	bsc.app = APP_RELAY;
 	bsc.dpc = 1;
@@ -196,6 +207,9 @@ int main(int argc, char **argv)
 	bsc.ni_ni = MTP_NI_NATION_NET;
 	bsc.ni_spare = 0;
 	bsc.udp_nr_links = 1;
+	bsc.setup = 0;
+	bsc.pcap_fd = -1;
+	bsc.udp_reset_timeout = 180;
 
 	mtp_link_set_init();
 	thread_init();
@@ -216,14 +230,8 @@ int main(int argc, char **argv)
 	sccp_set_log_area(DSCCP);
 	m2ua_set_log_area(DM2UA);
 
-	bsc.setup = 0;
-	bsc.msc_address = "127.0.0.1";
-	bsc.pcap_fd = -1;
-	bsc.udp_reset_timeout = 180;
-	bsc.ping_time = 20;
-	bsc.pong_time = 5;
-	bsc.msc_time = 20;
-	bsc.forward_only = 1;
+	/* msc data */
+	bsc_msc_forward_init(&bsc, &bsc.msc_forward);
 
 	handle_options(argc, argv);
 
@@ -244,6 +252,8 @@ int main(int argc, char **argv)
 
 	if (link_init(&bsc) != 0)
 		return -1;
+	bsc.link_set->fw = &bsc.msc_forward;
+	bsc.msc_forward.bsc = bsc.link_set;
 
         while (1) {
 		bsc_select_main(0);
@@ -252,11 +262,12 @@ int main(int argc, char **argv)
 	return 0;
 }
 
-void release_bsc_resources(struct bsc_data *bsc)
+void release_bsc_resources(struct bsc_msc_forward *fw)
 {
 }
 
-struct msgb *create_sccp_rlc(struct sccp_source_reference *src_ref,
+struct msgb *create_sccp_rlc(struct bsc_msc_forward *fw,
+			     struct sccp_source_reference *src_ref,
 			     struct sccp_source_reference *dst)
 {
 	LOGP(DMSC, LOGL_NOTICE, "Refusing to create connection handling.\n");
@@ -269,13 +280,13 @@ struct msgb *create_reset()
 	return NULL;
 }
 
-void update_con_state(struct mtp_link_set *link, int rc, struct sccp_parse_result *res, struct msgb *msg, int from_msc, int sls)
+void update_con_state(struct bsc_msc_forward *fw, int rc, struct sccp_parse_result *res, struct msgb *msg, int from_msc, int sls)
 {
 	LOGP(DMSC, LOGL_ERROR, "Should not be called.\n");
 	return;
 }
 
-unsigned int sls_for_src_ref(struct sccp_source_reference *ref)
+unsigned int sls_for_src_ref(struct bsc_msc_forward *fw, struct sccp_source_reference *ref)
 {
 	return 13;
 }
