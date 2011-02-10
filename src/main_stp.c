@@ -206,6 +206,11 @@ static int inject_read_cb(struct bsc_fd *fd, unsigned int what)
 		return -1;
 	}
 
+	if (!bsc->allow_inject) {
+		LOGP(DINP, LOGL_ERROR, "Injecting messages is not allowed.\n");
+		return -1;
+	}
+
 	m2ua = m2ua_from_msg(rc, buf);
 	if (!m2ua) {
 		LOGP(DINP, LOGL_ERROR, "Failed to parse M2UA.\n");

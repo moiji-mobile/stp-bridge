@@ -516,7 +516,13 @@ DEFUN(lnk_reset, lnk_reset_cmd,
 	return CMD_SUCCESS;
 }
 
-
+DEFUN(allow_inject, allow_inject_cmd,
+      "allow-inject (0|1)",
+      "Allow to inject messages\n" "Disable\n" "Enable\n")
+{
+	bsc.allow_inject = atoi(argv[0]);
+	return CMD_SUCCESS;
+}
 
 void cell_vty_init(void)
 {
@@ -556,6 +562,7 @@ void cell_vty_init(void)
 	install_element(ENABLE_NODE, &lnk_block_cmd);
 	install_element(ENABLE_NODE, &lnk_unblock_cmd);
 	install_element(ENABLE_NODE, &lnk_reset_cmd);
+	install_element(ENABLE_NODE, &allow_inject_cmd);
 
 	/* show commands */
 	install_element_ve(&show_stats_cmd);

@@ -136,6 +136,7 @@ struct bsc_data {
 	int forward_only;
 
 	/* inject */
+	int allow_inject;
 	struct bsc_fd inject_fd;
 	struct llist_head inject_list;
 };
