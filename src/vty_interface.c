@@ -297,20 +297,21 @@ DEFUN(cfg_isup_pass, cfg_isup_pass_cmd,
       "Pass through all ISUP messages directly\n"
       "Handle some messages locally\n" "Pass through everything\n")
 {
+	struct mtp_link_set *set;
+
 	bsc.isup_pass = atoi(argv[0]);
-	if (bsc.m2ua_set)
-		bsc.m2ua_set->pass_all_isup = bsc.isup_pass;
-	if (bsc.link_set)
-		bsc.link_set->pass_all_isup = bsc.isup_pass;
+
+	llist_for_each_entry(set, &bsc.links, entry)
+		set->pass_all_isup = bsc.isup_pass;
 
 	return CMD_SUCCESS;
 }
 
-static void dump_stats(struct vty *vty, const char *name, struct mtp_link_set *set)
+static void dump_stats(struct vty *vty, struct mtp_link_set *set)
 {
 	struct mtp_link *link;
 
-	vty_out(vty, "Linkset name: %s opc: %d%s", name, set->opc, VTY_NEWLINE);
+	vty_out(vty, "Linkset name: %s opc: %d%s", set->name, set->opc, VTY_NEWLINE);
 	vty_out_rate_ctr_group(vty, " ", set->ctrg);
 
 	llist_for_each_entry(link, &set->links, entry) {
@@ -323,24 +324,25 @@ DEFUN(show_stats, show_stats_cmd,
       "show statistics",
       SHOW_STR "Display Linkset statistics\n")
 {
-	if (bsc.link_set)
-		dump_stats(vty, "MTP ", bsc.link_set);
-	if (bsc.m2ua_set && bsc.app == APP_STP)
-		dump_stats(vty, "M2UA", bsc.m2ua_set);
+	struct mtp_link_set *set;
+
+	llist_for_each_entry(set, &bsc.links, entry)
+		dump_stats(vty, set);
+
 	return CMD_SUCCESS;
 }
 
-static void dump_state(struct vty *vty, const char *name, struct mtp_link_set *set)
+static void dump_state(struct vty *vty, struct mtp_link_set *set)
 {
 	struct mtp_link *link;
 
 	if (!set) {
-		vty_out(vty, "LinkSet for %s is not configured.%s", name, VTY_NEWLINE);
+		vty_out(vty, "LinkSet for %s is not configured.%s", set->name, VTY_NEWLINE);
 		return;
 	}
 
 	vty_out(vty, "LinkSet for %s is %s, remote sccp is %s.%s",
-		name,
+		set->name,
 		set->available == 0 ? "not available" : "available",
 		set->sccp_up == 0? "not established" : "established",
 		VTY_NEWLINE);
@@ -361,9 +363,10 @@ DEFUN(show_linksets, show_linksets_cmd,
       "show link-sets",
       SHOW_STR "Display current state of linksets\n")
 {
-	dump_state(vty, "MTP ", bsc.link_set);
-	if (bsc.app == APP_STP)
-		dump_state(vty, "M2UA", bsc.m2ua_set);
+	struct mtp_link_set *set;
+
+	llist_for_each_entry(set, &bsc.links, entry)
+		dump_state(vty, set);
 	return CMD_SUCCESS;
 }
 
@@ -378,17 +381,26 @@ DEFUN(show_msc, show_msc_cmd,
 	return CMD_SUCCESS;
 }
 
+static struct mtp_link_set *find_link_set(struct llist_head *head,
+					  const char *name)
+{
+	struct mtp_link_set *set;
+
+	llist_for_each_entry(set, head, entry)
+		if (strcmp(name, set->name) == 0)
+			return set;
+
+	return NULL;
+}
+
 DEFUN(show_slc, show_slc_cmd,
-      "show link-set (mtp|m2ua) slc",
-      SHOW_STR "LinkSet\n" "MTP Linkset\n" "M2UA LinkSet\n" "SLS to SLC\n")
+      "show link-set NAME slc",
+      SHOW_STR "LinkSet\n" "Linkset name\n" "SLS to SLC\n")
 {
 	struct mtp_link_set *set = NULL;
 	int i;
 
-	if (bsc.link_set && strcmp(argv[0], "mtp") == 0)
-		set = bsc.link_set;
-	else if (bsc.m2ua_set && strcmp(argv[0], "m2ua") == 0)
-		set = bsc.m2ua_set;
+	set = find_link_set(&bsc.links, argv[0]);
 
 	if (!set) {
 		vty_out(vty, "Failed to find linkset.%s", VTY_NEWLINE);
@@ -409,16 +421,13 @@ DEFUN(show_slc, show_slc_cmd,
 }
 
 DEFUN(pcap_set, pcap_set_cmd,
-      "trace-pcap set (m2ua|mtp) FILE",
+      "trace-pcap set NAME FILE",
       "Trace to a PCAP file\n" "Trace a linkset\n"
-      "Trace m2ua linkset\n" "Trace mtp linkset\n" "Filename to trace\n")
+      "Trace Linkset\n" "Filename to trace\n")
 {
 	struct mtp_link_set *set = NULL;
 
-	if (bsc.link_set && strcmp(argv[0], "mtp") == 0)
-		set = bsc.link_set;
-	else if (bsc.m2ua_set && strcmp(argv[0], "m2ua") == 0)
-		set = bsc.m2ua_set;
+	set = find_link_set(&bsc.links, argv[0]);
 
 	if (!set) {
 		vty_out(vty, "Failed to find linkset.%s", VTY_NEWLINE);
@@ -440,16 +449,13 @@ DEFUN(pcap_set, pcap_set_cmd,
 }
 
 DEFUN(pcap_set_stop, pcap_set_stop_cmd,
-      "trace-pcap set (m2ua|mtp) stop",
+      "trace-pcap set NAME stop",
       "Trace to a PCAP file\n" "Trace a linkset\n"
-      "Trace m2ua linkset\n" "Trace mtp linkset\n" "Stop the tracing\n")
+      "Trace Linkset\n" "Stop the tracing\n")
 {
 	struct mtp_link_set *set = NULL;
 
-	if (bsc.link_set && strcmp(argv[0], "mtp") == 0)
-		set = bsc.link_set;
-	else if (bsc.m2ua_set && strcmp(argv[0], "m2ua") == 0)
-		set = bsc.m2ua_set;
+	set = find_link_set(&bsc.links, argv[0]);
 
 	if (!set) {
 		vty_out(vty, "Failed to find linkset.%s", VTY_NEWLINE);
@@ -465,11 +471,8 @@ DEFUN(pcap_set_stop, pcap_set_stop_cmd,
 #define FIND_LINK(vty, type, nr) ({						\
 	struct mtp_link_set *set = NULL;					\
 	struct mtp_link *link = NULL, *tmp;					\
-	if (strcmp(type, "mtp") == 0)						\
-		set = bsc.link_set;						\
-	else if (strcmp(type, "m2ua") == 0)					\
-		set = bsc.m2ua_set;						\
-	else {									\
+	set = find_link_set(&bsc.links, type);					\
+	if (!set) {								\
 		vty_out(vty, "Unknown linkset %s.%s", type, VTY_NEWLINE);	\
 		return CMD_WARNING;						\
 	}									\
@@ -486,11 +489,11 @@ DEFUN(pcap_set_stop, pcap_set_stop_cmd,
 	link; })
 
 #define LINK_STR "Operations on the link\n"					\
-		 "MTP Linkset\n" "M2UA Linkset\n"				\
+		 "Linkset name\n"						\
 		 "Link number\n"
 
 DEFUN(lnk_block, lnk_block_cmd,
-      "link (mtp|m2ua) <0-15> block",
+      "link NAME <0-15> block",
       LINK_STR "Block it\n")
 {
 	struct mtp_link *link = FIND_LINK(vty, argv[0], atoi(argv[1]));
@@ -499,7 +502,7 @@ DEFUN(lnk_block, lnk_block_cmd,
 }
 
 DEFUN(lnk_unblock, lnk_unblock_cmd,
-      "link (mtp|m2ua) <0-15> unblock",
+      "link NAME <0-15> unblock",
       LINK_STR "Unblock it\n")
 {
 	struct mtp_link *link = FIND_LINK(vty, argv[0], atoi(argv[1]));
@@ -508,7 +511,7 @@ DEFUN(lnk_unblock, lnk_unblock_cmd,
 }
 
 DEFUN(lnk_reset, lnk_reset_cmd,
-      "link (mtp|m2ua) <0-15> reset",
+      "link NAME <0-15> reset",
       LINK_STR "Reset it\n")
 {
 	struct mtp_link *link = FIND_LINK(vty, argv[0], atoi(argv[1]));

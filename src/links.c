@@ -100,47 +100,48 @@ static void start_rest(void *_set)
 		data->start(data);
 }
 
-int link_init(struct bsc_data *bsc)
+struct mtp_link_set *link_init(struct bsc_data *bsc)
 {
 	int i;
 	struct mtp_udp_link *lnk;
+	struct mtp_link_set *set;
 
-	bsc->link_set = mtp_link_set_alloc();
-	bsc->link_set->name = talloc_strdup(bsc->link_set, "MTP");
-	bsc->link_set->dpc = bsc->dpc;
-	bsc->link_set->opc = bsc->opc;
-	bsc->link_set->sccp_opc = bsc->sccp_opc > -1 ? bsc->sccp_opc : bsc->opc;
-	bsc->link_set->isup_opc = bsc->isup_opc > -1 ? bsc->isup_opc : bsc->opc;
-	bsc->link_set->sltm_once = bsc->once;
-	bsc->link_set->ni = bsc->ni_ni;
-	bsc->link_set->spare = bsc->ni_spare;
-	bsc->link_set->bsc = bsc;
-	bsc->link_set->pcap_fd = bsc->pcap_fd;
+	set = mtp_link_set_alloc();
+	set->name = talloc_strdup(set, "MTP");
+	set->dpc = bsc->dpc;
+	set->opc = bsc->opc;
+	set->sccp_opc = bsc->sccp_opc > -1 ? bsc->sccp_opc : bsc->opc;
+	set->isup_opc = bsc->isup_opc > -1 ? bsc->isup_opc : bsc->opc;
+	set->sltm_once = bsc->once;
+	set->ni = bsc->ni_ni;
+	set->spare = bsc->ni_spare;
+	set->bsc = bsc;
+	set->pcap_fd = bsc->pcap_fd;
 
 	if (!bsc->src_port) {
 		LOGP(DINP, LOGL_ERROR, "You need to set a UDP address.\n");
-		return -1;
+		return NULL;
 	}
 
 	LOGP(DINP, LOGL_NOTICE, "Using UDP MTP mode.\n");
 
 	if (link_global_init(&bsc->udp_data, bsc->src_port) != 0)
-		return -1;
+		return NULL;
 
 
 	for (i = 1; i <= bsc->udp_nr_links; ++i) {
-		lnk = talloc_zero(bsc->link_set, struct mtp_udp_link);
+		lnk = talloc_zero(set, struct mtp_udp_link);
 		lnk->base.pcap_fd = -1;
 		lnk->bsc = bsc;
 		lnk->data = &bsc->udp_data;
 		lnk->link_index = i;
 		lnk->reset_timeout = bsc->udp_reset_timeout;
-		mtp_link_set_add_link(bsc->link_set, (struct mtp_link *) lnk);
+		mtp_link_set_add_link(set, (struct mtp_link *) lnk);
 
 
 		/* now connect to the transport */
 		if (link_udp_init(lnk, bsc->udp_ip, bsc->udp_port) != 0)
-			return -1;
+			return NULL;
 
 		/*
 		 * We will ask the MTP link to be taken down for two
@@ -156,10 +157,10 @@ int link_init(struct bsc_data *bsc)
 	}
 
 	bsc->start_timer.cb = start_rest;
-	bsc->start_timer.data = bsc->link_set;
-	bsc_schedule_timer(&bsc->start_timer, lnk->reset_timeout, 0);
+	bsc->start_timer.data = set;
+	bsc_schedule_timer(&bsc->start_timer, bsc->udp_reset_timeout, 0);
 
-	return 0;
+	return set;
 }
 
 int link_shutdown_all(struct mtp_link_set *set)

@@ -102,6 +102,8 @@ static void sigint()
 	static pthread_mutex_t exit_mutex = PTHREAD_MUTEX_INITIALIZER;
 	static int handled = 0;
 
+	struct mtp_link_set *set;
+
 	/* failed to lock */
 	if (pthread_mutex_trylock(&exit_mutex) != 0)
 		return;
@@ -110,8 +112,10 @@ static void sigint()
 
 	printf("Terminating.\n");
 	handled = 1;
-	if (bsc.setup)
-		link_shutdown_all(bsc.link_set);
+	if (bsc.setup) {
+		llist_for_each_entry(set, &bsc.links, entry)
+			link_shutdown_all(set);
+	}
 	exit(0);
 
 out:
@@ -195,6 +199,8 @@ static void bsc_msc_forward_init(struct bsc_data *bsc,
 int main(int argc, char **argv)
 {
 	int rc;
+	struct mtp_link_set *set;
+	INIT_LLIST_HEAD(&bsc.links);
 
 	bsc.app = APP_RELAY;
 	bsc.dpc = 1;
@@ -250,10 +256,13 @@ int main(int argc, char **argv)
 	if (rc < 0)
 		return rc;
 
-	if (link_init(&bsc) != 0)
+	set = link_init(&bsc);
+	if (!set)
 		return -1;
-	bsc.link_set->fw = &bsc.msc_forward;
-	bsc.msc_forward.bsc = bsc.link_set;
+
+	llist_add(&set->entry, &bsc.links);
+	set->fw = &bsc.msc_forward;
+	bsc.msc_forward.bsc = set;
 
         while (1) {
 		bsc_select_main(0);

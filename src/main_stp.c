@@ -69,20 +69,14 @@ extern void cell_vty_init(void);
 /*
  * methods called from the MTP Level3 part
  */
-void mtp_link_set_forward_sccp(struct mtp_link_set *link, struct msgb *_msg, int sls)
+void mtp_link_set_forward_sccp(struct mtp_link_set *set, struct msgb *_msg, int sls)
 {
-	struct mtp_link_set *target;
-
-	target = bsc.m2ua_set == link ? bsc.link_set : bsc.m2ua_set;
-	mtp_link_set_submit_sccp_data(target, sls, _msg->l2h, msgb_l2len(_msg));
+	mtp_link_set_submit_sccp_data(set->forward, sls, _msg->l2h, msgb_l2len(_msg));
 }
 
 void mtp_link_set_forward_isup(struct mtp_link_set *set, struct msgb *msg, int sls)
 {
-	struct mtp_link_set *target;
-
-	target = bsc.m2ua_set == set ? bsc.link_set : bsc.m2ua_set;
-	mtp_link_set_submit_isup_data(target, sls, msg->l3h, msgb_l3len(msg));
+	mtp_link_set_submit_isup_data(set->forward, sls, msg->l3h, msgb_l3len(msg));
 }
 
 void mtp_linkset_down(struct mtp_link_set *set)
@@ -107,6 +101,8 @@ static void sigint()
 	static pthread_mutex_t exit_mutex = PTHREAD_MUTEX_INITIALIZER;
 	static int handled = 0;
 
+	struct mtp_link_set *set;
+
 	/* failed to lock */
 	if (pthread_mutex_trylock(&exit_mutex) != 0)
 		return;
@@ -115,8 +111,10 @@ static void sigint()
 
 	printf("Terminating.\n");
 	handled = 1;
-	if (bsc.setup)
-		link_shutdown_all(bsc.link_set);
+	if (bsc.setup) {
+		llist_for_each_entry(set, &bsc.links, entry)
+			link_shutdown_all(set);
+	}
 	exit(0);
 
 out:
@@ -182,10 +180,12 @@ static void handle_options(int argc, char **argv)
 static struct mtp_link_set *find_link_set(struct bsc_data *bsc,
 					  int len, const char *buf)
 {
-	if (strncmp(buf, "mtp", len) == 0)
-		return bsc->link_set;
-	else if (strncmp(buf, "m2ua", len) == 0)
-		return bsc->m2ua_set;
+	struct mtp_link_set *set;
+
+	llist_for_each_entry(set, &bsc->links, entry)
+		if (strncmp(buf, set->name, len) == 0)
+			return set;
+
 	return NULL;
 }
 
@@ -304,7 +304,9 @@ int main(int argc, char **argv)
 {
 	int rc;
 	struct mtp_link *data;
+	struct mtp_link_set *set;
 	struct mtp_m2ua_link *lnk;
+	INIT_LLIST_HEAD(&bsc.links);
 
 	bsc.app = APP_STP;
 	bsc.dpc = 1;
@@ -361,8 +363,10 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
-	if (link_init(&bsc) != 0)
+	set = link_init(&bsc);
+	if (!set)
 		return -1;
+	llist_add(&set->entry, &bsc.links);
 
 	bsc.m2ua_set = mtp_link_set_alloc();
 	bsc.m2ua_set->dpc = 92;
@@ -373,13 +377,13 @@ int main(int argc, char **argv)
 	bsc.m2ua_set->bsc = &bsc;
 	bsc.m2ua_set->pcap_fd = bsc.pcap_fd;
 	bsc.m2ua_set->name = talloc_strdup(bsc.m2ua_set, "M2UA");
+	llist_add(&bsc.m2ua_set->entry, &bsc.links);
 
-	/* for both links we want to have all isup messages */
-	if (bsc.isup_pass) {
-		LOGP(DINP, LOGL_NOTICE, "Going to pass through all ISUP messages.\n");
-		bsc.m2ua_set->pass_all_isup = 1;
-		bsc.link_set->pass_all_isup = 1;
-	}
+	/* setup things */
+	set->pass_all_isup = bsc.isup_pass;
+	set->forward = bsc.m2ua_set;
+	bsc.m2ua_set->pass_all_isup = bsc.isup_pass;
+	bsc.m2ua_set->forward = set;
 
 	lnk = sctp_m2ua_transp_create("0.0.0.0", 2904);
 	lnk->base.pcap_fd = -1;

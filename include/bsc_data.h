@@ -123,8 +123,8 @@ struct bsc_data {
 	int setup;
 	int pcap_fd;
 	int udp_reset_timeout;
-	struct mtp_link_set *link_set;
 	struct mtp_link_set *m2ua_set;
+	struct llist_head links;
 
 	/* udp code */
 	struct mtp_udp_data udp_data;
@@ -176,7 +176,7 @@ void update_con_state(struct bsc_msc_forward *fw, int rc, struct sccp_parse_resu
 /* udp init */
 int link_global_init(struct mtp_udp_data *data, int src_port);
 int link_udp_init(struct mtp_udp_link *data, char *dest_ip, int port);
-int link_init(struct bsc_data *bsc);
+struct mtp_link_set *link_init(struct bsc_data *bsc);
 int link_shutdown_all(struct mtp_link_set *);
 int link_reset_all(struct mtp_link_set *);
 int link_clear_all(struct mtp_link_set *);

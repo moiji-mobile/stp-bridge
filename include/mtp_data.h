@@ -41,6 +41,8 @@ struct rate_ctr_group;
  * The state of the mtp_link in terms of layer3 and upwards
  */
 struct mtp_link_set {
+	struct llist_head entry;
+
 	/* routing info.. */
 	int dpc, opc, sccp_opc, isup_opc;
 	int ni;
@@ -73,6 +75,7 @@ struct mtp_link_set {
 	/* custom data */
 	struct bsc_data *bsc;
 	struct bsc_msc_forward *fw;
+	struct mtp_link_set *forward;
 };
 
 /**
