@@ -85,8 +85,9 @@ void mtp_link_restart(struct mtp_link *link)
 	link->reset(link);
 }
 
-static void start_rest(void *start)
+static void start_rest(void *_set)
 {
+	struct mtp_link_set *set = _set;
 	struct mtp_link *data;
 	bsc.setup = 1;
 
@@ -95,7 +96,7 @@ static void start_rest(void *start)
 		exit(3);
 	}
 
-	llist_for_each_entry(data, &bsc.link_set->links, entry)
+	llist_for_each_entry(data, &set->links, entry)
 		data->start(data);
 }
 
@@ -149,13 +150,14 @@ int link_init(struct bsc_data *bsc)
 		 */
 		snmp_mtp_deactivate(lnk->session,
 				    lnk->link_index);
-		bsc->start_timer.cb = start_rest;
-		bsc->start_timer.data = &bsc;
-		bsc_schedule_timer(&bsc->start_timer, lnk->reset_timeout, 0);
 		LOGP(DMSC, LOGL_NOTICE,
 		     "Forcing link alignment on %s/%d.\n",
 		      lnk->base.set->name, lnk->base.link_no);
 	}
+
+	bsc->start_timer.cb = start_rest;
+	bsc->start_timer.data = bsc->link_set;
+	bsc_schedule_timer(&bsc->start_timer, lnk->reset_timeout, 0);
 
 	return 0;
 }
