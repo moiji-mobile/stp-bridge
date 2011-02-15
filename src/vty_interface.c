@@ -43,7 +43,7 @@
 #undef PACKAGE_STRING
 #include <cellmgr_config.h>
 
-extern struct bsc_data bsc;
+extern struct bsc_data *bsc;
 
 static struct vty_app_info vty_info = {
 	.name 		= "Cellmgr-ng",
@@ -65,22 +65,22 @@ static struct cmd_node cell_node = {
 static int config_write_cell(struct vty *vty)
 {
 	vty_out(vty, "cellmgr%s", VTY_NEWLINE);
-	vty_out(vty, " mtp dpc %d%s", bsc.dpc, VTY_NEWLINE);
-	vty_out(vty, " mtp opc %d%s", bsc.opc, VTY_NEWLINE);
-	vty_out(vty, " mtp sccp-opc %d%s", bsc.sccp_opc, VTY_NEWLINE);
-	vty_out(vty, " mtp ni %d%s", bsc.ni_ni, VTY_NEWLINE);
-	vty_out(vty, " mtp spare %d%s", bsc.ni_spare, VTY_NEWLINE);
-	vty_out(vty, " mtp sltm once %d%s", bsc.once, VTY_NEWLINE);
-	if (bsc.udp_ip)
-		vty_out(vty, " udp dest ip %s%s", bsc.udp_ip, VTY_NEWLINE);
-	vty_out(vty, " udp dest port %d%s", bsc.udp_port, VTY_NEWLINE);
-	vty_out(vty, " udp src port %d%s", bsc.src_port, VTY_NEWLINE);
-	vty_out(vty, " udp reset %d%s", bsc.udp_reset_timeout, VTY_NEWLINE);
-	vty_out(vty, " udp number-links %d%s", bsc.udp_nr_links, VTY_NEWLINE);
-	vty_out(vty, " msc ip %s%s", bsc.msc_forward.msc_address, VTY_NEWLINE);
-	vty_out(vty, " msc ip-dscp %d%s", bsc.msc_forward.msc_ip_dscp, VTY_NEWLINE);
-	vty_out(vty, " msc token %s%s", bsc.msc_forward.token, VTY_NEWLINE);
-	vty_out(vty, " isup pass-through %d%s", bsc.isup_pass, VTY_NEWLINE);
+	vty_out(vty, " mtp dpc %d%s", bsc->dpc, VTY_NEWLINE);
+	vty_out(vty, " mtp opc %d%s", bsc->opc, VTY_NEWLINE);
+	vty_out(vty, " mtp sccp-opc %d%s", bsc->sccp_opc, VTY_NEWLINE);
+	vty_out(vty, " mtp ni %d%s", bsc->ni_ni, VTY_NEWLINE);
+	vty_out(vty, " mtp spare %d%s", bsc->ni_spare, VTY_NEWLINE);
+	vty_out(vty, " mtp sltm once %d%s", bsc->once, VTY_NEWLINE);
+	if (bsc->udp_ip)
+		vty_out(vty, " udp dest ip %s%s", bsc->udp_ip, VTY_NEWLINE);
+	vty_out(vty, " udp dest port %d%s", bsc->udp_port, VTY_NEWLINE);
+	vty_out(vty, " udp src port %d%s", bsc->src_port, VTY_NEWLINE);
+	vty_out(vty, " udp reset %d%s", bsc->udp_reset_timeout, VTY_NEWLINE);
+	vty_out(vty, " udp number-links %d%s", bsc->udp_nr_links, VTY_NEWLINE);
+	vty_out(vty, " msc ip %s%s", bsc->msc_forward.msc_address, VTY_NEWLINE);
+	vty_out(vty, " msc ip-dscp %d%s", bsc->msc_forward.msc_ip_dscp, VTY_NEWLINE);
+	vty_out(vty, " msc token %s%s", bsc->msc_forward.token, VTY_NEWLINE);
+	vty_out(vty, " isup pass-through %d%s", bsc->isup_pass, VTY_NEWLINE);
 
 	return CMD_SUCCESS;
 }
@@ -96,7 +96,7 @@ DEFUN(cfg_net_dpc, cfg_net_dpc_cmd,
       "mtp dpc DPC_NR",
       "Set the DPC to be used.")
 {
-	bsc.dpc = atoi(argv[0]);
+	bsc->dpc = atoi(argv[0]);
 	return CMD_SUCCESS;
 }
 
@@ -104,7 +104,7 @@ DEFUN(cfg_net_opc, cfg_net_opc_cmd,
       "mtp opc OPC_NR",
       "Set the OPC to be used.")
 {
-	bsc.opc = atoi(argv[0]);
+	bsc->opc = atoi(argv[0]);
 	return CMD_SUCCESS;
 }
 
@@ -112,7 +112,7 @@ DEFUN(cfg_net_sccp_opc, cfg_net_sccp_opc_cmd,
       "mtp sccp-opc OPC_NR",
       "Set the SCCP OPC to be used.")
 {
-	bsc.sccp_opc = atoi(argv[0]);
+	bsc->sccp_opc = atoi(argv[0]);
 	return CMD_SUCCESS;
 }
 
@@ -120,7 +120,7 @@ DEFUN(cfg_net_mtp_ni, cfg_net_mtp_ni_cmd,
       "mtp ni NR",
       "Set the MTP NI to be used.\n" "NR")
 {
-	bsc.ni_ni = atoi(argv[0]);
+	bsc->ni_ni = atoi(argv[0]);
 	return CMD_SUCCESS;
 }
 
@@ -128,7 +128,7 @@ DEFUN(cfg_net_mtp_spare, cfg_net_mtp_spare_cmd,
       "mtp spare NR",
       "Set the MTP Spare to be used.\n" "NR")
 {
-	bsc.ni_spare = atoi(argv[0]);
+	bsc->ni_spare = atoi(argv[0]);
 	return CMD_SUCCESS;
 }
 
@@ -147,7 +147,7 @@ DEFUN(cfg_udp_dst_ip, cfg_udp_dst_ip_cmd,
 	}
 
 	addr = (struct in_addr *) hosts->h_addr_list[0];
-	bsc.udp_ip = talloc_strdup(NULL, inet_ntoa(*addr));
+	bsc->udp_ip = talloc_strdup(NULL, inet_ntoa(*addr));
 	return CMD_SUCCESS;
 }
 
@@ -155,7 +155,7 @@ DEFUN(cfg_udp_dst_port, cfg_udp_dst_port_cmd,
       "udp dest port PORT_NR",
       "If UDP mode is used specify the UDP dest port")
 {
-	bsc.udp_port = atoi(argv[0]);
+	bsc->udp_port = atoi(argv[0]);
 	return CMD_SUCCESS;
 }
 
@@ -163,7 +163,7 @@ DEFUN(cfg_udp_src_port, cfg_udp_src_port_cmd,
       "udp src port PORT_NR",
       "Set the UDP source port to be used.")
 {
-	bsc.src_port = atoi(argv[0]);
+	bsc->src_port = atoi(argv[0]);
 	return CMD_SUCCESS;
 }
 
@@ -171,7 +171,7 @@ DEFUN(cfg_udp_reset, cfg_udp_reset_cmd,
       "udp reset TIMEOUT",
       "Set the timeout to take the link down")
 {
-	bsc.udp_reset_timeout = atoi(argv[0]);
+	bsc->udp_reset_timeout = atoi(argv[0]);
 	return CMD_SUCCESS;
 }
 
@@ -179,7 +179,7 @@ DEFUN(cfg_udp_nr_links, cfg_udp_nr_links_cmd,
       "udp number-links <1-32>",
       "Set the number of links to use\n")
 {
-	bsc.udp_nr_links = atoi(argv[0]);
+	bsc->udp_nr_links = atoi(argv[0]);
 	return CMD_SUCCESS;
 }
 
@@ -187,7 +187,7 @@ DEFUN(cfg_sltm_once, cfg_sltm_once_cmd,
       "mtp sltm once (0|1)",
       "Send SLTMs until the link is established.")
 {
-	bsc.once = !!atoi(argv[0]);
+	bsc->once = !!atoi(argv[0]);
 	return CMD_SUCCESS;
 }
 
@@ -206,7 +206,7 @@ DEFUN(cfg_msc_ip, cfg_msc_ip_cmd,
 
 	addr = (struct in_addr *) hosts->h_addr_list[0];
 
-	bsc.msc_forward.msc_address = talloc_strdup(NULL, inet_ntoa(*addr));
+	bsc->msc_forward.msc_address = talloc_strdup(NULL, inet_ntoa(*addr));
 	return CMD_SUCCESS;
 }
 
@@ -215,7 +215,7 @@ DEFUN(cfg_msc_ip_dscp, cfg_msc_ip_dscp_cmd,
       "Set the IP DSCP on the A-link\n"
       "Set the DSCP in IP packets to the MSC")
 {
-	bsc.msc_forward.msc_ip_dscp = atoi(argv[0]);
+	bsc->msc_forward.msc_ip_dscp = atoi(argv[0]);
 	return CMD_SUCCESS;
 }
 
@@ -228,7 +228,7 @@ DEFUN(cfg_msc_token, cfg_msc_token_cmd,
       "msc token TOKEN",
       "Set the Token to be used for the MSC")
 {
-	bsc.msc_forward.token = talloc_strdup(NULL, argv[0]);
+	bsc->msc_forward.token = talloc_strdup(NULL, argv[0]);
 	return CMD_SUCCESS;
 }
 
@@ -236,7 +236,7 @@ DEFUN(cfg_ping_time, cfg_ping_time_cmd,
       "timeout ping NR",
       "Set the PING interval. Negative to disable it")
 {
-	bsc.msc_forward.ping_time = atoi(argv[0]);
+	bsc->msc_forward.ping_time = atoi(argv[0]);
 	return CMD_SUCCESS;
 }
 
@@ -244,7 +244,7 @@ DEFUN(cfg_pong_time, cfg_pong_time_cmd,
       "timeout pong NR",
       "Set the PING interval. Negative to disable it")
 {
-	bsc.msc_forward.pong_time = atoi(argv[0]);
+	bsc->msc_forward.pong_time = atoi(argv[0]);
 	return CMD_SUCCESS;
 }
 
@@ -252,7 +252,7 @@ DEFUN(cfg_msc_time, cfg_msc_time_cmd,
       "timeout msc NR",
       "Set the MSC connect timeout")
 {
-	bsc.msc_forward.msc_time = atoi(argv[0]);
+	bsc->msc_forward.msc_time = atoi(argv[0]);
 	return CMD_SUCCESS;
 }
 
@@ -264,10 +264,10 @@ DEFUN(cfg_isup_pass, cfg_isup_pass_cmd,
 {
 	struct mtp_link_set *set;
 
-	bsc.isup_pass = atoi(argv[0]);
+	bsc->isup_pass = atoi(argv[0]);
 
-	llist_for_each_entry(set, &bsc.links, entry)
-		set->pass_all_isup = bsc.isup_pass;
+	llist_for_each_entry(set, &bsc->links, entry)
+		set->pass_all_isup = bsc->isup_pass;
 
 	return CMD_SUCCESS;
 }
@@ -291,7 +291,7 @@ DEFUN(show_stats, show_stats_cmd,
 {
 	struct mtp_link_set *set;
 
-	llist_for_each_entry(set, &bsc.links, entry)
+	llist_for_each_entry(set, &bsc->links, entry)
 		dump_stats(vty, set);
 
 	return CMD_SUCCESS;
@@ -330,7 +330,7 @@ DEFUN(show_linksets, show_linksets_cmd,
 {
 	struct mtp_link_set *set;
 
-	llist_for_each_entry(set, &bsc.links, entry)
+	llist_for_each_entry(set, &bsc->links, entry)
 		dump_state(vty, set);
 	return CMD_SUCCESS;
 }
@@ -340,8 +340,8 @@ DEFUN(show_msc, show_msc_cmd,
       SHOW_STR "Display the status of the MSC\n")
 {
 	vty_out(vty, "MSC link is %s and had %s.%s",
-		bsc.msc_forward.msc_link_down == 0 ? "up" : "down",
-		bsc.msc_forward.first_contact == 1 ? "no contact" : "contact",
+		bsc->msc_forward.msc_link_down == 0 ? "up" : "down",
+		bsc->msc_forward.first_contact == 1 ? "no contact" : "contact",
 		VTY_NEWLINE);
 	return CMD_SUCCESS;
 }
@@ -365,7 +365,7 @@ DEFUN(show_slc, show_slc_cmd,
 	struct mtp_link_set *set = NULL;
 	int i;
 
-	set = find_link_set(&bsc.links, argv[0]);
+	set = find_link_set(&bsc->links, argv[0]);
 
 	if (!set) {
 		vty_out(vty, "Failed to find linkset.%s", VTY_NEWLINE);
@@ -392,7 +392,7 @@ DEFUN(pcap_set, pcap_set_cmd,
 {
 	struct mtp_link_set *set = NULL;
 
-	set = find_link_set(&bsc.links, argv[0]);
+	set = find_link_set(&bsc->links, argv[0]);
 
 	if (!set) {
 		vty_out(vty, "Failed to find linkset.%s", VTY_NEWLINE);
@@ -400,7 +400,7 @@ DEFUN(pcap_set, pcap_set_cmd,
 	}
 
 
-	if (set->pcap_fd >= 0 && bsc.pcap_fd != set->pcap_fd)
+	if (set->pcap_fd >= 0 && bsc->pcap_fd != set->pcap_fd)
 		close(set->pcap_fd);
 	set->pcap_fd = open(argv[1], O_WRONLY | O_TRUNC | O_CREAT,
 			    S_IRUSR | S_IWUSR | S_IRGRP| S_IROTH);
@@ -420,14 +420,14 @@ DEFUN(pcap_set_stop, pcap_set_stop_cmd,
 {
 	struct mtp_link_set *set = NULL;
 
-	set = find_link_set(&bsc.links, argv[0]);
+	set = find_link_set(&bsc->links, argv[0]);
 
 	if (!set) {
 		vty_out(vty, "Failed to find linkset.%s", VTY_NEWLINE);
 		return CMD_WARNING;
 	}
 
-	if (set->pcap_fd >= 0 && bsc.pcap_fd != set->pcap_fd)
+	if (set->pcap_fd >= 0 && bsc->pcap_fd != set->pcap_fd)
 		close(set->pcap_fd);
 	set->pcap_fd = -1;
 	return CMD_SUCCESS;
@@ -436,7 +436,7 @@ DEFUN(pcap_set_stop, pcap_set_stop_cmd,
 #define FIND_LINK(vty, type, nr) ({						\
 	struct mtp_link_set *set = NULL;					\
 	struct mtp_link *link = NULL, *tmp;					\
-	set = find_link_set(&bsc.links, type);					\
+	set = find_link_set(&bsc->links, type);					\
 	if (!set) {								\
 		vty_out(vty, "Unknown linkset %s.%s", type, VTY_NEWLINE);	\
 		return CMD_WARNING;						\
@@ -488,7 +488,7 @@ DEFUN(allow_inject, allow_inject_cmd,
       "allow-inject (0|1)",
       "Allow to inject messages\n" "Disable\n" "Enable\n")
 {
-	bsc.allow_inject = atoi(argv[0]);
+	bsc->allow_inject = atoi(argv[0]);
 	return CMD_SUCCESS;
 }
 
@@ -534,7 +534,7 @@ void cell_vty_init(void)
 	install_element_ve(&show_linksets_cmd);
 	install_element_ve(&show_slc_cmd);
 
-	if (bsc.app != APP_STP) {
+	if (bsc->app != APP_STP) {
 		install_element_ve(&show_msc_cmd);
 	}
 }

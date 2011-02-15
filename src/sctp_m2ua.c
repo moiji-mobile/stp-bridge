@@ -30,8 +30,6 @@
 #include <string.h>
 #include <unistd.h>
 
-extern struct bsc_data bsc;
-
 static void link_down(struct mtp_link *link)
 {
 	rate_ctr_inc(&link->ctrg->ctr[MTP_LNK_ERROR]);

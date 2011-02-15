@@ -28,7 +28,7 @@
 
 #include <osmocore/talloc.h>
 
-extern struct bsc_data bsc;
+extern struct bsc_data *bsc;
 
 int is_one_up(struct mtp_link_set *set)
 {
@@ -89,9 +89,9 @@ static void start_rest(void *_set)
 {
 	struct mtp_link_set *set = _set;
 	struct mtp_link *data;
-	bsc.setup = 1;
+	bsc->setup = 1;
 
-	if (msc_init(&bsc.msc_forward, 1) != 0) {
+	if (msc_init(&bsc->msc_forward, 1) != 0) {
 		fprintf(stderr, "Failed to init MSC part.\n");
 		exit(3);
 	}

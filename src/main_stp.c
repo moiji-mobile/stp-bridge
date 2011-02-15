@@ -63,7 +63,7 @@ static struct log_target *stderr_target;
 
 static char *config = "osmo_stp.cfg";
 
-struct bsc_data bsc;
+struct bsc_data *bsc;
 extern void cell_vty_init(void);
 
 /*
@@ -111,8 +111,8 @@ static void sigint()
 
 	printf("Terminating.\n");
 	handled = 1;
-	if (bsc.setup) {
-		llist_for_each_entry(set, &bsc.links, entry)
+	if (bsc && bsc->setup) {
+		llist_for_each_entry(set, &bsc->links, entry)
 			link_shutdown_all(set);
 	}
 	exit(0);
@@ -154,14 +154,14 @@ static void handle_options(int argc, char **argv)
 			print_help();
 			exit(0);
 		case 'p':
-			if (bsc.pcap_fd >= 0)
-				close(bsc.pcap_fd);
-			bsc.pcap_fd = open(optarg, O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP| S_IROTH);
-			if (bsc.pcap_fd < 0) {
+			if (bsc->pcap_fd >= 0)
+				close(bsc->pcap_fd);
+			bsc->pcap_fd = open(optarg, O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP| S_IROTH);
+			if (bsc->pcap_fd < 0) {
 				fprintf(stderr, "Failed to open PCAP file.\n");
 				exit(0);
 			}
-			mtp_pcap_write_header(bsc.pcap_fd);
+			mtp_pcap_write_header(bsc->pcap_fd);
 			break;
 		case 'c':
 			config = optarg;
@@ -307,22 +307,6 @@ int main(int argc, char **argv)
 	struct mtp_link_set *set;
 	struct mtp_link_set *m2ua_set;
 	struct mtp_m2ua_link *lnk;
-	INIT_LLIST_HEAD(&bsc.links);
-
-	bsc.app = APP_STP;
-	bsc.dpc = 1;
-	bsc.opc = 0;
-	bsc.sccp_opc = -1;
-	bsc.isup_opc = -1;
-	bsc.udp_port = 3456;
-	bsc.udp_ip = NULL;
-	bsc.src_port = 1313;
-	bsc.ni_ni = MTP_NI_NATION_NET;
-	bsc.ni_spare = 0;
-	bsc.udp_nr_links = 1;
-	bsc.setup = 0;
-	bsc.pcap_fd = -1;
-	bsc.udp_reset_timeout = 180;
 
 	mtp_link_set_init();
 	thread_init();
@@ -343,6 +327,11 @@ int main(int argc, char **argv)
 	sccp_set_log_area(DSCCP);
 	m2ua_set_log_area(DM2UA);
 
+	bsc = bsc_data_create();
+	if (!bsc)
+		return -1;
+	bsc->app = APP_STP;
+
 	handle_options(argc, argv);
 
 	signal(SIGPIPE, SIG_IGN);
@@ -359,15 +348,15 @@ int main(int argc, char **argv)
 	if (rc < 0)
 		return rc;
 
-	if (inject_init(&bsc) != 0) {
+	if (inject_init(bsc) != 0) {
 		LOGP(DINP, LOGL_NOTICE, "Failed to initialize inject interface.\n");
 		return -1;
 	}
 
-	set = link_init(&bsc);
+	set = link_init(bsc);
 	if (!set)
 		return -1;
-	llist_add(&set->entry, &bsc.links);
+	llist_add(&set->entry, &bsc->links);
 
 	m2ua_set = mtp_link_set_alloc();
 	m2ua_set->dpc = 92;
@@ -375,15 +364,15 @@ int main(int argc, char **argv)
 	m2ua_set->sccp_opc = 9;
 	m2ua_set->isup_opc = 9;
 	m2ua_set->ni = 3;
-	m2ua_set->bsc = &bsc;
-	m2ua_set->pcap_fd = bsc.pcap_fd;
+	m2ua_set->bsc = bsc;
+	m2ua_set->pcap_fd = bsc->pcap_fd;
 	m2ua_set->name = talloc_strdup(m2ua_set, "M2UA");
-	llist_add(&m2ua_set->entry, &bsc.links);
+	llist_add(&m2ua_set->entry, &bsc->links);
 
 	/* setup things */
-	set->pass_all_isup = bsc.isup_pass;
+	set->pass_all_isup = bsc->isup_pass;
 	set->forward = m2ua_set;
-	m2ua_set->pass_all_isup = bsc.isup_pass;
+	m2ua_set->pass_all_isup = bsc->isup_pass;
 	m2ua_set->forward = set;
 
 	lnk = sctp_m2ua_transp_create("0.0.0.0", 2904);

@@ -61,7 +61,7 @@ static struct log_target *stderr_target;
 
 static char *config = "cellmgr_ng.cfg";
 
-struct bsc_data bsc;
+struct bsc_data *bsc;
 extern void cell_vty_init(void);
 
 static void print_usage()
@@ -84,8 +84,8 @@ static void sigint()
 
 	printf("Terminating.\n");
 	handled = 1;
-	if (bsc.setup) {
-		llist_for_each_entry(set, &bsc.links, entry)
+	if (bsc && bsc->setup) {
+		llist_for_each_entry(set, &bsc->links, entry)
 			link_shutdown_all(set);
 	}
 
@@ -98,7 +98,7 @@ out:
 static void sigusr2()
 {
 	printf("Closing the MSC connection on demand.\n");
-	msc_close_connection(&bsc.msc_forward);
+	msc_close_connection(&bsc->msc_forward);
 }
 
 static void print_help()
@@ -134,14 +134,14 @@ static void handle_options(int argc, char **argv)
 			print_help();
 			exit(0);
 		case 'p':
-			if (bsc.pcap_fd >= 0)
-				close(bsc.pcap_fd);
-			bsc.pcap_fd = open(optarg, O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP| S_IROTH);
-			if (bsc.pcap_fd < 0) {
+			if (bsc->pcap_fd >= 0)
+				close(bsc->pcap_fd);
+			bsc->pcap_fd = open(optarg, O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP| S_IROTH);
+			if (bsc->pcap_fd < 0) {
 				fprintf(stderr, "Failed to open PCAP file.\n");
 				exit(0);
 			}
-			mtp_pcap_write_header(bsc.pcap_fd);
+			mtp_pcap_write_header(bsc->pcap_fd);
 			break;
 		case 'c':
 			config = optarg;
@@ -173,22 +173,7 @@ int main(int argc, char **argv)
 {
 	int rc;
 	struct mtp_link_set *set;
-	INIT_LLIST_HEAD(&bsc.links);
 
-	bsc.app = APP_CELLMGR;
-	bsc.dpc = 1;
-	bsc.opc = 0;
-	bsc.sccp_opc = -1;
-	bsc.isup_opc = -1;
-	bsc.udp_port = 3456;
-	bsc.udp_ip = NULL;
-	bsc.udp_nr_links = 1;
-	bsc.src_port = 1313;
-	bsc.ni_ni = MTP_NI_NATION_NET;
-	bsc.ni_spare = 0;
-	bsc.setup = 0;
-	bsc.pcap_fd = -1;
-	bsc.udp_reset_timeout = 180;
 
 	mtp_link_set_init();
 	thread_init();
@@ -208,8 +193,13 @@ int main(int argc, char **argv)
 
 	sccp_set_log_area(DSCCP);
 
+	bsc = bsc_data_create();
+	if (!bsc)
+		return -1;
+	bsc->app = APP_CELLMGR;
+
 	/* msc data */
-	bsc_msc_forward_init(&bsc, &bsc.msc_forward);
+	bsc_msc_forward_init(bsc, &bsc->msc_forward);
 
 	handle_options(argc, argv);
 
@@ -228,13 +218,13 @@ int main(int argc, char **argv)
 	if (rc < 0)
 		return rc;
 
-	set = link_init(&bsc);
+	set = link_init(bsc);
 	if (!set)
 		return -1;
 
-	llist_add(&set->entry, &bsc.links);
-	set->fw = &bsc.msc_forward;
-	bsc.msc_forward.bsc = set;
+	llist_add(&set->entry, &bsc->links);
+	set->fw = &bsc->msc_forward;
+	bsc->msc_forward.bsc = set;
 
         while (1) {
 		bsc_select_main(0);

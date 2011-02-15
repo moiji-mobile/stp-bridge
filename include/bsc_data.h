@@ -190,4 +190,6 @@ enum {
 };
 int mtp_handle_pcap(struct mtp_link *, int dir, const uint8_t *data, int length);
 
+struct bsc_data *bsc_data_create();
+
 #endif
