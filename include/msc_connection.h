@@ -70,7 +70,6 @@ struct msc_connection {
 /* msc related functions */
 void msc_send_rlc(struct msc_connection *bsc, struct sccp_source_reference *src, struct sccp_source_reference *dest);
 void msc_send_reset(struct msc_connection *bsc);
-void msc_send_msg(struct msc_connection *bsc, int rc, struct sccp_parse_result *, struct msgb *msg);
 void msc_send_direct(struct msc_connection *bsc, struct msgb *msg);
 void msc_close_connection(struct msc_connection *data);
 

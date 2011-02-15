@@ -21,8 +21,6 @@
 
 #include <msc_connection.h>
 #include <bsc_data.h>
-#include <bsc_ussd.h>
-#include <bss_patch.h>
 #include <bsc_sccp.h>
 #include <bssap_sccp.h>
 #include <ipaccess.h>
@@ -518,27 +516,6 @@ static void msc_send_id_response(struct msc_connection *fw)
 void msc_send_direct(struct msc_connection *fw, struct msgb *msg)
 {
 	return msc_send(fw, msg, IPAC_PROTO_SCCP);
-}
-
-void msc_send_msg(struct msc_connection *fw, int rc, struct sccp_parse_result *result, struct msgb *_msg)
-{
-	struct msgb *msg;
-
-	if (fw->msc_connection.bfd.fd < 0) {
-		LOGP(DMSC, LOGL_ERROR, "No connection to the MSC. dropping\n");
-		return;
-	}
-
-	bsc_ussd_handle_out_msg(fw, result, _msg);
-
-	msg = msgb_alloc_headroom(4096, 128, "SCCP to MSC");
-	if (!msg) {
-		LOGP(DMSC, LOGL_ERROR, "Failed to alloc MSC msg.\n");
-		return;
-	}
-
-	bss_rewrite_header_for_msc(rc, msg, _msg, result);
-	msc_send(fw, msg, IPAC_PROTO_SCCP);
 }
 
 struct msc_connection *msc_connection_create(struct bsc_data *bsc, int mgcp)

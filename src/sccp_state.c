@@ -69,6 +69,7 @@ void mtp_link_set_forward_sccp(struct mtp_link_set *link, struct msgb *_msg, int
 	int rc;
 	struct sccp_parse_result result;
 	struct msc_connection *fw = link->fw;
+	struct msgb *msg;
 
 	if (fw->forward_only) {
 		msc_send_direct(fw, _msg);
@@ -111,8 +112,17 @@ void mtp_link_set_forward_sccp(struct mtp_link_set *link, struct msgb *_msg, int
 		return;
 	}
 
+	/* now send it out */
+	bsc_ussd_handle_out_msg(link->fw, &result, _msg);
 
-	msc_send_msg(fw, rc, &result, _msg);
+	msg = msgb_alloc_headroom(4096, 128, "SCCP to MSC");
+	if (!msg) {
+		LOGP(DMSC, LOGL_ERROR, "Failed to alloc MSC msg.\n");
+		return;
+	}
+
+	bss_rewrite_header_for_msc(rc, msg, _msg, &result);
+	msc_send_direct(link->fw, msg);
 }
 
 void mtp_link_set_forward_isup(struct mtp_link_set *set, struct msgb *msg, int sls)
