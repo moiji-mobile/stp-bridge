@@ -393,8 +393,12 @@ int main(int argc, char **argv)
 }
 
 /* dummy for links */
-int msc_init(struct bsc_msc_forward *data, int dummy)
+int msc_connection_start(struct msc_connection *conn)
 {
 	return 0;
 }
 
+struct msc_connection *msc_connection_num(struct bsc_data *bsc, int num)
+{
+	return NULL;
+}

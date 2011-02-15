@@ -25,7 +25,7 @@
 #include <osmocore/utils.h>
 
 struct bsc_data;
-struct bsc_msc_forward;
+struct msc_connection;
 struct mtp_link;
 struct mtp_level_3_mng *mng;
 struct rate_ctr_group;
@@ -76,7 +76,7 @@ struct mtp_link_set {
 
 	/* custom data */
 	struct bsc_data *bsc;
-	struct bsc_msc_forward *fw;
+	struct msc_connection *fw;
 	struct mtp_link_set *forward;
 };
 

@@ -21,6 +21,7 @@
 
 #include <bsc_data.h>
 #include <mtp_pcap.h>
+#include <msc_connection.h>
 
 #include <osmocore/talloc.h>
 #include <osmocore/gsm48.h>
@@ -64,6 +65,8 @@ static struct cmd_node cell_node = {
 
 static int config_write_cell(struct vty *vty)
 {
+	struct msc_connection *msc = msc_connection_num(bsc, 0);
+
 	vty_out(vty, "cellmgr%s", VTY_NEWLINE);
 	vty_out(vty, " mtp dpc %d%s", bsc->dpc, VTY_NEWLINE);
 	vty_out(vty, " mtp opc %d%s", bsc->opc, VTY_NEWLINE);
@@ -77,10 +80,14 @@ static int config_write_cell(struct vty *vty)
 	vty_out(vty, " udp src port %d%s", bsc->src_port, VTY_NEWLINE);
 	vty_out(vty, " udp reset %d%s", bsc->udp_reset_timeout, VTY_NEWLINE);
 	vty_out(vty, " udp number-links %d%s", bsc->udp_nr_links, VTY_NEWLINE);
-	vty_out(vty, " msc ip %s%s", bsc->msc_forward.msc_address, VTY_NEWLINE);
-	vty_out(vty, " msc ip-dscp %d%s", bsc->msc_forward.msc_ip_dscp, VTY_NEWLINE);
-	vty_out(vty, " msc token %s%s", bsc->msc_forward.token, VTY_NEWLINE);
 	vty_out(vty, " isup pass-through %d%s", bsc->isup_pass, VTY_NEWLINE);
+
+	if (msc) {
+		vty_out(vty, " msc ip %s%s", msc->ip, VTY_NEWLINE);
+		vty_out(vty, " msc ip-dscp %d%s", msc->dscp, VTY_NEWLINE);
+		vty_out(vty, " msc token %s%s", msc->token, VTY_NEWLINE);
+	}
+
 
 	return CMD_SUCCESS;
 }
@@ -197,6 +204,12 @@ DEFUN(cfg_msc_ip, cfg_msc_ip_cmd,
 {
 	struct hostent *hosts;
 	struct in_addr *addr;
+	struct msc_connection *msc = msc_connection_num(bsc, 0);
+
+	if (!msc) {
+		vty_out(vty, "%%No MSC Connection defined in this app.%s", VTY_NEWLINE);
+		return CMD_WARNING;
+	}
 
 	hosts = gethostbyname(argv[0]);
 	if (!hosts || hosts->h_length < 1 || hosts->h_addrtype != AF_INET) {
@@ -206,7 +219,9 @@ DEFUN(cfg_msc_ip, cfg_msc_ip_cmd,
 
 	addr = (struct in_addr *) hosts->h_addr_list[0];
 
-	bsc->msc_forward.msc_address = talloc_strdup(NULL, inet_ntoa(*addr));
+	if (msc->ip)
+		talloc_free(msc->ip);
+	msc->ip = talloc_strdup(msc, inet_ntoa(*addr));
 	return CMD_SUCCESS;
 }
 
@@ -215,7 +230,14 @@ DEFUN(cfg_msc_ip_dscp, cfg_msc_ip_dscp_cmd,
       "Set the IP DSCP on the A-link\n"
       "Set the DSCP in IP packets to the MSC")
 {
-	bsc->msc_forward.msc_ip_dscp = atoi(argv[0]);
+	struct msc_connection *msc = msc_connection_num(bsc, 0);
+
+	if (!msc) {
+		vty_out(vty, "%%No MSC Connection defined in this app.%s", VTY_NEWLINE);
+		return CMD_WARNING;
+	}
+
+	msc->dscp = atoi(argv[0]);
 	return CMD_SUCCESS;
 }
 
@@ -228,7 +250,16 @@ DEFUN(cfg_msc_token, cfg_msc_token_cmd,
       "msc token TOKEN",
       "Set the Token to be used for the MSC")
 {
-	bsc->msc_forward.token = talloc_strdup(NULL, argv[0]);
+	struct msc_connection *msc = msc_connection_num(bsc, 0);
+
+	if (!msc) {
+		vty_out(vty, "%%No MSC Connection defined in this app.%s", VTY_NEWLINE);
+		return CMD_WARNING;
+	}
+
+	if (msc->token)
+		talloc_free(msc->token);
+	msc->token = talloc_strdup(msc, argv[0]);
 	return CMD_SUCCESS;
 }
 
@@ -236,7 +267,14 @@ DEFUN(cfg_ping_time, cfg_ping_time_cmd,
       "timeout ping NR",
       "Set the PING interval. Negative to disable it")
 {
-	bsc->msc_forward.ping_time = atoi(argv[0]);
+	struct msc_connection *msc = msc_connection_num(bsc, 0);
+
+	if (!msc) {
+		vty_out(vty, "%%No MSC Connection defined in this app.%s", VTY_NEWLINE);
+		return CMD_WARNING;
+	}
+
+	msc->ping_time = atoi(argv[0]);
 	return CMD_SUCCESS;
 }
 
@@ -244,7 +282,14 @@ DEFUN(cfg_pong_time, cfg_pong_time_cmd,
       "timeout pong NR",
       "Set the PING interval. Negative to disable it")
 {
-	bsc->msc_forward.pong_time = atoi(argv[0]);
+	struct msc_connection *msc = msc_connection_num(bsc, 0);
+
+	if (!msc) {
+		vty_out(vty, "%%No MSC Connection defined in this app.%s", VTY_NEWLINE);
+		return CMD_WARNING;
+	}
+
+	msc->pong_time = atoi(argv[0]);
 	return CMD_SUCCESS;
 }
 
@@ -252,7 +297,14 @@ DEFUN(cfg_msc_time, cfg_msc_time_cmd,
       "timeout msc NR",
       "Set the MSC connect timeout")
 {
-	bsc->msc_forward.msc_time = atoi(argv[0]);
+	struct msc_connection *msc = msc_connection_num(bsc, 0);
+
+	if (!msc) {
+		vty_out(vty, "%%No MSC Connection defined in this app.%s", VTY_NEWLINE);
+		return CMD_WARNING;
+	}
+
+	msc->msc_time = atoi(argv[0]);
 	return CMD_SUCCESS;
 }
 
@@ -339,9 +391,16 @@ DEFUN(show_msc, show_msc_cmd,
       "show msc",
       SHOW_STR "Display the status of the MSC\n")
 {
+	struct msc_connection *msc = msc_connection_num(bsc, 0);
+
+	if (!msc) {
+		vty_out(vty, "%%No MSC Connection defined in this app.%s", VTY_NEWLINE);
+		return CMD_WARNING;
+	}
+
 	vty_out(vty, "MSC link is %s and had %s.%s",
-		bsc->msc_forward.msc_link_down == 0 ? "up" : "down",
-		bsc->msc_forward.first_contact == 1 ? "no contact" : "contact",
+		msc->msc_link_down == 0 ? "up" : "down",
+		msc->first_contact == 1 ? "no contact" : "contact",
 		VTY_NEWLINE);
 	return CMD_SUCCESS;
 }

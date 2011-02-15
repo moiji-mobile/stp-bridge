@@ -20,6 +20,7 @@
  */
 
 #include <mtp_data.h>
+#include <msc_connection.h>
 #include <mtp_level3.h>
 #include <mtp_pcap.h>
 #include <thread.h>
@@ -97,8 +98,11 @@ out:
 
 static void sigusr2()
 {
+	struct msc_connection *msc;
 	printf("Closing the MSC connection on demand.\n");
-	msc_close_connection(&bsc->msc_forward);
+
+	llist_for_each_entry(msc, &bsc->mscs, entry)
+		msc_close_connection(msc);
 }
 
 static void print_help()
@@ -157,13 +161,9 @@ static void handle_options(int argc, char **argv)
 	}
 }
 
-static void bsc_msc_forward_init(struct bsc_data *bsc,
-				 struct bsc_msc_forward *msc)
+static void bsc_msc_forward_init(struct msc_connection *msc)
 {
-	INIT_LLIST_HEAD(&msc->sccp_connections);
-
-	msc->bsc_data = bsc;
-	msc->msc_address = "127.0.0.1";
+	msc->ip = talloc_strdup(msc, "127.0.0.1");
 	msc->ping_time = 20;
 	msc->pong_time = 5;
 	msc->msc_time = 20;
@@ -172,8 +172,8 @@ static void bsc_msc_forward_init(struct bsc_data *bsc,
 int main(int argc, char **argv)
 {
 	int rc;
+	struct msc_connection *msc;
 	struct mtp_link_set *set;
-
 
 	thread_init();
 
@@ -198,7 +198,12 @@ int main(int argc, char **argv)
 	bsc->app = APP_CELLMGR;
 
 	/* msc data */
-	bsc_msc_forward_init(bsc, &bsc->msc_forward);
+	msc = msc_connection_create(bsc, 1);
+	if (!msc) {
+		LOGP(DINP, LOGL_ERROR, "Failed to create the MSC connection.\n");
+		return -1;
+	}
+	bsc_msc_forward_init(msc);
 
 	handle_options(argc, argv);
 
@@ -221,8 +226,8 @@ int main(int argc, char **argv)
 	if (!set)
 		return -1;
 
-	set->fw = &bsc->msc_forward;
-	bsc->msc_forward.bsc = set;
+	set->fw = msc;
+	msc->target_link = set;
 
         while (1) {
 		bsc_select_main(0);

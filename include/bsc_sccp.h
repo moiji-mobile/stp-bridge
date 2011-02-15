@@ -30,7 +30,7 @@
 
 #include <osmocom/sccp/sccp.h>
 
-struct bsc_msc_forward;
+struct msc_connection;
 
 /*
  * One SCCP connection.
@@ -63,10 +63,10 @@ struct active_sccp_con {
 };
 
 void free_con(struct active_sccp_con *con);
-struct active_sccp_con *find_con_by_dest_ref(struct bsc_msc_forward *, struct sccp_source_reference *ref);
-struct active_sccp_con *find_con_by_src_ref(struct bsc_msc_forward *,struct sccp_source_reference *src_ref);
-struct active_sccp_con *find_con_by_src_dest_ref(struct bsc_msc_forward *, struct sccp_source_reference *src_ref,
+struct active_sccp_con *find_con_by_dest_ref(struct msc_connection *, struct sccp_source_reference *ref);
+struct active_sccp_con *find_con_by_src_ref(struct msc_connection *,struct sccp_source_reference *src_ref);
+struct active_sccp_con *find_con_by_src_dest_ref(struct msc_connection *, struct sccp_source_reference *src_ref,
 						 struct sccp_source_reference *dst_ref);
-unsigned int sls_for_src_ref(struct bsc_msc_forward *, struct sccp_source_reference *ref);
+unsigned int sls_for_src_ref(struct msc_connection *, struct sccp_source_reference *ref);
 
 #endif

@@ -19,6 +19,7 @@
  *
  */
 
+#include <msc_connection.h>
 #include <bsc_data.h>
 #include <bsc_ussd.h>
 #include <bss_patch.h>
@@ -28,6 +29,7 @@
 #include <mtp_data.h>
 #include <cellmgr_debug.h>
 
+#include <osmocore/talloc.h>
 #include <osmocore/tlv.h>
 #include <osmocore/utils.h>
 
@@ -43,9 +45,9 @@
 #define RECONNECT_TIME		10, 0
 #define NAT_MUX 0xfc
 
-static void msc_send_id_response(struct bsc_msc_forward *bsc);
-static void msc_send(struct bsc_msc_forward *bsc, struct msgb *msg, int proto);
-static void msc_schedule_reconnect(struct bsc_msc_forward *bsc);
+static void msc_send_id_response(struct msc_connection *bsc);
+static void msc_send(struct msc_connection *bsc, struct msgb *msg, int proto);
+static void msc_schedule_reconnect(struct msc_connection *bsc);
 
 int send_or_queue_bsc_msg(struct mtp_link_set *link, int sls, struct msgb *msg)
 {
@@ -54,7 +56,7 @@ int send_or_queue_bsc_msg(struct mtp_link_set *link, int sls, struct msgb *msg)
 	return 0;
 }
 
-void msc_close_connection(struct bsc_msc_forward *fw)
+void msc_close_connection(struct msc_connection *fw)
 {
 	struct bsc_fd *bfd = &fw->msc_connection.bfd;
 
@@ -71,7 +73,7 @@ void msc_close_connection(struct bsc_msc_forward *fw)
 
 static void msc_connect_timeout(void *_fw_data)
 {
-	struct bsc_msc_forward *fw = _fw_data;
+	struct msc_connection *fw = _fw_data;
 
 	LOGP(DMSC, LOGL_ERROR, "Timeout on the MSC connection.\n");
 	msc_close_connection(fw);
@@ -79,12 +81,12 @@ static void msc_connect_timeout(void *_fw_data)
 
 static void msc_pong_timeout(void *_fw_data)
 {
-	struct bsc_msc_forward *fw = _fw_data;
+	struct msc_connection *fw = _fw_data;
 	LOGP(DMSC, LOGL_ERROR, "MSC didn't respond to ping. Closing.\n");
 	msc_close_connection(fw);
 }
 
-static void send_ping(struct bsc_msc_forward *fw)
+static void send_ping(struct msc_connection *fw)
 {
 	struct msgb *msg;
 
@@ -102,7 +104,7 @@ static void send_ping(struct bsc_msc_forward *fw)
 
 static void msc_ping_timeout(void *_fw_data)
 {
-	struct bsc_msc_forward *fw = _fw_data;
+	struct msc_connection *fw = _fw_data;
 
 	if (fw->ping_time < 0)
 		return;
@@ -123,7 +125,7 @@ static int ipaccess_a_fd_cb(struct bsc_fd *bfd)
 {
 	int error;
 	struct ipaccess_head *hh;
-	struct bsc_msc_forward *fw;
+	struct msc_connection *fw;
 	struct msgb *msg;
 
 	fw = bfd->data;
@@ -165,7 +167,7 @@ static int ipaccess_a_fd_cb(struct bsc_fd *bfd)
 
 		/* we can not forward it right now */
 		if (fw->forward_only) {
-			if (fw->bsc->sccp_up && send_or_queue_bsc_msg(fw->bsc, -1, msg) == 1)
+			if (fw->target_link->sccp_up && send_or_queue_bsc_msg(fw->target_link, -1, msg) == 1)
 				return 0;
 
 			msgb_free(msg);
@@ -185,7 +187,7 @@ static int ipaccess_a_fd_cb(struct bsc_fd *bfd)
 			LOGP(DMSC, LOGL_ERROR, "RLC from the network. BAD!\n");
 		} else if (rc == BSS_FILTER_CLEAR_COMPL) {
 			LOGP(DMSC, LOGL_ERROR, "Clear Complete from the network.\n");
-		} else if (fw->bsc->sccp_up) {
+		} else if (fw->target_link->sccp_up) {
 			unsigned int sls;
 
 			update_con_state(fw, rc, &result, msg, 1, 0);
@@ -195,10 +197,10 @@ static int ipaccess_a_fd_cb(struct bsc_fd *bfd)
 			bsc_ussd_handle_in_msg(fw, &result, msg);
 
 			/* patch a possible PC */
-			bss_rewrite_header_to_bsc(msg, fw->bsc->opc, fw->bsc->dpc);
+			bss_rewrite_header_to_bsc(msg, fw->target_link->opc, fw->target_link->dpc);
 
 			/* we can not forward it right now */
-			if (send_or_queue_bsc_msg(fw->bsc, sls, msg) == 1)
+			if (send_or_queue_bsc_msg(fw->target_link, sls, msg) == 1)
 				return 0;
 
 		}
@@ -230,7 +232,7 @@ static int msc_connection_connect(struct bsc_fd *fd, unsigned int what)
 	int rc;
 	int val;
 	socklen_t len = sizeof(val);
-	struct bsc_msc_forward *fw;
+	struct msc_connection *fw;
 
 	fw = fd->data;
 
@@ -351,12 +353,12 @@ static int connect_to_msc(struct bsc_fd *fd, const char *ip, int port, int tos)
 static void msc_reconnect(void *_data)
 {
 	int rc;
-	struct bsc_msc_forward *fw = _data;
+	struct msc_connection *fw = _data;
 
 	bsc_del_timer(&fw->reconnect_timer);
 	fw->first_contact = 1;
 
-	rc = connect_to_msc(&fw->msc_connection.bfd, fw->msc_address, 5000, fw->msc_ip_dscp);
+	rc = connect_to_msc(&fw->msc_connection.bfd, fw->ip, 5000, fw->dscp);
 	if (rc < 0) {
 		fprintf(stderr, "Opening the MSC connection failed. Trying again\n");
 		bsc_schedule_timer(&fw->reconnect_timer, RECONNECT_TIME);
@@ -368,7 +370,7 @@ static void msc_reconnect(void *_data)
 	bsc_schedule_timer(&fw->msc_timeout, fw->msc_time, 0);
 }
 
-static void msc_schedule_reconnect(struct bsc_msc_forward *fw)
+static void msc_schedule_reconnect(struct msc_connection *fw)
 {
 	bsc_schedule_timer(&fw->reconnect_timer, RECONNECT_TIME);
 }
@@ -416,7 +418,7 @@ static int mgcp_do_read(struct bsc_fd *fd)
 	return 0;
 }
 
-void mgcp_forward(struct bsc_msc_forward *fw, const uint8_t *data, unsigned int length)
+void mgcp_forward(struct msc_connection *fw, const uint8_t *data, unsigned int length)
 {
 	struct msgb *mgcp;
 
@@ -439,7 +441,7 @@ void mgcp_forward(struct bsc_msc_forward *fw, const uint8_t *data, unsigned int 
 	}
 }
 
-static int mgcp_create_port(struct bsc_msc_forward *fw)
+static int mgcp_create_port(struct msc_connection *fw)
 {
 	int on;
 	struct sockaddr_in addr;
@@ -491,32 +493,7 @@ static int mgcp_create_port(struct bsc_msc_forward *fw)
 	return 0;
 }
 
-int msc_init(struct bsc_msc_forward *fw, int mgcp)
-{
-	write_queue_init(&fw->msc_connection, 100);
-	fw->reconnect_timer.cb = msc_reconnect;
-	fw->reconnect_timer.data = fw;
-	fw->msc_connection.read_cb = ipaccess_a_fd_cb;
-	fw->msc_connection.write_cb = ipaccess_write_cb;
-	fw->msc_connection.bfd.data = fw;
-	fw->msc_link_down = 1;
-
-	/* handle the timeout */
-	fw->ping_timeout.cb = msc_ping_timeout;
-	fw->ping_timeout.data = fw;
-	fw->pong_timeout.cb = msc_pong_timeout;
-	fw->pong_timeout.data = fw;
-
-	/* create MGCP port */
-	if (mgcp && mgcp_create_port(fw) != 0)
-		return -1;
-
-	/* now connect to the BSC */
-	msc_schedule_reconnect(fw);
-	return 0;
-}
-
-static void msc_send(struct bsc_msc_forward *fw, struct msgb *msg, int proto)
+static void msc_send(struct msc_connection *fw, struct msgb *msg, int proto)
 {
 	if (fw->msc_link_down) {
 		LOGP(DMSC, LOGL_NOTICE, "Dropping data due lack of MSC connection.\n");
@@ -533,7 +510,7 @@ static void msc_send(struct bsc_msc_forward *fw, struct msgb *msg, int proto)
 	}
 }
 
-void msc_send_rlc(struct bsc_msc_forward *fw,
+void msc_send_rlc(struct msc_connection *fw,
 		  struct sccp_source_reference *src, struct sccp_source_reference *dst)
 {
 	struct msgb *msg;
@@ -550,7 +527,7 @@ void msc_send_rlc(struct bsc_msc_forward *fw,
 	msc_send(fw, msg, IPAC_PROTO_SCCP);
 }
 
-void msc_send_reset(struct bsc_msc_forward *fw)
+void msc_send_reset(struct msc_connection *fw)
 {
 	struct msgb *msg;
 
@@ -567,7 +544,7 @@ void msc_send_reset(struct bsc_msc_forward *fw)
 	msc_ping_timeout(fw);
 }
 
-static void msc_send_id_response(struct bsc_msc_forward *fw)
+static void msc_send_id_response(struct msc_connection *fw)
 {
 	struct msgb *msg;
 
@@ -579,12 +556,12 @@ static void msc_send_id_response(struct bsc_msc_forward *fw)
 	msc_send(fw, msg, IPAC_PROTO_IPACCESS);
 }
 
-void msc_send_direct(struct bsc_msc_forward *fw, struct msgb *msg)
+void msc_send_direct(struct msc_connection *fw, struct msgb *msg)
 {
 	return msc_send(fw, msg, IPAC_PROTO_SCCP);
 }
 
-void msc_send_msg(struct bsc_msc_forward *fw, int rc, struct sccp_parse_result *result, struct msgb *_msg)
+void msc_send_msg(struct msc_connection *fw, int rc, struct sccp_parse_result *result, struct msgb *_msg)
 {
 	struct msgb *msg;
 
@@ -603,4 +580,64 @@ void msc_send_msg(struct bsc_msc_forward *fw, int rc, struct sccp_parse_result *
 
 	bss_rewrite_header_for_msc(rc, msg, _msg, result);
 	msc_send(fw, msg, IPAC_PROTO_SCCP);
+}
+
+struct msc_connection *msc_connection_create(struct bsc_data *bsc, int mgcp)
+{
+	struct msc_connection *msc;
+
+	msc = talloc_zero(NULL, struct msc_connection);
+	if (!msc) {
+		LOGP(DMSC, LOGL_ERROR, "Failed to allocate the MSC Connection.\n");
+		return NULL;
+	}
+
+	write_queue_init(&msc->msc_connection, 100);
+	msc->reconnect_timer.cb = msc_reconnect;
+	msc->reconnect_timer.data = msc;
+	msc->msc_connection.read_cb = ipaccess_a_fd_cb;
+	msc->msc_connection.write_cb = ipaccess_write_cb;
+	msc->msc_connection.bfd.data = msc;
+	msc->msc_link_down = 1;
+
+	/* handle the timeout */
+	msc->ping_timeout.cb = msc_ping_timeout;
+	msc->ping_timeout.data = msc;
+	msc->pong_timeout.cb = msc_pong_timeout;
+	msc->pong_timeout.data = msc;
+
+	/* create MGCP port */
+	if (mgcp && mgcp_create_port(msc) != 0) {
+		LOGP(DMSC, LOGL_ERROR, "Failed to bind for the MGCP port.\n");
+		talloc_free(msc);
+		return NULL;
+	}
+
+	INIT_LLIST_HEAD(&msc->sccp_connections);
+	llist_add(&msc->entry, &bsc->mscs);
+	msc->nr = bsc->num_mscs++;
+
+	return msc;
+}
+
+struct msc_connection *msc_connection_num(struct bsc_data *bsc, int num)
+{
+	struct msc_connection *msc;
+
+	llist_for_each_entry(msc, &bsc->mscs, entry)
+		if (msc->nr == num)
+			return msc;
+	return NULL;
+}
+
+int msc_connection_start(struct msc_connection *msc)
+{
+	if (msc->msc_connection.bfd.fd > 0) {
+		LOGP(DMSC, LOGL_ERROR,
+		     "Function should not be called with active connection.\n");
+		return -1;
+	}
+
+	msc_schedule_reconnect(msc);
+	return 0;
 }

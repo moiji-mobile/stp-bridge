@@ -22,6 +22,7 @@
 
 #include <bsc_data.h>
 #include <cellmgr_debug.h>
+#include <msc_connection.h>
 #include <mtp_data.h>
 #include <mtp_pcap.h>
 #include <snmp_mtp.h>
@@ -87,11 +88,13 @@ void mtp_link_restart(struct mtp_link *link)
 
 static void start_rest(void *_set)
 {
+	struct msc_connection *msc;
 	struct mtp_link_set *set = _set;
 	struct mtp_link *data;
 	bsc->setup = 1;
 
-	if (msc_init(&bsc->msc_forward, 1) != 0) {
+	msc = msc_connection_num(bsc, 0);
+	if (msc && msc_connection_start(msc) != 0) {
 		fprintf(stderr, "Failed to init MSC part.\n");
 		exit(3);
 	}

@@ -39,52 +39,8 @@
 
 struct bsc_data;
 struct snmp_mtp_session;
+struct msc_connection;
 struct mtp_m2ua_transport;
-
-/**
- * Struct holding the BSC to MSC forwarding state.
- */
-struct bsc_msc_forward {
-	/* back pointer */
-	struct bsc_data *bsc_data;
-
-	/* the linkset we are using here */
-	struct mtp_link_set *bsc;
-
-	/* MSC */
-	char *msc_address;
-	struct write_queue msc_connection;
-	struct timer_list reconnect_timer;
-	int first_contact;
-	int msc_time;
-	struct timer_list msc_timeout;
-	int msc_ip_dscp;
-
-	int msc_link_down;
-	struct llist_head sccp_connections;
-	int reset_count;
-
-	/* LAC of the cell */
-	struct gsm48_loc_area_id lai;
-	uint16_t mcc;
-	uint16_t mnc;
-	uint16_t lac;
-
-	const char *token;
-
-	/* timeouts for the msc connection */
-	int ping_time;
-	int pong_time;
-	struct timer_list ping_timeout;
-	struct timer_list pong_timeout;
-	struct timer_list reset_timeout;
-
-	/* mgcp messgaes */
-	struct write_queue mgcp_agent;
-
-	/* do nothing with the data coming from the MSC */
-	int forward_only;
-};
 
 struct mtp_udp_data {
 	struct write_queue write_queue;
@@ -154,29 +110,22 @@ struct bsc_data {
 	struct bsc_fd inject_fd;
 	struct llist_head inject_list;
 
-	/* MSC related data... currently only one is supported */
-	struct bsc_msc_forward msc_forward;
-
 	/* m2ua code */
 	struct sctp_m2ua_transport *m2ua_trans;
+
+	/* MSCs */
+	struct llist_head mscs;
+	int num_mscs;
 };
 
 /* bsc related functions */
-void release_bsc_resources(struct bsc_msc_forward *fw);
+void release_bsc_resources(struct msc_connection *fw);
 
 void mtp_linkset_down(struct mtp_link_set *);
 void mtp_linkset_up(struct mtp_link_set *);
 
-/* msc related functions */
-int msc_init(struct bsc_msc_forward *bsc, int mgcp);
-void msc_send_rlc(struct bsc_msc_forward *bsc, struct sccp_source_reference *src, struct sccp_source_reference *dest);
-void msc_send_reset(struct bsc_msc_forward *bsc);
-void msc_send_msg(struct bsc_msc_forward *bsc, int rc, struct sccp_parse_result *, struct msgb *msg);
-void msc_send_direct(struct bsc_msc_forward *bsc, struct msgb *msg);
-void msc_close_connection(struct bsc_msc_forward *data);
-
 /* connection tracking and action */
-void update_con_state(struct bsc_msc_forward *fw, int rc, struct sccp_parse_result *result, struct msgb *msg, int from_msc, int sls);
+void update_con_state(struct msc_connection *msc, int rc, struct sccp_parse_result *result, struct msgb *msg, int from_msc, int sls);
 
 /* udp init */
 int link_global_init(struct mtp_udp_data *data, int src_port);
@@ -185,9 +134,6 @@ struct mtp_link_set *link_init(struct bsc_data *bsc);
 int link_shutdown_all(struct mtp_link_set *);
 int link_reset_all(struct mtp_link_set *);
 int link_clear_all(struct mtp_link_set *);
-
-/* MGCP */
-void mgcp_forward(struct bsc_msc_forward *bsc, const uint8_t *data, unsigned int length);
 
 /* pcap */
 enum {

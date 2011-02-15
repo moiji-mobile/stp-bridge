@@ -21,10 +21,10 @@
 #ifndef bsc_ussd_h
 #define bsc_ussd_h
 
-struct bsc_msc_forward;
+struct msc_connection;
 
-int bsc_ussd_handle_out_msg(struct bsc_msc_forward *, struct sccp_parse_result *result, struct msgb *msg);
+int bsc_ussd_handle_out_msg(struct msc_connection *, struct sccp_parse_result *result, struct msgb *msg);
 
-int bsc_ussd_handle_in_msg(struct bsc_msc_forward *, struct sccp_parse_result *res, struct msgb *msg);
+int bsc_ussd_handle_in_msg(struct msc_connection *, struct sccp_parse_result *res, struct msgb *msg);
 
 #endif

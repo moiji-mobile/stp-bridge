@@ -25,7 +25,7 @@
  * Check the msg and identify a Location Updating Request and see if the
  * LAC is different to this one and then mark the CR message.
  */
-int bsc_ussd_handle_out_msg(struct bsc_data *bsc, struct sccp_parse_result *result,
+int bsc_ussd_handle_out_msg(struct msc_connection *msc, struct sccp_parse_result *result,
 			    struct msgb *msg)
 {
 	/* Only search for this in the CR message */
@@ -40,7 +40,7 @@ int bsc_ussd_handle_out_msg(struct bsc_data *bsc, struct sccp_parse_result *resu
 /*
  * Check the message if it contains a location update request...
  */
-int bsc_ussd_handle_in_msg(struct bsc_data *bsc, struct sccp_parse_result *res,
+int bsc_ussd_handle_in_msg(struct msc_connection *msc, struct sccp_parse_result *res,
 			   struct msgb *msg)
 {
 	return 0;
