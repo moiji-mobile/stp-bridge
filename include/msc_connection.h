@@ -81,4 +81,8 @@ int msc_connection_start(struct msc_connection *msc);
 /* MGCP */
 void mgcp_forward(struct msc_connection *msc, const uint8_t *data, unsigned int length);
 
+/* Called by the MSC Connection */
+void msc_dispatch_sccp(struct msc_connection *msc, struct msgb *msg);
+
+
 #endif

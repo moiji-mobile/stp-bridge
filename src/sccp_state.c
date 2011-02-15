@@ -27,6 +27,7 @@
 #include <bsc_data.h>
 #include <cellmgr_debug.h>
 #include <bsc_sccp.h>
+#include <bsc_ussd.h>
 
 #include <osmocore/talloc.h>
 
@@ -520,4 +521,48 @@ static void send_reset_ack(struct mtp_link_set *link, int sls)
 	};
 
 	mtp_link_set_submit_sccp_data(link, sls, reset_ack, sizeof(reset_ack));
+}
+
+void msc_dispatch_sccp(struct msc_connection *msc, struct msgb *msg)
+{
+	/* we can not forward it right now */
+	if (msc->forward_only) {
+		if (!msc->target_link->sccp_up)
+			return;
+		mtp_link_set_submit_sccp_data(msc->target_link, -1,
+					      msg->l2h, msgb_l2len(msg));
+	} else {
+		struct sccp_parse_result result;
+		int rc;
+
+		rc = bss_patch_filter_msg(msg, &result);
+
+		if (rc == BSS_FILTER_RESET_ACK) {
+			LOGP(DMSC, LOGL_NOTICE, "Filtering reset ack from the MSC\n");
+		} else if (rc == BSS_FILTER_RLSD) {
+			LOGP(DMSC, LOGL_DEBUG, "Filtering RLSD from the MSC\n");
+			update_con_state(msc, rc, &result, msg, 1, 0);
+		} else if (rc == BSS_FILTER_RLC) {
+			/* if we receive this we have forwarded a RLSD to the network */
+			LOGP(DMSC, LOGL_ERROR, "RLC from the network. BAD!\n");
+		} else if (rc == BSS_FILTER_CLEAR_COMPL) {
+			LOGP(DMSC, LOGL_ERROR, "Clear Complete from the network.\n");
+		} else if (msc->target_link->sccp_up) {
+			unsigned int sls;
+
+			update_con_state(msc, rc, &result, msg, 1, 0);
+			sls = sls_for_src_ref(msc, result.destination_local_reference);
+
+			/* Check for Location Update Accept */
+			bsc_ussd_handle_in_msg(msc, &result, msg);
+
+			/* patch a possible PC */
+			bss_rewrite_header_to_bsc(msg, msc->target_link->opc,
+						  msc->target_link->dpc);
+
+			/* we can not forward it right now */
+			mtp_link_set_submit_sccp_data(msc->target_link, sls,
+						      msg->l2h, msgb_l2len(msg));
+		}
+	}
 }

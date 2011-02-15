@@ -162,48 +162,7 @@ static int ipaccess_a_fd_cb(struct bsc_fd *bfd)
 			bsc_del_timer(&fw->pong_timeout);
 		}
 	} else if (hh->proto == IPAC_PROTO_SCCP) {
-		struct sccp_parse_result result;
-		int rc;
-
-		/* we can not forward it right now */
-		if (fw->forward_only) {
-			if (fw->target_link->sccp_up && send_or_queue_bsc_msg(fw->target_link, -1, msg) == 1)
-				return 0;
-
-			msgb_free(msg);
-			return 0;
-		}
-
-
-		rc = bss_patch_filter_msg(msg, &result);
-
-		if (rc == BSS_FILTER_RESET_ACK) {
-			LOGP(DMSC, LOGL_NOTICE, "Filtering reset ack from the MSC\n");
-		} else if (rc == BSS_FILTER_RLSD) {
-			LOGP(DMSC, LOGL_DEBUG, "Filtering RLSD from the MSC\n");
-			update_con_state(fw, rc, &result, msg, 1, 0);
-		} else if (rc == BSS_FILTER_RLC) {
-			/* if we receive this we have forwarded a RLSD to the network */
-			LOGP(DMSC, LOGL_ERROR, "RLC from the network. BAD!\n");
-		} else if (rc == BSS_FILTER_CLEAR_COMPL) {
-			LOGP(DMSC, LOGL_ERROR, "Clear Complete from the network.\n");
-		} else if (fw->target_link->sccp_up) {
-			unsigned int sls;
-
-			update_con_state(fw, rc, &result, msg, 1, 0);
-			sls = sls_for_src_ref(fw, result.destination_local_reference);
-
-			/* Check for Location Update Accept */
-			bsc_ussd_handle_in_msg(fw, &result, msg);
-
-			/* patch a possible PC */
-			bss_rewrite_header_to_bsc(msg, fw->target_link->opc, fw->target_link->dpc);
-
-			/* we can not forward it right now */
-			if (send_or_queue_bsc_msg(fw->target_link, sls, msg) == 1)
-				return 0;
-
-		}
+		msc_dispatch_sccp(fw, msg);
 	} else if (hh->proto == NAT_MUX) {
 		mgcp_forward(fw, msg->l2h, msgb_l2len(msg));
 	} else {
