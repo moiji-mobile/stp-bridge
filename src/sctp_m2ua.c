@@ -454,7 +454,7 @@ static int sctp_m2ua_write(struct mtp_link *link, struct msgb *msg)
 	trans = (struct mtp_m2ua_link *) link;
 
 	if (llist_empty(&trans->conns))
-		return -1;
+		goto clean;
 
 	llist_for_each_entry(tmp, &trans->conns, entry)
 		if (tmp->established && tmp->asp_active && tmp->asp_up) {
@@ -464,12 +464,12 @@ static int sctp_m2ua_write(struct mtp_link *link, struct msgb *msg)
 
 	if (!conn) {
 		LOGP(DINP, LOGL_ERROR, "No active ASP?\n");
-		return -1;
+		goto clean;
 	}
 
 	m2ua = m2ua_msg_alloc();
 	if (!m2ua)
-		return -1;
+		goto clean;
 
 	mtp_handle_pcap(link, NET_OUT, msg->data, msg->len);
 
@@ -487,6 +487,9 @@ static int sctp_m2ua_write(struct mtp_link *link, struct msgb *msg)
 
 	m2ua_conn_send(conn, m2ua, &info);
 	m2ua_msg_free(m2ua);
+
+clean:
+	msgb_free(msg);
 	return 0;
 }
 
