@@ -33,12 +33,20 @@ struct mtp_link;
  * Drive M2UA over a SCTP link. Right now we have no
  * real concept for failover and such for the link.
  */
-struct mtp_m2ua_link {
-	struct mtp_link base;
-
+struct sctp_m2ua_transport {
 	int started;
 	struct llist_head conns;
 	struct bsc_fd bsc;
+
+	struct llist_head links;
+};
+
+struct mtp_m2ua_link {
+	struct mtp_link base;
+
+	int link_index;
+	struct llist_head entry;
+	struct sctp_m2ua_transport *transport;
 };
 
 /*
@@ -52,9 +60,10 @@ struct sctp_m2ua_conn {
 	int established;
 
 	struct write_queue queue;
-	struct mtp_m2ua_link *trans;
+	struct sctp_m2ua_transport *trans;
 };
 
-struct mtp_m2ua_link *sctp_m2ua_transp_create(const char *ip, int port);
+struct sctp_m2ua_transport *sctp_m2ua_transp_create(const char *ip, int port);
+struct mtp_m2ua_link *mtp_m2ua_link_create(struct mtp_link_set *);
 
 #endif

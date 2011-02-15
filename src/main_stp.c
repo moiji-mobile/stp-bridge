@@ -356,6 +356,12 @@ int main(int argc, char **argv)
 	if (!set)
 		return -1;
 
+	bsc->m2ua_trans = sctp_m2ua_transp_create("0.0.0.0", 2904);
+	if (!bsc->m2ua_trans) {
+		LOGP(DINP, LOGL_ERROR, "Failed to create SCTP transport.\n");
+		return -1;
+	}
+
 	m2ua_set = mtp_link_set_alloc(bsc);
 	m2ua_set->dpc = 92;
 	m2ua_set->opc = 9;
@@ -372,7 +378,7 @@ int main(int argc, char **argv)
 	m2ua_set->pass_all_isup = bsc->isup_pass;
 	m2ua_set->forward = set;
 
-	lnk = sctp_m2ua_transp_create("0.0.0.0", 2904);
+	lnk = mtp_m2ua_link_create(m2ua_set);
 	lnk->base.pcap_fd = -1;
 	mtp_link_set_add_link(m2ua_set, (struct mtp_link *) lnk);
 

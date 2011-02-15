@@ -39,6 +39,7 @@
 
 struct bsc_data;
 struct snmp_mtp_session;
+struct mtp_m2ua_transport;
 
 /**
  * Struct holding the BSC to MSC forwarding state.
@@ -155,6 +156,9 @@ struct bsc_data {
 
 	/* MSC related data... currently only one is supported */
 	struct bsc_msc_forward msc_forward;
+
+	/* m2ua code */
+	struct sctp_m2ua_transport *m2ua_trans;
 };
 
 /* bsc related functions */

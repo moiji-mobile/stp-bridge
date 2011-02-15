@@ -30,6 +30,19 @@
 #include <string.h>
 #include <unistd.h>
 
+static struct mtp_m2ua_link *find_m2ua_link(struct sctp_m2ua_transport *trans, int link_index)
+{
+	struct mtp_m2ua_link *link;
+	link_index = link_index;
+
+	llist_for_each_entry(link, &trans->links, entry) {
+		if (link->link_index == link_index)
+			return link;
+	}
+
+	return NULL;
+}
+
 static void link_down(struct mtp_link *link)
 {
 	rate_ctr_inc(&link->ctrg->ctr[MTP_LNK_ERROR]);
@@ -38,13 +51,17 @@ static void link_down(struct mtp_link *link)
 
 static void m2ua_conn_destroy(struct sctp_m2ua_conn *conn)
 {
+	struct mtp_m2ua_link *link;
+
 	close(conn->queue.bfd.fd);
 	bsc_unregister_fd(&conn->queue.bfd);
 	write_queue_clear(&conn->queue);
 	llist_del(&conn->entry);
 
-	if (conn->asp_up && conn->asp_active && conn->established)
-		link_down(&conn->trans->base);
+	/* TODO: hardcoded link index */
+	link = find_m2ua_link(conn->trans, 0);
+	if (link && conn->asp_up && conn->asp_active && conn->established)
+		link_down(&link->base);
 	talloc_free(conn);
 
 	#warning "Notify any other AS(P) for failover scenario"
@@ -73,7 +90,8 @@ static int m2ua_conn_send(struct sctp_m2ua_conn *conn,
 	return 0;
 }
 
-static int m2ua_conn_send_ntfy(struct sctp_m2ua_conn *conn,
+static int m2ua_conn_send_ntfy(struct mtp_m2ua_link *link,
+			       struct sctp_m2ua_conn *conn,
 			       struct sctp_sndrcvinfo *info)
 {
 	struct m2ua_msg *msg;
@@ -93,6 +111,8 @@ static int m2ua_conn_send_ntfy(struct sctp_m2ua_conn *conn,
 		state[1] = ntohs(M2UA_STP_AS_ACTIVE);
 	else
 		state[1] = ntohs(M2UA_STP_AS_INACTIVE);
+
+	/* TODO: embed the interface identifier */
 
 	m2ua_msg_add_data(msg, MUA_TAG_STATUS, 4, (uint8_t *) state);
 	m2ua_msg_add_data(msg, MUA_TAG_ASP_IDENT, 4, conn->asp_ident);
@@ -136,7 +156,6 @@ static int m2ua_handle_asp_ack(struct sctp_m2ua_conn *conn,
 	memcpy(conn->asp_ident, asp_ident->dat, 4);
 	conn->asp_up = 1;
 
-	m2ua_conn_send_ntfy(conn, info);
 	m2ua_msg_free(ack);
 	return 0;
 }
@@ -157,7 +176,8 @@ static int m2ua_handle_asp(struct sctp_m2ua_conn *conn,
 	return 0;
 }
 
-static int m2ua_handle_asptm_act(struct sctp_m2ua_conn *conn,
+static int m2ua_handle_asptm_act(struct mtp_m2ua_link *link,
+				 struct sctp_m2ua_conn *conn,
 				 struct m2ua_msg *m2ua,
 				 struct sctp_sndrcvinfo *info)
 {
@@ -177,18 +197,24 @@ static int m2ua_handle_asptm_act(struct sctp_m2ua_conn *conn,
 	}
 
 	conn->asp_active = 1;
-	m2ua_conn_send_ntfy(conn, info);
+	m2ua_conn_send_ntfy(link, conn, info);
 	m2ua_msg_free(ack);
 	return 0;
 }
 
-static int m2ua_handle_asptm(struct sctp_m2ua_conn *conn,
+static int m2ua_handle_asptm(struct mtp_m2ua_link *link,
+			     struct sctp_m2ua_conn *conn,
 			     struct m2ua_msg *m2ua,
 			     struct sctp_sndrcvinfo *info)
 {
+	if (!link) {
+		LOGP(DINP, LOGL_ERROR, "Link is required.\n");
+		return -1;
+	}
+
 	switch (m2ua->hdr.msg_type) {
 	case M2UA_ASPTM_ACTIV:
-		m2ua_handle_asptm_act(conn, m2ua, info);
+		m2ua_handle_asptm_act(link, conn, m2ua, info);
 		break;
 	default:
 		LOGP(DINP, LOGL_ERROR, "Unhandled msg_type %d\n",
@@ -199,24 +225,19 @@ static int m2ua_handle_asptm(struct sctp_m2ua_conn *conn,
 	return 0;
 }
 
-static int m2ua_handle_state_req(struct sctp_m2ua_conn *conn,
+static int m2ua_handle_state_req(struct mtp_m2ua_link *link,
+				 struct sctp_m2ua_conn *conn,
 				 struct m2ua_msg *m2ua,
 				 struct sctp_sndrcvinfo *info)
 {
-	struct m2ua_msg_part *ident, *state;
+	struct m2ua_msg_part *state;
 	struct m2ua_msg *conf;
-	int interface = 0, req;
+	int req;
 
 	state = m2ua_msg_find_tag(m2ua, M2UA_TAG_STATE_REQ);
 	if (!state || state->len != 4) {
 		LOGP(DINP, LOGL_ERROR, "Mandantory state request not present.\n");
 		return -1;
-	}
-
-	ident = m2ua_msg_find_tag(m2ua, MUA_TAG_IDENT_INT);
-	if (ident && ident->len == 4) {
-		memcpy(&interface, ident->dat, 4);
-		interface = ntohl(interface);
 	}
 
 	memcpy(&req, state->dat, 4);
@@ -230,7 +251,7 @@ static int m2ua_handle_state_req(struct sctp_m2ua_conn *conn,
 
 		conf->hdr.msg_class = M2UA_CLS_MAUP;
 		conf->hdr.msg_type = M2UA_MAUP_STATE_CON;
-		m2ua_msg_add_data(conf, MUA_TAG_IDENT_INT, 4, (uint8_t *) &interface);
+		m2ua_msg_add_data(conf, MUA_TAG_IDENT_INT, 4, (uint8_t *) &link->link_index);
 		m2ua_msg_add_data(conf, M2UA_TAG_STATE_REQ, 4, (uint8_t *) &req);
 		if (m2ua_conn_send(conn, conf, info) != 0) {
 			m2ua_msg_free(conf);
@@ -246,7 +267,8 @@ static int m2ua_handle_state_req(struct sctp_m2ua_conn *conn,
 	return 0;
 }
 
-static int m2ua_handle_est_req(struct sctp_m2ua_conn *conn,
+static int m2ua_handle_est_req(struct mtp_m2ua_link *link,
+			       struct sctp_m2ua_conn *conn,
 			       struct m2ua_msg *m2ua,
 			       struct sctp_sndrcvinfo *info)
 {
@@ -266,12 +288,13 @@ static int m2ua_handle_est_req(struct sctp_m2ua_conn *conn,
 
 	conn->established = 1;
 	LOGP(DINP, LOGL_NOTICE, "M2UA/Link is established.\n");
-	mtp_link_up(&conn->trans->base);
+	mtp_link_up(&link->base);
 	m2ua_msg_free(conf);
 	return 0;
 }
 
-static int m2ua_handle_rel_req(struct sctp_m2ua_conn *conn,
+static int m2ua_handle_rel_req(struct mtp_m2ua_link *link,
+			       struct sctp_m2ua_conn *conn,
 			       struct m2ua_msg *m2ua,
 			       struct sctp_sndrcvinfo *info)
 {
@@ -291,12 +314,13 @@ static int m2ua_handle_rel_req(struct sctp_m2ua_conn *conn,
 
 	conn->established = 0;
 	LOGP(DINP, LOGL_NOTICE, "M2UA/Link is released.\n");
-	link_down(&conn->trans->base);
+	link_down(&link->base);
 	m2ua_msg_free(conf);
 	return 0;
 }
 
-static int m2ua_handle_data(struct sctp_m2ua_conn *conn,
+static int m2ua_handle_data(struct mtp_m2ua_link *_link,
+			    struct sctp_m2ua_conn *conn,
 			    struct m2ua_msg *m2ua,
 			    struct sctp_sndrcvinfo *info)
 {
@@ -324,7 +348,7 @@ static int m2ua_handle_data(struct sctp_m2ua_conn *conn,
 	msg->l2h = msgb_put(msg, data->len);
 	memcpy(msg->l2h, data->dat, data->len);
 
-	link = &conn->trans->base;
+	link = &_link->base;
 	if (!link->blocked) {
 		mtp_handle_pcap(link, NET_IN, msg->l2h, msgb_l2len(msg));
 		mtp_link_set_data(link, msg);
@@ -334,22 +358,28 @@ static int m2ua_handle_data(struct sctp_m2ua_conn *conn,
 	return 0;
 }
 
-static int m2ua_handle_maup(struct sctp_m2ua_conn *conn,
+static int m2ua_handle_maup(struct mtp_m2ua_link *link,
+			    struct sctp_m2ua_conn *conn,
 			    struct m2ua_msg *m2ua,
 			    struct sctp_sndrcvinfo *info)
 {
+	if (!link) {
+		LOGP(DINP, LOGL_ERROR, "Link is required.\n");
+		return -1;
+	}
+
 	switch (m2ua->hdr.msg_type) {
 	case M2UA_MAUP_STATE_REQ:
-		m2ua_handle_state_req(conn, m2ua, info);
+		m2ua_handle_state_req(link, conn, m2ua, info);
 		break;
 	case M2UA_MAUP_EST_REQ:
-		m2ua_handle_est_req(conn, m2ua, info);
+		m2ua_handle_est_req(link, conn, m2ua, info);
 		break;
 	case M2UA_MAUP_REL_REQ:
-		m2ua_handle_rel_req(conn, m2ua, info);
+		m2ua_handle_rel_req(link, conn, m2ua, info);
 		break;
 	case M2UA_MAUP_DATA:
-		m2ua_handle_data(conn, m2ua, info);
+		m2ua_handle_data(link, conn, m2ua, info);
 		break;
 	default:
 		LOGP(DINP, LOGL_ERROR, "Unhandled msg_type %d\n",
@@ -375,15 +405,31 @@ static int m2ua_handle_mgmt(struct sctp_m2ua_conn *conn,
 	return 0;
 }
 
+static int m2ua_find_interface(struct m2ua_msg *m2ua, int def)
+{
+	struct m2ua_msg_part *ident;
+
+	ident = m2ua_msg_find_tag(m2ua, MUA_TAG_IDENT_INT);
+	if (ident && ident->len == 4) {
+		memcpy(&def, ident->dat, 4);
+		def = ntohl(def);
+	}
+
+	return def;
+}
+
 static int m2ua_conn_handle(struct sctp_m2ua_conn *conn,
 			    struct msgb *msg, struct sctp_sndrcvinfo *info)
 {
+	struct mtp_m2ua_link *link;
 	struct m2ua_msg *m2ua;
 	m2ua = m2ua_from_msg(msg->len, msg->data);
 	if (!m2ua) {
 		LOGP(DINP, LOGL_ERROR, "Failed to parse the message.\n");
 		return -1;
 	}
+
+	link = find_m2ua_link(conn->trans, m2ua_find_interface(m2ua, 0));
 
 	switch (m2ua->hdr.msg_class) {
 	case M2UA_CLS_MGMT:
@@ -393,10 +439,10 @@ static int m2ua_conn_handle(struct sctp_m2ua_conn *conn,
 		m2ua_handle_asp(conn, m2ua, info);
 		break;
 	case M2UA_CLS_ASPTM:
-		m2ua_handle_asptm(conn, m2ua, info);
+		m2ua_handle_asptm(link, conn, m2ua, info);
 		break;
 	case M2UA_CLS_MAUP:
-		m2ua_handle_maup(conn, m2ua, info);
+		m2ua_handle_maup(link, conn, m2ua, info);
 		break;
 	default:
 		LOGP(DINP, LOGL_ERROR, "Unhandled msg_class %d\n",
@@ -443,13 +489,15 @@ static int m2ua_conn_read(struct bsc_fd *fd)
 
 static int sctp_m2ua_write(struct mtp_link *link, struct msgb *msg)
 {
-	struct mtp_m2ua_link *trans;
+	struct mtp_m2ua_link *mlink;
+	struct sctp_m2ua_transport *trans;
 	struct sctp_m2ua_conn *conn = NULL, *tmp;
 	struct sctp_sndrcvinfo info;
 	struct m2ua_msg *m2ua;
 	uint32_t interface;
 
-	trans = (struct mtp_m2ua_link *) link;
+	mlink = (struct mtp_m2ua_link *) link;
+	trans = mlink->transport;
 
 	if (llist_empty(&trans->conns))
 		goto clean;
@@ -509,7 +557,7 @@ static int m2ua_conn_write(struct bsc_fd *fd, struct msgb *msg)
 static int sctp_trans_accept(struct bsc_fd *fd, unsigned int what)
 {
 	struct sctp_event_subscribe events;
-	struct mtp_m2ua_link *trans;
+	struct sctp_m2ua_transport *trans;
 	struct sctp_m2ua_conn *conn;
 	struct sockaddr_in addr;
 	socklen_t len;
@@ -525,12 +573,6 @@ static int sctp_trans_accept(struct bsc_fd *fd, unsigned int what)
 	trans = fd->data;
 	if (!trans->started) {
 		LOGP(DINP, LOGL_NOTICE, "The link is not started.\n");
-		close(s);
-		return -1;
-	}
-
-	if (trans->base.blocked) {
-		LOGP(DINP, LOGL_NOTICE, "The link is blocked.\n");
 		close(s);
 		return -1;
 	}
@@ -572,30 +614,31 @@ static int sctp_m2ua_dummy(struct mtp_link *link)
 	return 0;
 }
 
-static int sctp_m2ua_start(struct mtp_link *link)
+static int sctp_m2ua_start(struct mtp_link *_link)
 {
-	struct mtp_m2ua_link *trans = (struct mtp_m2ua_link *) link;
+	struct mtp_m2ua_link *link = (struct mtp_m2ua_link *) _link;
 
-	trans->started = 1;
+	link->transport->started = 1;
 	return 0;
 }
 
-static int sctp_m2ua_reset(struct mtp_link *link)
+static int sctp_m2ua_reset(struct mtp_link *_link)
 {
 	struct sctp_m2ua_conn *conn, *tmp;
-	struct mtp_m2ua_link *transp = (struct mtp_m2ua_link *) link;
+	struct mtp_m2ua_link *link = (struct mtp_m2ua_link *) _link;
 
-	llist_for_each_entry_safe(conn, tmp, &transp->conns, entry)
+	/* TODO: only connection that use the current link index! */
+	llist_for_each_entry_safe(conn, tmp, &link->transport->conns, entry)
 		m2ua_conn_destroy(conn);
 
 	return 0;
 }
 
-struct mtp_m2ua_link *sctp_m2ua_transp_create(const char *ip, int port)
+struct sctp_m2ua_transport *sctp_m2ua_transp_create(const char *ip, int port)
 {
 	int sctp;
 	struct sockaddr_in addr;
-	struct mtp_m2ua_link *trans;
+	struct sctp_m2ua_transport *trans;
 
 	sctp = socket(PF_INET, SOCK_STREAM, IPPROTO_SCTP);
 	if (!sctp) {
@@ -623,18 +666,12 @@ struct mtp_m2ua_link *sctp_m2ua_transp_create(const char *ip, int port)
 	int on = 1;
 	setsockopt(sctp, SOL_SCTP, 112, &on, sizeof(on));
 
-	trans = talloc_zero(NULL, struct mtp_m2ua_link);
+	trans = talloc_zero(NULL, struct sctp_m2ua_transport);
 	if (!trans) {
 		LOGP(DINP, LOGL_ERROR, "Remove the talloc.\n");
 		close(sctp);
 		return NULL;
 	}
-
-	trans->base.shutdown = sctp_m2ua_reset;
-	trans->base.clear_queue = sctp_m2ua_dummy;
-	trans->base.reset = sctp_m2ua_reset;
-	trans->base.start = sctp_m2ua_start;
-	trans->base.write = sctp_m2ua_write;
 
 	trans->bsc.fd = sctp;
 	trans->bsc.data = trans;
@@ -649,6 +686,30 @@ struct mtp_m2ua_link *sctp_m2ua_transp_create(const char *ip, int port)
 	}
 
 	INIT_LLIST_HEAD(&trans->conns);
+	INIT_LLIST_HEAD(&trans->links);
+
 	return trans;
 }
 
+struct mtp_m2ua_link *mtp_m2ua_link_create(struct mtp_link_set *set)
+{
+	struct mtp_m2ua_link *lnk;
+
+	lnk = talloc_zero(set, struct mtp_m2ua_link);
+	if (!lnk) {
+		LOGP(DINP, LOGL_ERROR, "Failed to allocate.\n");
+		return NULL;
+	}
+
+	/* remember we have a link here */
+	llist_add(&lnk->entry, &set->bsc->m2ua_trans->links);
+
+	lnk->base.shutdown = sctp_m2ua_reset;
+	lnk->base.clear_queue = sctp_m2ua_dummy;
+	lnk->base.reset = sctp_m2ua_reset;
+	lnk->base.start = sctp_m2ua_start;
+	lnk->base.write = sctp_m2ua_write;
+
+	lnk->transport = set->bsc->m2ua_trans;
+	return lnk;
+}
