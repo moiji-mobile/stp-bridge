@@ -71,9 +71,6 @@ static int config_write_cell(struct vty *vty)
 	vty_out(vty, " mtp ni %d%s", bsc.ni_ni, VTY_NEWLINE);
 	vty_out(vty, " mtp spare %d%s", bsc.ni_spare, VTY_NEWLINE);
 	vty_out(vty, " mtp sltm once %d%s", bsc.once, VTY_NEWLINE);
-	vty_out(vty, " country-code %d%s", bsc.msc_forward.mcc, VTY_NEWLINE);
-	vty_out(vty, " network-code %d%s", bsc.msc_forward.mnc, VTY_NEWLINE);
-	vty_out(vty, " location-area-code %d%s", bsc.msc_forward.lac, VTY_NEWLINE);
 	if (bsc.udp_ip)
 		vty_out(vty, " udp dest ip %s%s", bsc.udp_ip, VTY_NEWLINE);
 	vty_out(vty, " udp dest port %d%s", bsc.udp_port, VTY_NEWLINE);
@@ -256,38 +253,6 @@ DEFUN(cfg_msc_time, cfg_msc_time_cmd,
       "Set the MSC connect timeout")
 {
 	bsc.msc_forward.msc_time = atoi(argv[0]);
-	return CMD_SUCCESS;
-}
-
-static void update_lai(struct bsc_msc_forward *fw)
-{
-	gsm48_generate_lai(&fw->lai, fw->mcc, fw->mnc, fw->lac);
-}
-
-DEFUN(cfg_mnc, cfg_mnc_cmd,
-      "network-code NR",
-      "Set the Mobile Network Code\n" "Number\n")
-{
-	bsc.msc_forward.mnc = atoi(argv[0]);
-	update_lai(&bsc.msc_forward);
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_mcc, cfg_mcc_cmd,
-      "country-code NR",
-      "Set the Mobile Country Code\n" "Number\n")
-{
-	bsc.msc_forward.mcc = atoi(argv[0]);
-	update_lai(&bsc.msc_forward);
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_lac, cfg_lac_cmd,
-      "location-area-code NR",
-      "Set the Location Area Code\n" "Number\n")
-{
-	bsc.msc_forward.lac = atoi(argv[0]);
-	update_lai(&bsc.msc_forward);
 	return CMD_SUCCESS;
 }
 
@@ -554,9 +519,6 @@ void cell_vty_init(void)
 	install_element(CELLMGR_NODE, &cfg_ping_time_cmd);
 	install_element(CELLMGR_NODE, &cfg_pong_time_cmd);
 	install_element(CELLMGR_NODE, &cfg_msc_time_cmd);
-	install_element(CELLMGR_NODE, &cfg_mcc_cmd);
-	install_element(CELLMGR_NODE, &cfg_mnc_cmd);
-	install_element(CELLMGR_NODE, &cfg_lac_cmd);
 	install_element(CELLMGR_NODE, &cfg_isup_pass_cmd);
 
 	/* special commands */
