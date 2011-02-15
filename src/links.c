@@ -106,7 +106,7 @@ struct mtp_link_set *link_init(struct bsc_data *bsc)
 	struct mtp_udp_link *lnk;
 	struct mtp_link_set *set;
 
-	set = mtp_link_set_alloc();
+	set = mtp_link_set_alloc(bsc);
 	set->name = talloc_strdup(set, "MTP");
 	set->dpc = bsc->dpc;
 	set->opc = bsc->opc;

@@ -266,7 +266,7 @@ DEFUN(cfg_isup_pass, cfg_isup_pass_cmd,
 
 	bsc->isup_pass = atoi(argv[0]);
 
-	llist_for_each_entry(set, &bsc->links, entry)
+	llist_for_each_entry(set, &bsc->linksets, entry)
 		set->pass_all_isup = bsc->isup_pass;
 
 	return CMD_SUCCESS;
@@ -291,7 +291,7 @@ DEFUN(show_stats, show_stats_cmd,
 {
 	struct mtp_link_set *set;
 
-	llist_for_each_entry(set, &bsc->links, entry)
+	llist_for_each_entry(set, &bsc->linksets, entry)
 		dump_stats(vty, set);
 
 	return CMD_SUCCESS;
@@ -330,7 +330,7 @@ DEFUN(show_linksets, show_linksets_cmd,
 {
 	struct mtp_link_set *set;
 
-	llist_for_each_entry(set, &bsc->links, entry)
+	llist_for_each_entry(set, &bsc->linksets, entry)
 		dump_state(vty, set);
 	return CMD_SUCCESS;
 }
@@ -365,7 +365,7 @@ DEFUN(show_slc, show_slc_cmd,
 	struct mtp_link_set *set = NULL;
 	int i;
 
-	set = find_link_set(&bsc->links, argv[0]);
+	set = find_link_set(&bsc->linksets, argv[0]);
 
 	if (!set) {
 		vty_out(vty, "Failed to find linkset.%s", VTY_NEWLINE);
@@ -392,7 +392,7 @@ DEFUN(pcap_set, pcap_set_cmd,
 {
 	struct mtp_link_set *set = NULL;
 
-	set = find_link_set(&bsc->links, argv[0]);
+	set = find_link_set(&bsc->linksets, argv[0]);
 
 	if (!set) {
 		vty_out(vty, "Failed to find linkset.%s", VTY_NEWLINE);
@@ -420,7 +420,7 @@ DEFUN(pcap_set_stop, pcap_set_stop_cmd,
 {
 	struct mtp_link_set *set = NULL;
 
-	set = find_link_set(&bsc->links, argv[0]);
+	set = find_link_set(&bsc->linksets, argv[0]);
 
 	if (!set) {
 		vty_out(vty, "Failed to find linkset.%s", VTY_NEWLINE);
@@ -436,7 +436,7 @@ DEFUN(pcap_set_stop, pcap_set_stop_cmd,
 #define FIND_LINK(vty, type, nr) ({						\
 	struct mtp_link_set *set = NULL;					\
 	struct mtp_link *link = NULL, *tmp;					\
-	set = find_link_set(&bsc->links, type);					\
+	set = find_link_set(&bsc->linksets, type);				\
 	if (!set) {								\
 		vty_out(vty, "Unknown linkset %s.%s", type, VTY_NEWLINE);	\
 		return CMD_WARNING;						\

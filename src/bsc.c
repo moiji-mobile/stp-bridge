@@ -35,7 +35,7 @@ struct bsc_data *bsc_data_create()
 		return NULL;
 	}
 
-	INIT_LLIST_HEAD(&bsc->links);
+	INIT_LLIST_HEAD(&bsc->linksets);
 	bsc->dpc = 1;
 	bsc->opc = 0;
 	bsc->sccp_opc = -1;

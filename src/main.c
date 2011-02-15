@@ -85,7 +85,7 @@ static void sigint()
 	printf("Terminating.\n");
 	handled = 1;
 	if (bsc && bsc->setup) {
-		llist_for_each_entry(set, &bsc->links, entry)
+		llist_for_each_entry(set, &bsc->linksets, entry)
 			link_shutdown_all(set);
 	}
 
@@ -175,7 +175,6 @@ int main(int argc, char **argv)
 	struct mtp_link_set *set;
 
 
-	mtp_link_set_init();
 	thread_init();
 
 	log_init(&log_info);
@@ -222,7 +221,6 @@ int main(int argc, char **argv)
 	if (!set)
 		return -1;
 
-	llist_add(&set->entry, &bsc->links);
 	set->fw = &bsc->msc_forward;
 	bsc->msc_forward.bsc = set;
 

@@ -42,13 +42,15 @@ struct rate_ctr_group;
  */
 struct mtp_link_set {
 	struct llist_head entry;
+	int no;
+	char *name;
+
 
 	/* routing info.. */
 	int dpc, opc, sccp_opc, isup_opc;
 	int ni;
 	int spare;
 
-	const char *name;
 
 	/* internal state */
 	/* the MTP1 link is up */
@@ -120,7 +122,6 @@ struct mtp_link {
 };
 
 
-struct mtp_link_set *mtp_link_set_alloc(void);
 void mtp_link_set_stop(struct mtp_link_set *link);
 void mtp_link_set_reset(struct mtp_link_set *link);
 int mtp_link_set_data(struct mtp_link *link, struct msgb *msg);
@@ -133,9 +134,6 @@ int mtp_link_set_add_link(struct mtp_link_set *set, struct mtp_link *link);
 void mtp_link_block(struct mtp_link *link);
 void mtp_link_unblock(struct mtp_link *link);
 
-
-/* one time init function */
-void mtp_link_set_init(void);
 
 /* to be implemented for MSU sending */
 void mtp_link_submit(struct mtp_link *link, struct msgb *msg);
@@ -157,5 +155,8 @@ void mtp_link_failure(struct mtp_link *fail);
 
 /* internal routines */
 struct msgb *mtp_msg_alloc(struct mtp_link_set *link);
+
+/* link management */
+struct mtp_link_set *mtp_link_set_alloc(struct bsc_data *bsc);
 
 #endif

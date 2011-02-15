@@ -33,8 +33,6 @@
 
 #include <string.h>
 
-static void *tall_mtp_ctx = NULL;
-
 static int mtp_int_submit(struct mtp_link_set *link, int pc, int sls, int type, const uint8_t *data, unsigned int length);
 
 void mtp_link_submit(struct mtp_link *link, struct msgb *msg)
@@ -185,23 +183,17 @@ static struct msgb *mtp_sccp_alloc_scmg(struct mtp_link_set *link,
 	return out;
 }
 
-void mtp_link_set_init(void)
+struct mtp_link_set *mtp_link_set_alloc(struct bsc_data *bsc)
 {
-	tall_mtp_ctx = talloc_named_const(NULL, 1, "mtp-link");
-}
-
-struct mtp_link_set *mtp_link_set_alloc(void)
-{
-	static int linkset_no = 0;
 	struct mtp_link_set *link;
 
-	link = talloc_zero(tall_mtp_ctx, struct mtp_link_set);
+	link = talloc_zero(bsc, struct mtp_link_set);
 	if (!link)
 		return NULL;
 
 	link->ctrg = rate_ctr_group_alloc(link,
 					  mtp_link_set_rate_ctr_desc(),
-					  linkset_no++);
+					  bsc->num_linksets + 1);
 	if (!link->ctrg) {
 		LOGP(DINP, LOGL_ERROR, "Failed to allocate counter.\n");
 		return NULL;
@@ -210,6 +202,9 @@ struct mtp_link_set *mtp_link_set_alloc(void)
 
 	link->ni = MTP_NI_NATION_NET;
 	INIT_LLIST_HEAD(&link->links);
+
+	link->no = bsc->num_linksets++;
+	llist_add(&link->entry, &bsc->linksets);
 
 	return link;
 }

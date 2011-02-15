@@ -112,7 +112,7 @@ static void sigint()
 	printf("Terminating.\n");
 	handled = 1;
 	if (bsc && bsc->setup) {
-		llist_for_each_entry(set, &bsc->links, entry)
+		llist_for_each_entry(set, &bsc->linksets, entry)
 			link_shutdown_all(set);
 	}
 	exit(0);
@@ -182,7 +182,7 @@ static struct mtp_link_set *find_link_set(struct bsc_data *bsc,
 {
 	struct mtp_link_set *set;
 
-	llist_for_each_entry(set, &bsc->links, entry)
+	llist_for_each_entry(set, &bsc->linksets, entry)
 		if (strncmp(buf, set->name, len) == 0)
 			return set;
 
@@ -308,7 +308,6 @@ int main(int argc, char **argv)
 	struct mtp_link_set *m2ua_set;
 	struct mtp_m2ua_link *lnk;
 
-	mtp_link_set_init();
 	thread_init();
 
 	log_init(&log_info);
@@ -356,9 +355,8 @@ int main(int argc, char **argv)
 	set = link_init(bsc);
 	if (!set)
 		return -1;
-	llist_add(&set->entry, &bsc->links);
 
-	m2ua_set = mtp_link_set_alloc();
+	m2ua_set = mtp_link_set_alloc(bsc);
 	m2ua_set->dpc = 92;
 	m2ua_set->opc = 9;
 	m2ua_set->sccp_opc = 9;
@@ -367,7 +365,6 @@ int main(int argc, char **argv)
 	m2ua_set->bsc = bsc;
 	m2ua_set->pcap_fd = bsc->pcap_fd;
 	m2ua_set->name = talloc_strdup(m2ua_set, "M2UA");
-	llist_add(&m2ua_set->entry, &bsc->links);
 
 	/* setup things */
 	set->pass_all_isup = bsc->isup_pass;

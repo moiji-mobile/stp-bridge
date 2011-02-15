@@ -123,7 +123,6 @@ struct bsc_data {
 	int setup;
 	int pcap_fd;
 	int udp_reset_timeout;
-	struct llist_head links;
 
 	/* udp code */
 	struct mtp_udp_data udp_data;
@@ -145,6 +144,9 @@ struct bsc_data {
 	/* isup handling */
 	int isup_pass;
 
+	/* MTP Links */
+	struct llist_head linksets;
+	int num_linksets;
 
 	/* inject */
 	int allow_inject;
