@@ -183,32 +183,6 @@ static struct msgb *mtp_sccp_alloc_scmg(struct mtp_link_set *link,
 	return out;
 }
 
-struct mtp_link_set *mtp_link_set_alloc(struct bsc_data *bsc)
-{
-	struct mtp_link_set *link;
-
-	link = talloc_zero(bsc, struct mtp_link_set);
-	if (!link)
-		return NULL;
-
-	link->ctrg = rate_ctr_group_alloc(link,
-					  mtp_link_set_rate_ctr_desc(),
-					  bsc->num_linksets + 1);
-	if (!link->ctrg) {
-		LOGP(DINP, LOGL_ERROR, "Failed to allocate counter.\n");
-		return NULL;
-	}
-
-
-	link->ni = MTP_NI_NATION_NET;
-	INIT_LLIST_HEAD(&link->links);
-
-	link->no = bsc->num_linksets++;
-	llist_add(&link->entry, &bsc->linksets);
-
-	return link;
-}
-
 void mtp_link_set_stop(struct mtp_link_set *link)
 {
 	struct mtp_link *lnk;
@@ -619,4 +593,41 @@ int mtp_link_set_add_link(struct mtp_link_set *set, struct mtp_link *lnk)
 	llist_add_tail(&lnk->entry, &set->links);
 	mtp_link_set_init_slc(set);
 	return 0;
+}
+
+struct mtp_link_set *mtp_link_set_alloc(struct bsc_data *bsc)
+{
+	struct mtp_link_set *link;
+
+	link = talloc_zero(bsc, struct mtp_link_set);
+	if (!link)
+		return NULL;
+
+	link->ctrg = rate_ctr_group_alloc(link,
+					  mtp_link_set_rate_ctr_desc(),
+					  bsc->num_linksets + 1);
+	if (!link->ctrg) {
+		LOGP(DINP, LOGL_ERROR, "Failed to allocate counter.\n");
+		return NULL;
+	}
+
+
+	link->ni = MTP_NI_NATION_NET;
+	INIT_LLIST_HEAD(&link->links);
+
+	link->no = bsc->num_linksets++;
+	llist_add(&link->entry, &bsc->linksets);
+
+	return link;
+}
+
+struct mtp_link_set *mtp_link_set_num(struct bsc_data *bsc, int num)
+{
+	struct mtp_link_set *set;
+
+	llist_for_each_entry(set, &bsc->linksets, entry)
+		if (set->no == num)
+			return set;
+
+	return NULL;
 }

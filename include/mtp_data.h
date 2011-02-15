@@ -158,5 +158,6 @@ struct msgb *mtp_msg_alloc(struct mtp_link_set *link);
 
 /* link management */
 struct mtp_link_set *mtp_link_set_alloc(struct bsc_data *bsc);
+struct mtp_link_set *mtp_link_set_num(struct bsc_data *bsc, int num);
 
 #endif
