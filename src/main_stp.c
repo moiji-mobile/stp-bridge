@@ -64,18 +64,11 @@
 
 static struct log_target *stderr_target;
 
-static char *config = "osmo_stp.cfg";
+char *config = "osmo_stp.cfg";
 
 struct bsc_data *bsc;
 extern void cell_vty_init(void);
-
-/*
- * methods called from the MTP Level3 part
- */
-static void print_usage()
-{
-	printf("Usage: osmo-stp\n");
-}
+extern void handle_options(int argc, char **argv);
 
 static void sigint()
 {
@@ -100,62 +93,6 @@ static void sigint()
 
 out:
 	pthread_mutex_unlock(&exit_mutex);
-}
-
-static void print_help()
-{
-	printf("  Some useful help...\n");
-	printf("  -h --help this text\n");
-	printf("  -c --config=CFG The config file to use.\n");
-	printf("  -p --pcap=FILE. Write MSUs to the PCAP file.\n");
-	printf("  -c --once. Send the SLTM msg only once.\n");
-	printf("  -v --version. Print the version number\n");
-}
-
-static void handle_options(int argc, char **argv)
-{
-	while (1) {
-		int option_index = 0, c;
-		static struct option long_options[] = {
-			{"help", 0, 0, 'h'},
-			{"config", 1, 0, 'c'},
-			{"pcap", 1, 0, 'p'},
-			{"version", 0, 0, 0},
-			{0, 0, 0, 0},
-		};
-
-		c = getopt_long(argc, argv, "hc:p:v",
-				long_options, &option_index);
-		if (c == -1)
-			break;
-
-		switch (c) {
-		case 'h':
-			print_usage();
-			print_help();
-			exit(0);
-		case 'p':
-			if (bsc->pcap_fd >= 0)
-				close(bsc->pcap_fd);
-			bsc->pcap_fd = open(optarg, O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP| S_IROTH);
-			if (bsc->pcap_fd < 0) {
-				fprintf(stderr, "Failed to open PCAP file.\n");
-				exit(0);
-			}
-			mtp_pcap_write_header(bsc->pcap_fd);
-			break;
-		case 'c':
-			config = optarg;
-			break;
-		case 'v':
-			printf("This is %s version %s.\n", PACKAGE, VERSION);
-			exit(0);
-			break;
-		default:
-			fprintf(stderr, "Unknown option.\n");
-			break;
-		}
-	}
 }
 
 static struct mtp_link_set *find_link_set(struct bsc_data *bsc,

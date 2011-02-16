@@ -22,7 +22,6 @@
 #include <mtp_data.h>
 #include <msc_connection.h>
 #include <mtp_level3.h>
-#include <mtp_pcap.h>
 #include <thread.h>
 #include <bss_patch.h>
 #include <bssap_sccp.h>
@@ -39,37 +38,15 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include <fcntl.h>
 #include <signal.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <assert.h>
-#include <unistd.h>
-
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
-#include <getopt.h>
-
-#undef PACKAGE_NAME
-#undef PACKAGE_VERSION
-#undef PACKAGE_BUGREPORT
-#undef PACKAGE_TARNAME
-#undef PACKAGE_STRING
-#include <cellmgr_config.h>
 
 static struct log_target *stderr_target;
 
-static char *config = "cellmgr_ng.cfg";
+char *config = "cellmgr_ng.cfg";
 
 struct bsc_data *bsc;
 extern void cell_vty_init(void);
-
-static void print_usage()
-{
-	printf("Usage: cellmgr_ng\n");
-}
+extern void handle_options(int argc, char **argv);
 
 static void sigint()
 {
@@ -104,62 +81,6 @@ static void sigusr2()
 
 	llist_for_each_entry(msc, &bsc->mscs, entry)
 		msc_close_connection(msc);
-}
-
-static void print_help()
-{
-	printf("  Some useful help...\n");
-	printf("  -h --help this text\n");
-	printf("  -c --config=CFG The config file to use.\n");
-	printf("  -p --pcap=FILE. Write MSUs to the PCAP file.\n");
-	printf("  -c --once. Send the SLTM msg only once.\n");
-	printf("  -v --version. Print the version number\n");
-}
-
-static void handle_options(int argc, char **argv)
-{
-	while (1) {
-		int option_index = 0, c;
-		static struct option long_options[] = {
-			{"help", 0, 0, 'h'},
-			{"config", 1, 0, 'c'},
-			{"pcap", 1, 0, 'p'},
-			{"version", 0, 0, 0},
-			{0, 0, 0, 0},
-		};
-
-		c = getopt_long(argc, argv, "hc:p:v",
-				long_options, &option_index);
-		if (c == -1)
-			break;
-
-		switch (c) {
-		case 'h':
-			print_usage();
-			print_help();
-			exit(0);
-		case 'p':
-			if (bsc->pcap_fd >= 0)
-				close(bsc->pcap_fd);
-			bsc->pcap_fd = open(optarg, O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP| S_IROTH);
-			if (bsc->pcap_fd < 0) {
-				fprintf(stderr, "Failed to open PCAP file.\n");
-				exit(0);
-			}
-			mtp_pcap_write_header(bsc->pcap_fd);
-			break;
-		case 'c':
-			config = optarg;
-			break;
-		case 'v':
-			printf("This is %s version %s.\n", PACKAGE, VERSION);
-			exit(0);
-			break;
-		default:
-			fprintf(stderr, "Unknown option.\n");
-			break;
-		}
-	}
 }
 
 static void bsc_msc_forward_init(struct msc_connection *msc)

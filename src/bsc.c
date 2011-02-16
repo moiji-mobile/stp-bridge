@@ -22,8 +22,33 @@
 #include <bsc_data.h>
 #include <cellmgr_debug.h>
 #include <mtp_level3.h>
+#include <mtp_pcap.h>
 
 #include <osmocore/talloc.h>
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <assert.h>
+#include <unistd.h>
+
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+#include <getopt.h>
+
+#undef PACKAGE_NAME
+#undef PACKAGE_VERSION
+#undef PACKAGE_BUGREPORT
+#undef PACKAGE_TARNAME
+#undef PACKAGE_STRING
+#include <cellmgr_config.h>
+
+extern struct bsc_data *bsc;
+extern char *config;
 
 struct bsc_data *bsc_data_create()
 {
@@ -53,4 +78,65 @@ struct bsc_data *bsc_data_create()
 	bsc->udp_reset_timeout = 180;
 
 	return bsc;
+}
+
+static void print_usage(const char *arg)
+{
+	printf("Usage: %s\n", arg);
+}
+
+static void print_help()
+{
+	printf("  Some useful help...\n");
+	printf("  -h --help this text\n");
+	printf("  -c --config=CFG The config file to use.\n");
+	printf("  -p --pcap=FILE. Write MSUs to the PCAP file.\n");
+	printf("  -c --once. Send the SLTM msg only once.\n");
+	printf("  -v --version. Print the version number\n");
+}
+
+void handle_options(int argc, char **argv)
+{
+	while (1) {
+		int option_index = 0, c;
+		static struct option long_options[] = {
+			{"help", 0, 0, 'h'},
+			{"config", 1, 0, 'c'},
+			{"pcap", 1, 0, 'p'},
+			{"version", 0, 0, 0},
+			{0, 0, 0, 0},
+		};
+
+		c = getopt_long(argc, argv, "hc:p:v",
+				long_options, &option_index);
+		if (c == -1)
+			break;
+
+		switch (c) {
+		case 'h':
+			print_usage(argv[0]);
+			print_help();
+			exit(0);
+		case 'p':
+			if (bsc->pcap_fd >= 0)
+				close(bsc->pcap_fd);
+			bsc->pcap_fd = open(optarg, O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP| S_IROTH);
+			if (bsc->pcap_fd < 0) {
+				fprintf(stderr, "Failed to open PCAP file.\n");
+				exit(0);
+			}
+			mtp_pcap_write_header(bsc->pcap_fd);
+			break;
+		case 'c':
+			config = optarg;
+			break;
+		case 'v':
+			printf("This is %s version %s.\n", PACKAGE, VERSION);
+			exit(0);
+			break;
+		default:
+			fprintf(stderr, "Unknown option.\n");
+			break;
+		}
+	}
 }
