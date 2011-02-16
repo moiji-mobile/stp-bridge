@@ -615,7 +615,7 @@ struct mtp_link_set *mtp_link_set_alloc(struct bsc_data *bsc)
 	link->ni = MTP_NI_NATION_NET;
 	INIT_LLIST_HEAD(&link->links);
 
-	link->no = bsc->num_linksets++;
+	link->nr = bsc->num_linksets++;
 	llist_add(&link->entry, &bsc->linksets);
 
 	return link;
@@ -626,7 +626,7 @@ struct mtp_link_set *mtp_link_set_num(struct bsc_data *bsc, int num)
 	struct mtp_link_set *set;
 
 	llist_for_each_entry(set, &bsc->linksets, entry)
-		if (set->no == num)
+		if (set->nr == num)
 			return set;
 
 	return NULL;

@@ -51,7 +51,7 @@ void mtp_link_set_forward_sccp(struct mtp_link_set *set, struct msgb *_msg, int 
 {
 	if (!set->app) {
 		LOGP(DINP, LOGL_ERROR, "Linkset %d/%s has no application.\n",
-		     set->no, set->name);
+		     set->nr, set->name);
 		return;
 	}
 
@@ -70,7 +70,7 @@ void mtp_link_set_forward_isup(struct mtp_link_set *set, struct msgb *msg, int s
 {
 	if (!set->app) {
 		LOGP(DINP, LOGL_ERROR, "Linkset %d/%s has no application.\n",
-		     set->no, set->name);
+		     set->nr, set->name);
 		return;
 	}
 
@@ -177,7 +177,7 @@ static int ss7_app_setup_stp(struct ss7_application *app,
 		LOGP(DINP, LOGL_ERROR,
 		     "SS7 %d/%s is using linkset %d/%s\n",
 		      src->app->nr, src->app->name,
-		      src->no, src->name);
+		      src->nr, src->name);
 		return -3;
 	}
 
@@ -194,7 +194,7 @@ static int ss7_app_setup_stp(struct ss7_application *app,
 		LOGP(DINP, LOGL_ERROR,
 		     "SS7 %d/%s is using linkset %d/%s\n",
 		      dst->app->nr, dst->app->name,
-		      dst->no, dst->name);
+		      dst->nr, dst->name);
 		return -3;
 	}
 
@@ -251,7 +251,7 @@ static int ss7_app_setup_relay(struct ss7_application *app, int type,
 		LOGP(DINP, LOGL_ERROR,
 		     "SS7 %d/%s is using linkset %d/%s\n",
 		      mtp->app->nr, mtp->app->name,
-		      mtp->no, mtp->name);
+		      mtp->nr, mtp->name);
 		return -3;
 	}
 

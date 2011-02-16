@@ -42,7 +42,7 @@ struct ss7_application;
  */
 struct mtp_link_set {
 	struct llist_head entry;
-	int no;
+	int nr;
 	char *name;
 
 
