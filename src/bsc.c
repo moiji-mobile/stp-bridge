@@ -49,7 +49,6 @@ struct bsc_data *bsc_data_create()
 	bsc->src_port = 1313;
 	bsc->ni_ni = MTP_NI_NATION_NET;
 	bsc->ni_spare = 0;
-	bsc->setup = 0;
 	bsc->pcap_fd = -1;
 	bsc->udp_reset_timeout = 180;
 

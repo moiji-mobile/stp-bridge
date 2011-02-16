@@ -86,7 +86,7 @@ static void sigint()
 
 	printf("Terminating.\n");
 	handled = 1;
-	if (bsc && bsc->setup) {
+	if (bsc) {
 		llist_for_each_entry(set, &bsc->linksets, entry)
 			link_shutdown_all(set);
 	}
@@ -197,7 +197,6 @@ int main(int argc, char **argv)
 	bsc = bsc_data_create();
 	if (!bsc)
 		return -1;
-	bsc->app = APP_CELLMGR;
 
 	/* msc data */
 	msc = msc_connection_create(bsc, 1);

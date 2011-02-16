@@ -20,6 +20,7 @@
  */
 
 #include <bsc_data.h>
+#include <bsc_sccp.h>
 
 /*
  * Check the msg and identify a Location Updating Request and see if the

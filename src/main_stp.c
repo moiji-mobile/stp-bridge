@@ -34,6 +34,8 @@
 
 #include <osmocore/talloc.h>
 
+#include <osmocom/sccp/sccp.h>
+
 #include <osmocom/vty/vty.h>
 #include <osmocom/vty/telnet_interface.h>
 
@@ -90,7 +92,7 @@ static void sigint()
 
 	printf("Terminating.\n");
 	handled = 1;
-	if (bsc && bsc->setup) {
+	if (bsc) {
 		llist_for_each_entry(set, &bsc->linksets, entry)
 			link_shutdown_all(set);
 	}
@@ -308,7 +310,6 @@ int main(int argc, char **argv)
 	bsc = bsc_data_create();
 	if (!bsc)
 		return -1;
-	bsc->app = APP_STP;
 
 	handle_options(argc, argv);
 

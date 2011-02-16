@@ -29,11 +29,6 @@
 #include <osmocore/timer.h>
 #include <osmocore/write_queue.h>
 
-#include <osmocore/protocol/gsm_04_08.h>
-
-#include <osmocom/sccp/sccp.h>
-
-
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
@@ -68,10 +63,6 @@ struct mtp_udp_link {
 };
 
 struct bsc_data {
-	int app;
-
-	struct timer_list start_timer;
-	int setup;
 	int pcap_fd;
 	int udp_reset_timeout;
 
@@ -102,7 +93,6 @@ struct bsc_data {
 	/* inject */
 	int allow_inject;
 	struct bsc_fd inject_fd;
-	struct llist_head inject_list;
 
 	/* m2ua code */
 	struct sctp_m2ua_transport *m2ua_trans;
