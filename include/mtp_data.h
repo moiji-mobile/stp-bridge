@@ -75,7 +75,6 @@ struct mtp_link_set {
 	struct rate_ctr_group *ctrg;
 
 	/* custom data */
-	struct bsc_data *bsc;
 	struct ss7_application *app;
 };
 

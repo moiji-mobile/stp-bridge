@@ -64,6 +64,7 @@ struct sctp_m2ua_conn {
 };
 
 struct sctp_m2ua_transport *sctp_m2ua_transp_create(const char *ip, int port);
-struct mtp_m2ua_link *mtp_m2ua_link_create(struct mtp_link_set *);
+struct mtp_m2ua_link *mtp_m2ua_link_create(struct sctp_m2ua_transport *transport,
+					   struct mtp_link_set *);
 
 #endif

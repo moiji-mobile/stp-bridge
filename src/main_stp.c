@@ -262,7 +262,6 @@ int main(int argc, char **argv)
 	m2ua_set->sccp_opc = 9;
 	m2ua_set->isup_opc = 9;
 	m2ua_set->ni = 3;
-	m2ua_set->bsc = bsc;
 	m2ua_set->pcap_fd = bsc->pcap_fd;
 	m2ua_set->name = talloc_strdup(m2ua_set, "M2UA");
 
@@ -270,7 +269,7 @@ int main(int argc, char **argv)
 	set->pass_all_isup = bsc->isup_pass;
 	m2ua_set->pass_all_isup = bsc->isup_pass;
 
-	lnk = mtp_m2ua_link_create(m2ua_set);
+	lnk = mtp_m2ua_link_create(bsc->m2ua_trans, m2ua_set);
 	lnk->base.pcap_fd = -1;
 	mtp_link_set_add_link(m2ua_set, (struct mtp_link *) lnk);
 

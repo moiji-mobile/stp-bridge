@@ -691,7 +691,8 @@ struct sctp_m2ua_transport *sctp_m2ua_transp_create(const char *ip, int port)
 	return trans;
 }
 
-struct mtp_m2ua_link *mtp_m2ua_link_create(struct mtp_link_set *set)
+struct mtp_m2ua_link *mtp_m2ua_link_create(struct sctp_m2ua_transport *trans,
+					   struct mtp_link_set *set)
 {
 	struct mtp_m2ua_link *lnk;
 
@@ -702,7 +703,7 @@ struct mtp_m2ua_link *mtp_m2ua_link_create(struct mtp_link_set *set)
 	}
 
 	/* remember we have a link here */
-	llist_add(&lnk->entry, &set->bsc->m2ua_trans->links);
+	llist_add(&lnk->entry, &trans->links);
 
 	lnk->base.shutdown = sctp_m2ua_reset;
 	lnk->base.clear_queue = sctp_m2ua_dummy;
@@ -710,6 +711,6 @@ struct mtp_m2ua_link *mtp_m2ua_link_create(struct mtp_link_set *set)
 	lnk->base.start = sctp_m2ua_start;
 	lnk->base.write = sctp_m2ua_write;
 
-	lnk->transport = set->bsc->m2ua_trans;
+	lnk->transport = trans;
 	return lnk;
 }

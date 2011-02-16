@@ -101,7 +101,6 @@ struct mtp_link_set *link_init(struct bsc_data *bsc)
 	set->sltm_once = bsc->once;
 	set->ni = bsc->ni_ni;
 	set->spare = bsc->ni_spare;
-	set->bsc = bsc;
 	set->pcap_fd = bsc->pcap_fd;
 
 	if (!bsc->src_port) {
