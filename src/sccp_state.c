@@ -47,21 +47,9 @@
 #include <unistd.h>
 
 static void send_reset_ack(struct mtp_link_set *link, int sls);
-static void app_resources_released(struct ss7_application *ss7);
-static void app_clear_connections(struct ss7_application *ss7);
 static void handle_local_sccp(struct mtp_link_set *link, struct msgb *inp, struct sccp_parse_result *res, int sls);
 static void send_local_rlsd(struct mtp_link_set *link, struct sccp_parse_result *res);
 static void update_con_state(struct ss7_application *ss7, int rc, struct sccp_parse_result *result, struct msgb *msg, int from_msc, int sls);
-
-/* send a RSIP to the MGCP GW */
-static void mgcp_reset(struct msc_connection *fw)
-{
-        static const char mgcp_reset[] = {
-            "RSIP 1 13@mgw MGCP 1.0\r\n"
-        };
-
-	mgcp_forward(fw, (const uint8_t *) mgcp_reset, strlen(mgcp_reset));
-}
 
 /*
  * methods called from the MTP Level3 part
@@ -95,7 +83,7 @@ void mtp_link_set_forward_sccp(struct mtp_link_set *link, struct msgb *_msg, int
 	rc = bss_patch_filter_msg(_msg, &result);
 	if (rc == BSS_FILTER_RESET) {
 		LOGP(DMSC, LOGL_NOTICE, "Filtering BSS Reset from the BSC\n");
-		mgcp_reset(fw);
+		msc_mgcp_reset(fw);
 		send_reset_ack(link, sls);
 		return;
 	}
@@ -204,7 +192,7 @@ static void handle_local_sccp(struct mtp_link_set *link, struct msgb *inpt, stru
 	return;
 }
 
-static void app_clear_connections(struct ss7_application *app)
+void app_clear_connections(struct ss7_application *app)
 {
 	struct active_sccp_con *tmp, *con;
 
@@ -288,7 +276,7 @@ void release_bsc_resources(struct msc_connection *fw)
 	bsc_del_timer(&app->reset_timeout);
 
 	/* 2. clear the MGCP endpoints */
-	mgcp_reset(fw);
+	msc_mgcp_reset(fw);
 
 	/* 1. send BSSMAP Cleanup.. if we have any connection */
 	llist_for_each_entry_safe(con, tmp, &app->sccp_connections, entry) {
@@ -315,33 +303,6 @@ void release_bsc_resources(struct msc_connection *fw)
 		app->reset_count = 0;
 		bsc_schedule_timer(&app->reset_timeout, 10, 0);
 	}
-}
-
-void mtp_linkset_down(struct mtp_link_set *set)
-{
-	set->available = 0;
-	mtp_link_set_stop(set);
-
-	if (set->app) {
-		app_clear_connections(set->app);
-
-		/* If we have an A link send a reset to the MSC */
-		mgcp_reset(set->app->route_dst.msc);
-		msc_send_reset(set->app->route_dst.msc);
-	}
-}
-
-void mtp_linkset_up(struct mtp_link_set *set)
-{
-	set->available = 1;
-
-	/* we have not gone through link down */
-	if (set->app && set->app->route_dst.msc->msc_link_down) {
-		app_clear_connections(set->app);
-		app_resources_released(set->app);
-	}
-
-	mtp_link_set_reset(set);
 }
 
 /**

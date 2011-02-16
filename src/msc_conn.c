@@ -46,6 +46,7 @@
 static void msc_send_id_response(struct msc_connection *bsc);
 static void msc_send(struct msc_connection *bsc, struct msgb *msg, int proto);
 static void msc_schedule_reconnect(struct msc_connection *bsc);
+static void mgcp_forward(struct msc_connection *fw, const uint8_t *data, unsigned int length);
 
 int send_or_queue_bsc_msg(struct mtp_link_set *link, int sls, struct msgb *msg)
 {
@@ -335,6 +336,16 @@ static void msc_schedule_reconnect(struct msc_connection *fw)
 /*
  * mgcp forwarding is below
  */
+/* send a RSIP to the MGCP GW */
+void msc_mgcp_reset(struct msc_connection *msc)
+{
+        static const char mgcp_reset[] = {
+            "RSIP 1 13@mgw MGCP 1.0\r\n"
+        };
+
+	mgcp_forward(msc, (const uint8_t *) mgcp_reset, strlen(mgcp_reset));
+}
+
 static int mgcp_do_write(struct bsc_fd *fd, struct msgb *msg)
 {
 	int ret;
@@ -375,7 +386,7 @@ static int mgcp_do_read(struct bsc_fd *fd)
 	return 0;
 }
 
-void mgcp_forward(struct msc_connection *fw, const uint8_t *data, unsigned int length)
+static void mgcp_forward(struct msc_connection *fw, const uint8_t *data, unsigned int length)
 {
 	struct msgb *mgcp;
 

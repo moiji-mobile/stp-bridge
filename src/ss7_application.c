@@ -22,11 +22,43 @@
 
 #include <ss7_application.h>
 #include <bsc_data.h>
+#include <bsc_sccp.h>
 #include <cellmgr_debug.h>
 #include <msc_connection.h>
 #include <sctp_m2ua.h>
 
 #include <osmocore/talloc.h>
+
+
+/* the SS7 dispatch... maybe as function pointers in the future */
+void mtp_linkset_down(struct mtp_link_set *set)
+{
+	set->available = 0;
+	mtp_link_set_stop(set);
+
+	if (set->app && set->app->type != APP_STP) {
+		app_clear_connections(set->app);
+
+		/* If we have an A link send a reset to the MSC */
+		msc_mgcp_reset(set->app->route_dst.msc);
+		msc_send_reset(set->app->route_dst.msc);
+	}
+}
+
+void mtp_linkset_up(struct mtp_link_set *set)
+{
+	set->available = 1;
+
+	/* we have not gone through link down */
+	if (set->app && set->app->type != APP_STP &&
+	    set->app->route_dst.msc->msc_link_down) {
+		app_clear_connections(set->app);
+		app_resources_released(set->app);
+	}
+
+	mtp_link_set_reset(set);
+}
+
 
 struct ss7_application *ss7_application_alloc(struct bsc_data *bsc)
 {

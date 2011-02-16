@@ -74,7 +74,7 @@ struct msc_connection *msc_connection_num(struct bsc_data *bsc, int num);
 int msc_connection_start(struct msc_connection *msc);
 
 /* MGCP */
-void mgcp_forward(struct msc_connection *msc, const uint8_t *data, unsigned int length);
+void msc_mgcp_reset(struct msc_connection *msc);
 
 /* Called by the MSC Connection */
 void msc_dispatch_sccp(struct msc_connection *msc, struct msgb *msg);

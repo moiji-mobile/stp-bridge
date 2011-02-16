@@ -98,18 +98,6 @@ void mtp_link_set_forward_isup(struct mtp_link_set *set, struct msgb *msg, int s
 	mtp_link_set_submit_isup_data(other, sls, msg->l3h, msgb_l3len(msg));
 }
 
-void mtp_linkset_down(struct mtp_link_set *set)
-{
-	set->available = 0;
-	mtp_link_set_stop(set);
-}
-
-void mtp_linkset_up(struct mtp_link_set *set)
-{
-	set->available = 1;
-	mtp_link_set_reset(set);
-}
-
 static void print_usage()
 {
 	printf("Usage: osmo-stp\n");
@@ -425,4 +413,18 @@ int msc_connection_start(struct msc_connection *conn)
 struct msc_connection *msc_connection_num(struct bsc_data *bsc, int num)
 {
 	return NULL;
+}
+
+
+void msc_mgcp_reset(struct msc_connection *msc)
+{
+}
+void msc_send_reset(struct msc_connection *bsc)
+{
+}
+void app_resources_released(struct ss7_application *ss7)
+{
+}
+void app_clear_connections(struct ss7_application *ss7)
+{
 }
