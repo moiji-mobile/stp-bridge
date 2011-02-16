@@ -70,34 +70,6 @@ extern void cell_vty_init(void);
 /*
  * methods called from the MTP Level3 part
  */
-void mtp_link_set_forward_sccp(struct mtp_link_set *set, struct msgb *_msg, int sls)
-{
-	struct mtp_link_set *other;
-	if (!set->app) {
-		LOGP(DINP, LOGL_ERROR, "Linkset %d/%s does not have an app.\n",
-		     set->no, set->name);
-		return;
-	}
-
-	other = set->app->route_src.set == set ?
-			set->app->route_dst.set : set->app->route_src.set;
-	mtp_link_set_submit_sccp_data(other, sls, _msg->l2h, msgb_l2len(_msg));
-}
-
-void mtp_link_set_forward_isup(struct mtp_link_set *set, struct msgb *msg, int sls)
-{
-	struct mtp_link_set *other;
-	if (!set->app) {
-		LOGP(DINP, LOGL_ERROR, "Linkset %d/%s does not have an app.\n",
-		     set->no, set->name);
-		return;
-	}
-
-	other = set->app->route_src.set == set ?
-			set->app->route_dst.set : set->app->route_src.set;
-	mtp_link_set_submit_isup_data(other, sls, msg->l3h, msgb_l3len(msg));
-}
-
 static void print_usage()
 {
 	printf("Usage: osmo-stp\n");
@@ -426,5 +398,8 @@ void app_resources_released(struct ss7_application *ss7)
 {
 }
 void app_clear_connections(struct ss7_application *ss7)
+{
+}
+void app_forward_sccp(struct ss7_application *ss7, struct msgb *_msg, int sls)
 {
 }

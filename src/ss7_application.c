@@ -31,6 +31,61 @@
 
 
 /* the SS7 dispatch... maybe as function pointers in the future */
+void forward_sccp_stp(struct mtp_link_set *set, struct msgb *_msg, int sls)
+{
+	struct mtp_link_set *other;
+	other = set->app->route_src.set == set ?
+			set->app->route_dst.set : set->app->route_src.set;
+	mtp_link_set_submit_sccp_data(other, sls, _msg->l2h, msgb_l2len(_msg));
+}
+
+void forward_isup_stp(struct mtp_link_set *set, struct msgb *msg, int sls)
+{
+	struct mtp_link_set *other;
+	other = set->app->route_src.set == set ?
+			set->app->route_dst.set : set->app->route_src.set;
+	mtp_link_set_submit_isup_data(other, sls, msg->l3h, msgb_l3len(msg));
+}
+
+void mtp_link_set_forward_sccp(struct mtp_link_set *set, struct msgb *_msg, int sls)
+{
+	if (!set->app) {
+		LOGP(DINP, LOGL_ERROR, "Linkset %d/%s has no application.\n",
+		     set->no, set->name);
+		return;
+	}
+
+	switch (set->app->type) {
+	case APP_STP:
+		forward_sccp_stp(set, _msg, sls);
+		break;
+	case APP_CELLMGR:
+	case APP_RELAY:
+		app_forward_sccp(set->app, _msg, sls);
+		break;
+	}
+}
+
+void mtp_link_set_forward_isup(struct mtp_link_set *set, struct msgb *msg, int sls)
+{
+	if (!set->app) {
+		LOGP(DINP, LOGL_ERROR, "Linkset %d/%s has no application.\n",
+		     set->no, set->name);
+		return;
+	}
+
+
+	switch (set->app->type) {
+	case APP_STP:
+		forward_isup_stp(set, msg, sls);
+		break;
+	case APP_CELLMGR:
+	case APP_RELAY:
+		LOGP(DINP, LOGL_ERROR, "ISUP is not handled.\n");
+		break;
+	}
+}
+
 void mtp_linkset_down(struct mtp_link_set *set)
 {
 	set->available = 0;

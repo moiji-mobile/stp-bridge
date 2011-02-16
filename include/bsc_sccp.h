@@ -72,5 +72,6 @@ unsigned int sls_for_src_ref(struct ss7_application *, struct sccp_source_refere
 
 void app_resources_released(struct ss7_application *ss7);
 void app_clear_connections(struct ss7_application *ss7);
+void app_forward_sccp(struct ss7_application *ss7, struct msgb *_msg, int sls);
 
 #endif

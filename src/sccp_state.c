@@ -54,46 +54,37 @@ static void update_con_state(struct ss7_application *ss7, int rc, struct sccp_pa
 /*
  * methods called from the MTP Level3 part
  */
-void mtp_link_set_forward_sccp(struct mtp_link_set *link, struct msgb *_msg, int sls)
+void app_forward_sccp(struct ss7_application *app, struct msgb *_msg, int sls)
 {
 	int rc;
 	struct sccp_parse_result result;
-	struct msc_connection *fw;
+	struct msc_connection *msc;
+	struct mtp_link_set *set;
 
 	struct msgb *msg;
 
-	if (!link->app) {
-		LOGP(DINP, LOGL_ERROR, "The linkset %d/%s has no application.\n",
-		     link->no, link->name);
-		return;
-	}
+	set = app->route_src.set;
+	msc = app->route_dst.msc;
 
-	fw = link->app->route_dst.msc;
-	if (!fw) {
-		LOGP(DINP, LOGL_ERROR, "The application %d/%s has no MSC.\n",
-		     link->app->nr, link->app->name);
-		return;
-	}
-
-	if (link->app->forward_only) {
-		msc_send_direct(fw, _msg);
+	if (app->forward_only) {
+		msc_send_direct(msc, _msg);
 		return;
 	}
 
 	rc = bss_patch_filter_msg(_msg, &result);
 	if (rc == BSS_FILTER_RESET) {
 		LOGP(DMSC, LOGL_NOTICE, "Filtering BSS Reset from the BSC\n");
-		msc_mgcp_reset(fw);
-		send_reset_ack(link, sls);
+		msc_mgcp_reset(msc);
+		send_reset_ack(set, sls);
 		return;
 	}
 
 	/* special responder */
-	if (fw->msc_link_down) {
-		if (rc == BSS_FILTER_RESET_ACK && link->app->reset_count > 0) {
+	if (msc->msc_link_down) {
+		if (rc == BSS_FILTER_RESET_ACK && app->reset_count > 0) {
 			LOGP(DMSC, LOGL_ERROR, "Received reset ack for closing.\n");
-			app_clear_connections(link->app);
-			app_resources_released(link->app);
+			app_clear_connections(app);
+			app_resources_released(app);
 			return;
 		}
 
@@ -102,21 +93,21 @@ void mtp_link_set_forward_sccp(struct mtp_link_set *link, struct msgb *_msg, int
 			return;
 		}
 
-		return handle_local_sccp(link, _msg, &result, sls);
+		return handle_local_sccp(set, _msg, &result, sls);
 	}
 
 	/* update the connection state */
-	update_con_state(link->app, rc, &result, _msg, 0, sls);
+	update_con_state(app, rc, &result, _msg, 0, sls);
 
 	if (rc == BSS_FILTER_CLEAR_COMPL) {
-		send_local_rlsd(link, &result);
+		send_local_rlsd(set, &result);
 	} else if (rc == BSS_FILTER_RLC || rc == BSS_FILTER_RLSD) {
 		LOGP(DMSC, LOGL_DEBUG, "Not forwarding RLC/RLSD to the MSC.\n");
 		return;
 	}
 
 	/* now send it out */
-	bsc_ussd_handle_out_msg(fw, &result, _msg);
+	bsc_ussd_handle_out_msg(msc, &result, _msg);
 
 	msg = msgb_alloc_headroom(4096, 128, "SCCP to MSC");
 	if (!msg) {
@@ -125,12 +116,7 @@ void mtp_link_set_forward_sccp(struct mtp_link_set *link, struct msgb *_msg, int
 	}
 
 	bss_rewrite_header_for_msc(rc, msg, _msg, &result);
-	msc_send_direct(fw, msg);
-}
-
-void mtp_link_set_forward_isup(struct mtp_link_set *set, struct msgb *msg, int sls)
-{
-	LOGP(DINP, LOGL_ERROR, "ISUP is not handled.\n");
+	msc_send_direct(msc, msg);
 }
 
 /*
