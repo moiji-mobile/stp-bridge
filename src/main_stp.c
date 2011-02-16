@@ -70,31 +70,6 @@ struct bsc_data *bsc;
 extern void cell_vty_init(void);
 extern void handle_options(int argc, char **argv);
 
-static void sigint()
-{
-	static pthread_mutex_t exit_mutex = PTHREAD_MUTEX_INITIALIZER;
-	static int handled = 0;
-
-	struct mtp_link_set *set;
-
-	/* failed to lock */
-	if (pthread_mutex_trylock(&exit_mutex) != 0)
-		return;
-	if (handled)
-		goto out;
-
-	printf("Terminating.\n");
-	handled = 1;
-	if (bsc) {
-		llist_for_each_entry(set, &bsc->linksets, entry)
-			link_shutdown_all(set);
-	}
-	exit(0);
-
-out:
-	pthread_mutex_unlock(&exit_mutex);
-}
-
 static struct mtp_link_set *find_link_set(struct bsc_data *bsc,
 					  int len, const char *buf)
 {
@@ -250,8 +225,6 @@ int main(int argc, char **argv)
 
 	handle_options(argc, argv);
 
-	signal(SIGPIPE, SIG_IGN);
-	signal(SIGINT, sigint);
 	srand(time(NULL));
 
 	cell_vty_init();
@@ -330,6 +303,9 @@ void msc_mgcp_reset(struct msc_connection *msc)
 {
 }
 void msc_send_reset(struct msc_connection *bsc)
+{
+}
+void msc_close_connection(struct msc_connection *bsc)
 {
 }
 void app_resources_released(struct ss7_application *ss7)

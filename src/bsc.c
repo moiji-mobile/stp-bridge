@@ -21,6 +21,7 @@
 
 #include <bsc_data.h>
 #include <cellmgr_debug.h>
+#include <msc_connection.h>
 #include <mtp_level3.h>
 #include <mtp_pcap.h>
 
@@ -34,6 +35,8 @@
 #include <string.h>
 #include <assert.h>
 #include <unistd.h>
+#include <signal.h>
+#include <pthread.h>
 
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
@@ -79,6 +82,42 @@ struct bsc_data *bsc_data_create()
 
 	return bsc;
 }
+
+static void sigint()
+{
+	static pthread_mutex_t exit_mutex = PTHREAD_MUTEX_INITIALIZER;
+	static int handled = 0;
+
+	struct mtp_link_set *set;
+
+	/* failed to lock */
+	if (pthread_mutex_trylock(&exit_mutex) != 0)
+		return;
+	if (handled)
+		goto out;
+
+	printf("Terminating.\n");
+	handled = 1;
+	if (bsc) {
+		llist_for_each_entry(set, &bsc->linksets, entry)
+			link_shutdown_all(set);
+	}
+
+	exit(0);
+
+out:
+	pthread_mutex_unlock(&exit_mutex);
+}
+
+static void sigusr2()
+{
+	struct msc_connection *msc;
+	printf("Closing the MSC connection on demand.\n");
+
+	llist_for_each_entry(msc, &bsc->mscs, entry)
+		msc_close_connection(msc);
+}
+
 
 static void print_usage(const char *arg)
 {
@@ -139,4 +178,8 @@ void handle_options(int argc, char **argv)
 			break;
 		}
 	}
+
+	signal(SIGPIPE, SIG_IGN);
+	signal(SIGINT, sigint);
+	signal(SIGUSR2, sigusr2);
 }

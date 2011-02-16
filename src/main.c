@@ -38,8 +38,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include <signal.h>
-
 static struct log_target *stderr_target;
 
 char *config = "cellmgr_ng.cfg";
@@ -47,41 +45,6 @@ char *config = "cellmgr_ng.cfg";
 struct bsc_data *bsc;
 extern void cell_vty_init(void);
 extern void handle_options(int argc, char **argv);
-
-static void sigint()
-{
-	static pthread_mutex_t exit_mutex = PTHREAD_MUTEX_INITIALIZER;
-	static int handled = 0;
-
-	struct mtp_link_set *set;
-
-	/* failed to lock */
-	if (pthread_mutex_trylock(&exit_mutex) != 0)
-		return;
-	if (handled)
-		goto out;
-
-	printf("Terminating.\n");
-	handled = 1;
-	if (bsc) {
-		llist_for_each_entry(set, &bsc->linksets, entry)
-			link_shutdown_all(set);
-	}
-
-	exit(0);
-
-out:
-	pthread_mutex_unlock(&exit_mutex);
-}
-
-static void sigusr2()
-{
-	struct msc_connection *msc;
-	printf("Closing the MSC connection on demand.\n");
-
-	llist_for_each_entry(msc, &bsc->mscs, entry)
-		msc_close_connection(msc);
-}
 
 static void bsc_msc_forward_init(struct msc_connection *msc)
 {
@@ -129,9 +92,6 @@ int main(int argc, char **argv)
 
 	handle_options(argc, argv);
 
-	signal(SIGPIPE, SIG_IGN);
-	signal(SIGINT, sigint);
-	signal(SIGUSR2, sigusr2);
 	srand(time(NULL));
 
 	cell_vty_init();
