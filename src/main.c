@@ -237,6 +237,7 @@ int main(int argc, char **argv)
 	ss7_application_setup(app, APP_CELLMGR,
 			      SS7_SET_LINKSET, 0,
 			      SS7_SET_MSC, 0);
+	ss7_application_start(app);
 
         while (1) {
 		bsc_select_main(0);

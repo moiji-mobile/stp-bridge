@@ -127,7 +127,6 @@ static int ss7_app_setup_stp(struct ss7_application *app,
 	app->type = APP_STP;
 	app->bsc->m2ua_trans->started = 1;
 
-	/* TODO: start the applications here */
 	return 0;
 }
 
@@ -202,7 +201,6 @@ static int ss7_app_setup_relay(struct ss7_application *app, int type,
 
 	app->type = type;
 
-	/* TODO: start the applications here */
 	return 0;
 }
 
@@ -224,4 +222,35 @@ int ss7_application_setup(struct ss7_application *ss7, int type,
 		     "SS7 Application %d is not supported.\n", type);
 		return -1;
 	}
+}
+
+
+static void start_mtp(struct mtp_link_set *set)
+{
+	struct mtp_link *link;
+
+	llist_for_each_entry(link, &set->links, entry)
+		link->reset(link);
+}
+
+static void start_msc(struct msc_connection *msc)
+{
+	msc_connection_start(msc);
+}
+
+int ss7_application_start(struct ss7_application *app)
+{
+	if (app->route_src.set)
+		start_mtp(app->route_src.set);
+	if (app->route_dst.set)
+		start_mtp(app->route_dst.set);
+
+	if (app->route_src.msc)
+		start_msc(app->route_src.msc);
+	if (app->route_dst.msc)
+		start_msc(app->route_dst.msc);
+
+	LOGP(DINP, LOGL_NOTICE, "SS7 Application %d/%s is now running.\n",
+	     app->nr, app->name);
+	return 0;
 }

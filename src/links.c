@@ -86,23 +86,6 @@ void mtp_link_restart(struct mtp_link *link)
 	link->reset(link);
 }
 
-static void start_rest(void *_set)
-{
-	struct msc_connection *msc;
-	struct mtp_link_set *set = _set;
-	struct mtp_link *data;
-	bsc->setup = 1;
-
-	msc = msc_connection_num(bsc, 0);
-	if (msc && msc_connection_start(msc) != 0) {
-		fprintf(stderr, "Failed to init MSC part.\n");
-		exit(3);
-	}
-
-	llist_for_each_entry(data, &set->links, entry)
-		data->start(data);
-}
-
 struct mtp_link_set *link_init(struct bsc_data *bsc)
 {
 	int i;
@@ -145,23 +128,7 @@ struct mtp_link_set *link_init(struct bsc_data *bsc)
 		/* now connect to the transport */
 		if (link_udp_init(lnk, bsc->udp_ip, bsc->udp_port) != 0)
 			return NULL;
-
-		/*
-		 * We will ask the MTP link to be taken down for two
-		 * timeouts of the BSC to make sure we are missing the
-		 * SLTM and it begins a reset. Then we will take it up
-		 * again and do the usual business.
-		 */
-		snmp_mtp_deactivate(lnk->session,
-				    lnk->link_index);
-		LOGP(DMSC, LOGL_NOTICE,
-		     "Forcing link alignment on %s/%d.\n",
-		      lnk->base.set->name, lnk->base.link_no);
 	}
-
-	bsc->start_timer.cb = start_rest;
-	bsc->start_timer.data = set;
-	bsc_schedule_timer(&bsc->start_timer, bsc->udp_reset_timeout, 0);
 
 	return set;
 }

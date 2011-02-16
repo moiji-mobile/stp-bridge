@@ -79,4 +79,6 @@ int ss7_application_setup(struct ss7_application *, int type,
 			  int src_type, int src_num,
 			  int dst_type, int dst_num);
 
+int ss7_application_start(struct ss7_application *);
+
 #endif

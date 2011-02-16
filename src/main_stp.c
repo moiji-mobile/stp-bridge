@@ -322,7 +322,6 @@ static int inject_init(struct bsc_data *bsc)
 int main(int argc, char **argv)
 {
 	int rc;
-	struct mtp_link *data;
 	struct mtp_link_set *set;
 	struct mtp_link_set *m2ua_set;
 	struct mtp_m2ua_link *lnk;
@@ -408,8 +407,7 @@ int main(int argc, char **argv)
 			      SS7_SET_LINKSET, 0,
 			      SS7_SET_LINKSET, 1);
 
-	llist_for_each_entry(data, &m2ua_set->links, entry)
-		data->start(data);
+	ss7_application_start(app);
 
         while (1) {
 		bsc_select_main(0);
