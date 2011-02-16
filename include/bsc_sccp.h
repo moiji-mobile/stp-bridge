@@ -30,7 +30,7 @@
 
 #include <osmocom/sccp/sccp.h>
 
-struct msc_connection;
+struct ss7_application;
 
 /*
  * One SCCP connection.
@@ -55,7 +55,8 @@ struct active_sccp_con {
 	/* how often did we send a RLSD this */
 	unsigned int rls_tries;
 
-	/* MTP link this was coming in */
+	/* Link to the SS7 Application */
+	struct ss7_application *app;
 	struct mtp_link_set *link;
 
 	/* sls id */
@@ -63,10 +64,10 @@ struct active_sccp_con {
 };
 
 void free_con(struct active_sccp_con *con);
-struct active_sccp_con *find_con_by_dest_ref(struct msc_connection *, struct sccp_source_reference *ref);
-struct active_sccp_con *find_con_by_src_ref(struct msc_connection *,struct sccp_source_reference *src_ref);
-struct active_sccp_con *find_con_by_src_dest_ref(struct msc_connection *, struct sccp_source_reference *src_ref,
+struct active_sccp_con *find_con_by_dest_ref(struct ss7_application *, struct sccp_source_reference *ref);
+struct active_sccp_con *find_con_by_src_ref(struct ss7_application *,struct sccp_source_reference *src_ref);
+struct active_sccp_con *find_con_by_src_dest_ref(struct ss7_application *, struct sccp_source_reference *src_ref,
 						 struct sccp_source_reference *dst_ref);
-unsigned int sls_for_src_ref(struct msc_connection *, struct sccp_source_reference *ref);
+unsigned int sls_for_src_ref(struct ss7_application *, struct sccp_source_reference *ref);
 
 #endif

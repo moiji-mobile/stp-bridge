@@ -37,6 +37,7 @@ struct bsc_data *bsc_data_create()
 
 	INIT_LLIST_HEAD(&bsc->linksets);
 	INIT_LLIST_HEAD(&bsc->mscs);
+	INIT_LLIST_HEAD(&bsc->apps);
 
 	bsc->dpc = 1;
 	bsc->opc = 0;

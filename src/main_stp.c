@@ -28,6 +28,7 @@
 #include <snmp_mtp.h>
 #include <cellmgr_debug.h>
 #include <sctp_m2ua.h>
+#include <ss7_application.h>
 
 #include <osmocom/m2ua/m2ua_msg.h>
 
@@ -71,12 +72,30 @@ extern void cell_vty_init(void);
  */
 void mtp_link_set_forward_sccp(struct mtp_link_set *set, struct msgb *_msg, int sls)
 {
-	mtp_link_set_submit_sccp_data(set->forward, sls, _msg->l2h, msgb_l2len(_msg));
+	struct mtp_link_set *other;
+	if (!set->app) {
+		LOGP(DINP, LOGL_ERROR, "Linkset %d/%s does not have an app.\n",
+		     set->no, set->name);
+		return;
+	}
+
+	other = set->app->route_src.set == set ?
+			set->app->route_dst.set : set->app->route_src.set;
+	mtp_link_set_submit_sccp_data(other, sls, _msg->l2h, msgb_l2len(_msg));
 }
 
 void mtp_link_set_forward_isup(struct mtp_link_set *set, struct msgb *msg, int sls)
 {
-	mtp_link_set_submit_isup_data(set->forward, sls, msg->l3h, msgb_l3len(msg));
+	struct mtp_link_set *other;
+	if (!set->app) {
+		LOGP(DINP, LOGL_ERROR, "Linkset %d/%s does not have an app.\n",
+		     set->no, set->name);
+		return;
+	}
+
+	other = set->app->route_src.set == set ?
+			set->app->route_dst.set : set->app->route_src.set;
+	mtp_link_set_submit_isup_data(other, sls, msg->l3h, msgb_l3len(msg));
 }
 
 void mtp_linkset_down(struct mtp_link_set *set)
@@ -307,6 +326,7 @@ int main(int argc, char **argv)
 	struct mtp_link_set *set;
 	struct mtp_link_set *m2ua_set;
 	struct mtp_m2ua_link *lnk;
+	struct ss7_application *app;
 
 	thread_init();
 
@@ -352,6 +372,10 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
+	app = ss7_application_alloc(bsc);
+	if (!app)
+		return -1;
+
 	set = link_init(bsc);
 	if (!set)
 		return -1;
@@ -374,13 +398,15 @@ int main(int argc, char **argv)
 
 	/* setup things */
 	set->pass_all_isup = bsc->isup_pass;
-	set->forward = m2ua_set;
 	m2ua_set->pass_all_isup = bsc->isup_pass;
-	m2ua_set->forward = set;
 
 	lnk = mtp_m2ua_link_create(m2ua_set);
 	lnk->base.pcap_fd = -1;
 	mtp_link_set_add_link(m2ua_set, (struct mtp_link *) lnk);
+
+	ss7_application_setup(app, APP_STP,
+			      SS7_SET_LINKSET, 0,
+			      SS7_SET_LINKSET, 1);
 
 	llist_for_each_entry(data, &m2ua_set->links, entry)
 		data->start(data);

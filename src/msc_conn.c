@@ -549,7 +549,6 @@ struct msc_connection *msc_connection_create(struct bsc_data *bsc, int mgcp)
 		return NULL;
 	}
 
-	INIT_LLIST_HEAD(&msc->sccp_connections);
 	llist_add(&msc->entry, &bsc->mscs);
 	msc->nr = bsc->num_mscs++;
 

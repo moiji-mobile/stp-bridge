@@ -29,6 +29,7 @@
 #include <bsc_data.h>
 #include <cellmgr_debug.h>
 #include <bsc_sccp.h>
+#include <ss7_application.h>
 
 #include <osmocore/talloc.h>
 
@@ -174,6 +175,7 @@ int main(int argc, char **argv)
 	int rc;
 	struct msc_connection *msc;
 	struct mtp_link_set *set;
+	struct ss7_application *app;
 
 	thread_init();
 
@@ -226,8 +228,15 @@ int main(int argc, char **argv)
 	if (!set)
 		return -1;
 
-	set->fw = msc;
-	msc->target_link = set;
+	app = ss7_application_alloc(bsc);
+	if (!app) {
+		LOGP(DINP, LOGL_ERROR, "Failed to create the SS7 application.\n");
+		return -1;
+	}
+
+	ss7_application_setup(app, APP_CELLMGR,
+			      SS7_SET_LINKSET, 0,
+			      SS7_SET_MSC, 0);
 
         while (1) {
 		bsc_select_main(0);

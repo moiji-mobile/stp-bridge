@@ -23,13 +23,14 @@
 #include "bsc_data.h"
 
 #include <cellmgr_debug.h>
-#include <msc_connection.h>
+#include <ss7_application.h>
+#include <ss7_application.h>
 
 #include <osmocore/talloc.h>
 
 #include <string.h>
 
-struct active_sccp_con *find_con_by_dest_ref(struct msc_connection *fw, struct sccp_source_reference *ref)
+struct active_sccp_con *find_con_by_dest_ref(struct ss7_application *fw, struct sccp_source_reference *ref)
 {
 	struct active_sccp_con *con;
 
@@ -48,7 +49,7 @@ struct active_sccp_con *find_con_by_dest_ref(struct msc_connection *fw, struct s
 }
 
 
-struct active_sccp_con *find_con_by_src_ref(struct msc_connection *fw, struct sccp_source_reference *src_ref)
+struct active_sccp_con *find_con_by_src_ref(struct ss7_application *fw, struct sccp_source_reference *src_ref)
 {
 	struct active_sccp_con *con;
 
@@ -64,7 +65,7 @@ struct active_sccp_con *find_con_by_src_ref(struct msc_connection *fw, struct sc
 	return NULL;
 }
 
-struct active_sccp_con *find_con_by_src_dest_ref(struct msc_connection *fw,
+struct active_sccp_con *find_con_by_src_dest_ref(struct ss7_application *fw,
 						 struct sccp_source_reference *src_ref,
 						 struct sccp_source_reference *dst_ref)
 {
@@ -80,7 +81,7 @@ struct active_sccp_con *find_con_by_src_dest_ref(struct msc_connection *fw,
 	return NULL;
 }
 
-unsigned int sls_for_src_ref(struct msc_connection *fw, struct sccp_source_reference *ref)
+unsigned int sls_for_src_ref(struct ss7_application *fw, struct sccp_source_reference *ref)
 {
 	struct active_sccp_con *con;
 

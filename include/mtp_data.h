@@ -25,10 +25,10 @@
 #include <osmocore/utils.h>
 
 struct bsc_data;
-struct msc_connection;
 struct mtp_link;
 struct mtp_level_3_mng *mng;
 struct rate_ctr_group;
+struct ss7_application;
 
 /* MTP Level3 timers */
 
@@ -76,8 +76,7 @@ struct mtp_link_set {
 
 	/* custom data */
 	struct bsc_data *bsc;
-	struct msc_connection *fw;
-	struct mtp_link_set *forward;
+	struct ss7_application *app;
 };
 
 /**

@@ -55,16 +55,12 @@ struct msc_connection {
 	int pong_time;
 	struct timer_list ping_timeout;
 	struct timer_list pong_timeout;
-	struct timer_list reset_timeout;
 
 	/* mgcp messgaes */
 	struct write_queue mgcp_agent;
 
 	/* application pointer */
-	struct llist_head sccp_connections;
-	struct mtp_link_set *target_link;
-	int forward_only;
-	int reset_count;
+	struct ss7_application *app;
 };
 
 /* msc related functions */

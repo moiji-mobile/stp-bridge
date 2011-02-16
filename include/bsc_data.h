@@ -67,12 +67,6 @@ struct mtp_udp_link {
 	struct snmp_mtp_session *session;
 };
 
-enum {
-	APP_CELLMGR,
-	APP_RELAY,
-	APP_STP,
-};
-
 struct bsc_data {
 	int app;
 
@@ -116,6 +110,10 @@ struct bsc_data {
 	/* MSCs */
 	struct llist_head mscs;
 	int num_mscs;
+
+	/* application */
+	struct llist_head apps;
+	int num_apps;
 };
 
 /* bsc related functions */
@@ -125,7 +123,6 @@ void mtp_linkset_down(struct mtp_link_set *);
 void mtp_linkset_up(struct mtp_link_set *);
 
 /* connection tracking and action */
-void update_con_state(struct msc_connection *msc, int rc, struct sccp_parse_result *result, struct msgb *msg, int from_msc, int sls);
 
 /* udp init */
 int link_global_init(struct mtp_udp_data *data, int src_port);

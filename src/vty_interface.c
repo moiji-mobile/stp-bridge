@@ -593,9 +593,7 @@ void cell_vty_init(void)
 	install_element_ve(&show_linksets_cmd);
 	install_element_ve(&show_slc_cmd);
 
-	if (bsc->app != APP_STP) {
-		install_element_ve(&show_msc_cmd);
-	}
+	install_element_ve(&show_msc_cmd);
 }
 
 const char *openbsc_copyright = "";
