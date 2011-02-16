@@ -26,6 +26,7 @@
 #include <mtp_pcap.h>
 
 #include <osmocore/talloc.h>
+#include <osmocom/vty/vty.h>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -109,6 +110,12 @@ out:
 	pthread_mutex_unlock(&exit_mutex);
 }
 
+static void sigusr1()
+{
+	talloc_report(tall_vty_ctx, stderr);
+	talloc_report_full(bsc, stderr);
+}
+
 static void sigusr2()
 {
 	struct msc_connection *msc;
@@ -181,5 +188,7 @@ void handle_options(int argc, char **argv)
 
 	signal(SIGPIPE, SIG_IGN);
 	signal(SIGINT, sigint);
+	signal(SIGUSR1, sigusr1);
 	signal(SIGUSR2, sigusr2);
 }
+
