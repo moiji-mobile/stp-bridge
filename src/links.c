@@ -90,6 +90,7 @@ struct mtp_link_set *link_init(struct bsc_data *bsc)
 {
 	int i;
 	struct mtp_udp_link *lnk;
+	struct mtp_link *blnk;
 	struct mtp_link_set *set;
 
 	set = mtp_link_set_alloc(bsc);
@@ -121,14 +122,15 @@ struct mtp_link_set *link_init(struct bsc_data *bsc)
 
 
 	for (i = 1; i <= bsc->udp_nr_links; ++i) {
-		lnk = talloc_zero(set, struct mtp_udp_link);
-		lnk->base.pcap_fd = -1;
+		blnk = mtp_link_alloc(set);
+		lnk = talloc_zero(blnk, struct mtp_udp_link);
+		lnk->base = blnk;
+		lnk->base->data = lnk;
+		lnk->base->type = SS7_LTYPE_UDP;
 		lnk->bsc = bsc;
 		lnk->data = &bsc->udp_data;
 		lnk->link_index = i;
 		lnk->reset_timeout = bsc->udp_reset_timeout;
-		mtp_link_set_add_link(set, (struct mtp_link *) lnk);
-
 
 		/* now connect to the transport */
 		if (link_udp_init(lnk, bsc->udp_ip, bsc->udp_port) != 0)

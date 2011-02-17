@@ -582,18 +582,6 @@ void mtp_link_set_init_slc(struct mtp_link_set *set)
 	}
 }
 
-int mtp_link_set_add_link(struct mtp_link_set *set, struct mtp_link *lnk)
-{
-	lnk->set = set;
-	lnk->link_no = set->nr_links++;
-	if (mtp_link_init(lnk) != 0)
-		return -1;
-
-	llist_add_tail(&lnk->entry, &set->links);
-	mtp_link_set_init_slc(set);
-	return 0;
-}
-
 struct mtp_link_set *mtp_link_set_alloc(struct bsc_data *bsc)
 {
 	struct mtp_link_set *link;

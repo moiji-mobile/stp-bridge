@@ -275,8 +275,6 @@ int main(int argc, char **argv)
 	m2ua_set->pass_all_isup = bsc->isup_pass;
 
 	lnk = mtp_m2ua_link_create(bsc->m2ua_trans, m2ua_set);
-	lnk->base.pcap_fd = -1;
-	mtp_link_set_add_link(m2ua_set, (struct mtp_link *) lnk);
 
 	ss7_application_setup(app, APP_STP,
 			      SS7_SET_LINKSET, 0,

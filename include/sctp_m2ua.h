@@ -42,7 +42,7 @@ struct sctp_m2ua_transport {
 };
 
 struct mtp_m2ua_link {
-	struct mtp_link base;
+	struct mtp_link *base;
 
 	int link_index;
 	struct llist_head entry;

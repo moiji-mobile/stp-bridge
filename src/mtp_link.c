@@ -24,6 +24,8 @@
 #include <cellmgr_debug.h>
 #include <counter.h>
 
+#include <osmocore/talloc.h>
+
 #include <string.h>
 
 static struct msgb *mtp_create_sltm(struct mtp_link *link)
@@ -114,22 +116,6 @@ static void mtp_sltm_t2_timeout(void *_link)
 		bsc_schedule_timer(&link->t2_timer, MTP_T2);
 }
 
-int mtp_link_init(struct mtp_link *link)
-{
-	link->ctrg = rate_ctr_group_alloc(link,
-					  mtp_link_rate_ctr_desc(), link->link_no);
-	if (!link->ctrg) {
-		LOGP(DINP, LOGL_ERROR, "Failed to allocate rate_ctr.\n");
-		return -1;
-	}
-
-	link->t1_timer.data = link;
-	link->t1_timer.cb = mtp_sltm_t1_timeout;
-	link->t2_timer.data = link;
-	link->t2_timer.cb = mtp_sltm_t2_timeout;
-	return 0;
-}
-
 void mtp_link_stop_link_test(struct mtp_link *link)
 {
 	bsc_del_timer(&link->t1_timer);
@@ -195,4 +181,71 @@ void mtp_link_unblock(struct mtp_link *link)
 		return;
 	link->blocked = 0;
 	link->reset(link);
+}
+
+static int dummy_arg1(struct mtp_link *link)
+{
+	LOGP(DINP, LOGL_ERROR, "The link %d of linkset %d/%s is not typed.\n",
+	     link->link_no, link->set->nr, link->set->name);
+	return 0;
+}
+
+static int dummy_arg2(struct mtp_link *link, struct msgb *msg)
+{
+	LOGP(DINP, LOGL_ERROR, "The link %d of linkset %d/%s is not typed.\n",
+	     link->link_no, link->set->nr, link->set->name);
+	msgb_free(msg);
+	return 0;
+}
+
+struct mtp_link *mtp_link_alloc(struct mtp_link_set *set)
+{
+	struct mtp_link *link;
+
+	link = talloc_zero(set, struct mtp_link);
+	if (!link) {
+		LOGP(DINP, LOGL_ERROR, "Failed to allocate the link.\n");
+		return NULL;
+	}
+
+	link->link_no = set->nr_links++;
+	link->ctrg = rate_ctr_group_alloc(link,
+					  mtp_link_rate_ctr_desc(), link->link_no);
+	if (!link->ctrg) {
+		LOGP(DINP, LOGL_ERROR, "Failed to allocate rate_ctr.\n");
+		talloc_free(link);
+		return NULL;
+	}
+
+	/* make sure a unconfigured link does not crash */
+	link->start = dummy_arg1;
+	link->write = dummy_arg2;
+	link->shutdown = dummy_arg1;
+	link->reset = dummy_arg1;
+	link->clear_queue = dummy_arg1;
+
+	link->pcap_fd = -1;
+
+	link->t1_timer.data = link;
+	link->t1_timer.cb = mtp_sltm_t1_timeout;
+	link->t2_timer.data = link;
+	link->t2_timer.cb = mtp_sltm_t2_timeout;
+
+	link->set = set;
+
+	llist_add_tail(&link->entry, &set->links);
+	mtp_link_set_init_slc(set);
+
+	return link;
+}
+
+struct mtp_link *mtp_link_num(struct mtp_link_set *set, int num)
+{
+	struct mtp_link *link;
+
+	llist_for_each_entry(link, &set->links, entry)
+		if (link->link_no == num)
+			return link;
+
+	return NULL;
 }

@@ -37,6 +37,12 @@ struct ss7_application;
 #define MTP_T2		30, 0
 #define START_DELAY	 8, 0
 
+enum ss7_link_type {
+	SS7_LTYPE_NONE,
+	SS7_LTYPE_UDP,
+	SS7_LTYPE_M2UA,
+};
+
 /**
  * The state of the mtp_link in terms of layer3 and upwards
  */
@@ -120,6 +126,10 @@ struct mtp_link {
 	int (*shutdown)(struct mtp_link *);
 	int (*reset)(struct mtp_link *data);
 	int (*clear_queue)(struct mtp_link *data);
+
+	/* private data */
+	enum ss7_link_type type;
+	void *data;
 };
 
 
@@ -130,7 +140,6 @@ int mtp_link_set_submit_sccp_data(struct mtp_link_set *link, int sls, const uint
 int mtp_link_set_submit_isup_data(struct mtp_link_set *link, int sls, const uint8_t *data, unsigned int length);
 
 void mtp_link_set_init_slc(struct mtp_link_set *set);
-int mtp_link_set_add_link(struct mtp_link_set *set, struct mtp_link *link);
 
 void mtp_link_block(struct mtp_link *link);
 void mtp_link_unblock(struct mtp_link *link);
@@ -147,7 +156,6 @@ int mtp_link_set_send(struct mtp_link_set *set, struct msgb *msg);
 void mtp_link_down(struct mtp_link *data);
 void mtp_link_up(struct mtp_link *data);
 
-int mtp_link_init(struct mtp_link *link);
 void mtp_link_start_link_test(struct mtp_link *link);
 void mtp_link_stop_link_test(struct mtp_link *link);
 int mtp_link_slta(struct mtp_link *link, uint16_t l3_len, struct mtp_level_3_mng *mng);
@@ -160,5 +168,8 @@ struct msgb *mtp_msg_alloc(struct mtp_link_set *link);
 /* link management */
 struct mtp_link_set *mtp_link_set_alloc(struct bsc_data *bsc);
 struct mtp_link_set *mtp_link_set_num(struct bsc_data *bsc, int num);
+
+struct mtp_link *mtp_link_alloc(struct mtp_link_set *set);
+struct mtp_link *mtp_link_num(struct mtp_link_set *set, int num);
 
 #endif

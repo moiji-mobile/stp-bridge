@@ -61,7 +61,7 @@ static int udp_write_cb(struct bsc_fd *fd, struct msgb *msg)
 	}
 
 	LOGP(DINP, LOGL_DEBUG, "Sending MSU: %s\n", hexdump(msg->data, msg->len));
-	mtp_handle_pcap(&link->base, NET_OUT, msg->l2h, msgb_l2len(msg));
+	mtp_handle_pcap(link->base, NET_OUT, msg->l2h, msgb_l2len(msg));
 
 	/* the assumption is we have connected the socket to the remote */
 	rc = sendto(fd->fd, msg->data, msg->len, 0,
@@ -77,6 +77,7 @@ static int udp_write_cb(struct bsc_fd *fd, struct msgb *msg)
 static int udp_read_cb(struct bsc_fd *fd)
 {
 	struct mtp_udp_data *data;
+	struct mtp_udp_link *ulnk;
 	struct mtp_link *link;
 	struct udp_data_hdr *hdr;
 	struct msgb *msg;
@@ -99,14 +100,15 @@ static int udp_read_cb(struct bsc_fd *fd)
 	}
 
 	hdr = (struct udp_data_hdr *) msgb_put(msg, sizeof(*hdr));
-	link = (struct mtp_link *) find_link(data, ntohs(hdr->data_link_index));
+	ulnk = find_link(data, ntohs(hdr->data_link_index));
 
-	if (!link) {
+	if (!ulnk) {
 		LOGP(DINP, LOGL_ERROR, "No link registered for %d\n",
 		     ntohs(hdr->data_link_index));
 		goto exit;
 	}
 
+	link = ulnk->base;
 	if (link->blocked) {
 		LOGP(DINP, LOGL_ERROR, "The link is blocked.\n");
 		rc = 0;
@@ -181,7 +183,7 @@ static int udp_link_reset(struct mtp_link *link)
 {
 	struct mtp_udp_link *ulnk;
 
-	ulnk = (struct mtp_udp_link *) link;
+	ulnk = (struct mtp_udp_link *) link->data;
 
 	snmp_mtp_deactivate(ulnk->session, ulnk->link_index);
 	return 0;
@@ -197,7 +199,7 @@ static int udp_link_write(struct mtp_link *link, struct msgb *msg)
 	struct mtp_udp_link *ulnk;
 	struct udp_data_hdr *hdr;
 
-	ulnk = (struct mtp_udp_link *) link;
+	ulnk = (struct mtp_udp_link *) link->data;
 
 	hdr = (struct udp_data_hdr *) msgb_push(msg, sizeof(*hdr));
 	hdr->format_type = UDP_FORMAT_SIMPLE_UDP;
@@ -233,12 +235,12 @@ int link_udp_init(struct mtp_udp_link *link, char *remote, int port)
 	link->session->data = link;
 
 	/* function table */
-	link->base.shutdown = udp_link_shutdown;
-	link->base.clear_queue = udp_link_dummy;
+	link->base->shutdown = udp_link_shutdown;
+	link->base->clear_queue = udp_link_dummy;
 
-	link->base.reset = udp_link_reset;
-	link->base.start = udp_link_start;
-	link->base.write = udp_link_write;
+	link->base->reset = udp_link_reset;
+	link->base->start = udp_link_start;
+	link->base->write = udp_link_write;
 
 	/* prepare the remote */
 	memset(&link->remote, 0, sizeof(link->remote));
@@ -317,7 +319,7 @@ void snmp_mtp_callback(struct snmp_mtp_session *session,
 	if (!ulink)
 		return LOGP(DINP, LOGL_ERROR, "Failed to find link_id %d\n", link_id);
 
-	link = &ulink->base;
+	link = ulink->base;
 
 	if (res == SNMP_STATUS_TIMEOUT && !link->blocked) {
 		LOGP(DINP, LOGL_ERROR, "Failed to restart link: %s/%d\n",
@@ -338,7 +340,7 @@ void snmp_mtp_callback(struct snmp_mtp_session *session,
 		 */
 		if (!link->blocked) {
 			link->link_activate.cb = do_start;
-			link->link_activate.data = link;
+			link->link_activate.data = ulink;
 			bsc_schedule_timer(&link->link_activate, ulink->reset_timeout, 0);
 			LOGP(DINP, LOGL_NOTICE,
 			     "Will bring up link %s/%d in %d seconds.\n",

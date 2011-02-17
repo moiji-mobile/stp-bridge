@@ -61,7 +61,7 @@ static void m2ua_conn_destroy(struct sctp_m2ua_conn *conn)
 	/* TODO: hardcoded link index */
 	link = find_m2ua_link(conn->trans, 0);
 	if (link && conn->asp_up && conn->asp_active && conn->established)
-		link_down(&link->base);
+		link_down(link->base);
 	talloc_free(conn);
 
 	#warning "Notify any other AS(P) for failover scenario"
@@ -288,7 +288,7 @@ static int m2ua_handle_est_req(struct mtp_m2ua_link *link,
 
 	conn->established = 1;
 	LOGP(DINP, LOGL_NOTICE, "M2UA/Link is established.\n");
-	mtp_link_up(&link->base);
+	mtp_link_up(link->base);
 	m2ua_msg_free(conf);
 	return 0;
 }
@@ -314,7 +314,7 @@ static int m2ua_handle_rel_req(struct mtp_m2ua_link *link,
 
 	conn->established = 0;
 	LOGP(DINP, LOGL_NOTICE, "M2UA/Link is released.\n");
-	link_down(&link->base);
+	link_down(link->base);
 	m2ua_msg_free(conf);
 	return 0;
 }
@@ -348,7 +348,7 @@ static int m2ua_handle_data(struct mtp_m2ua_link *_link,
 	msg->l2h = msgb_put(msg, data->len);
 	memcpy(msg->l2h, data->dat, data->len);
 
-	link = &_link->base;
+	link = _link->base;
 	if (!link->blocked) {
 		mtp_handle_pcap(link, NET_IN, msg->l2h, msgb_l2len(msg));
 		mtp_link_set_data(link, msg);
@@ -496,7 +496,7 @@ static int sctp_m2ua_write(struct mtp_link *link, struct msgb *msg)
 	struct m2ua_msg *m2ua;
 	uint32_t interface;
 
-	mlink = (struct mtp_m2ua_link *) link;
+	mlink = (struct mtp_m2ua_link *) link->data;
 	trans = mlink->transport;
 
 	if (llist_empty(&trans->conns))
@@ -616,7 +616,7 @@ static int sctp_m2ua_dummy(struct mtp_link *link)
 
 static int sctp_m2ua_start(struct mtp_link *_link)
 {
-	struct mtp_m2ua_link *link = (struct mtp_m2ua_link *) _link;
+	struct mtp_m2ua_link *link = (struct mtp_m2ua_link *) _link->data;
 
 	link->transport->started = 1;
 	return 0;
@@ -625,7 +625,7 @@ static int sctp_m2ua_start(struct mtp_link *_link)
 static int sctp_m2ua_reset(struct mtp_link *_link)
 {
 	struct sctp_m2ua_conn *conn, *tmp;
-	struct mtp_m2ua_link *link = (struct mtp_m2ua_link *) _link;
+	struct mtp_m2ua_link *link = (struct mtp_m2ua_link *) _link->data;
 
 	/* TODO: only connection that use the current link index! */
 	llist_for_each_entry_safe(conn, tmp, &link->transport->conns, entry)
@@ -694,22 +694,35 @@ struct sctp_m2ua_transport *sctp_m2ua_transp_create(const char *ip, int port)
 struct mtp_m2ua_link *mtp_m2ua_link_create(struct sctp_m2ua_transport *trans,
 					   struct mtp_link_set *set)
 {
+	struct mtp_link *blnk;
 	struct mtp_m2ua_link *lnk;
 
-	lnk = talloc_zero(set, struct mtp_m2ua_link);
-	if (!lnk) {
+	blnk = mtp_link_alloc(set);
+	if (!blnk) {
 		LOGP(DINP, LOGL_ERROR, "Failed to allocate.\n");
 		return NULL;
 	}
 
+	lnk = talloc_zero(blnk, struct mtp_m2ua_link);
+	if (!lnk) {
+		LOGP(DINP, LOGL_ERROR, "Failed to allocate.\n");
+		talloc_free(blnk);
+		return NULL;
+	}
+
+	/* make sure we can resolve it both ways */
+	lnk->base = blnk;
+	blnk->data = lnk;
+	blnk->type = SS7_LTYPE_M2UA;
+
 	/* remember we have a link here */
 	llist_add(&lnk->entry, &trans->links);
 
-	lnk->base.shutdown = sctp_m2ua_reset;
-	lnk->base.clear_queue = sctp_m2ua_dummy;
-	lnk->base.reset = sctp_m2ua_reset;
-	lnk->base.start = sctp_m2ua_start;
-	lnk->base.write = sctp_m2ua_write;
+	lnk->base->shutdown = sctp_m2ua_reset;
+	lnk->base->clear_queue = sctp_m2ua_dummy;
+	lnk->base->reset = sctp_m2ua_reset;
+	lnk->base->start = sctp_m2ua_start;
+	lnk->base->write = sctp_m2ua_write;
 
 	lnk->transport = trans;
 	return lnk;

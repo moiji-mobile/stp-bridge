@@ -46,7 +46,7 @@ struct mtp_udp_data {
 
 struct mtp_udp_link {
 	/* subclass */
-	struct mtp_link base;
+	struct mtp_link *base;
 
 	/* UDP specific stuff */
 	struct bsc_data *bsc;

@@ -494,18 +494,13 @@ DEFUN(pcap_set_stop, pcap_set_stop_cmd,
 
 #define FIND_LINK(vty, set_no, nr) ({						\
 	struct mtp_link_set *set = NULL;					\
-	struct mtp_link *link = NULL, *tmp;					\
+	struct mtp_link *link = NULL;						\
 	set = mtp_link_set_num(bsc, set_no);					\
 	if (!set) {								\
 		vty_out(vty, "Unknown Linkset nr %d.%s", set_no, VTY_NEWLINE);	\
 		return CMD_WARNING;						\
 	}									\
-	llist_for_each_entry(tmp, &set->links, entry) {				\
-		if (tmp->link_no == nr) {					\
-			link = tmp;						\
-			break;							\
-		}								\
-	}									\
+	link = mtp_link_num(set, nr);						\
 	if (!link) {								\
 		vty_out(vty, "Can not find link %d.%s", nr, VTY_NEWLINE);	\
 		return CMD_WARNING;						\
