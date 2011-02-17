@@ -325,12 +325,21 @@ static void start_msc(struct msc_connection *msc)
 	msc_connection_start(msc);
 }
 
+static void start_set(struct ss7_application *app, struct mtp_link_set *set)
+{
+	if (!set)
+		return;
+
+	set->isup_opc = set->isup_opc >= 0 ? set->isup_opc : set->opc;
+	set->sccp_opc = set->sccp_opc >= 0 ? set->sccp_opc : set->opc;
+	set->pass_all_isup = app->isup_pass;
+	start_mtp(set);
+}
+
 int ss7_application_start(struct ss7_application *app)
 {
-	if (app->route_src.set)
-		start_mtp(app->route_src.set);
-	if (app->route_dst.set)
-		start_mtp(app->route_dst.set);
+	start_set(app, app->route_src.set);
+	start_set(app, app->route_dst.set);
 
 	if (app->route_src.msc)
 		start_msc(app->route_src.msc);
@@ -340,4 +349,12 @@ int ss7_application_start(struct ss7_application *app)
 	LOGP(DINP, LOGL_NOTICE, "SS7 Application %d/%s is now running.\n",
 	     app->nr, app->name);
 	return 0;
+}
+
+void ss7_application_pass_isup(struct ss7_application *app, int pass)
+{
+	if (app->route_src.set)
+		app->route_src.set->pass_all_isup = pass;
+	if (app->route_dst.set)
+		app->route_dst.set->pass_all_isup = pass;
 }

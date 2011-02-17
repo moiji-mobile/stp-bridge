@@ -22,7 +22,6 @@
 #include <bsc_data.h>
 #include <cellmgr_debug.h>
 #include <msc_connection.h>
-#include <mtp_level3.h>
 #include <mtp_pcap.h>
 
 #include <osmocore/talloc.h>
@@ -68,16 +67,11 @@ struct bsc_data *bsc_data_create()
 	INIT_LLIST_HEAD(&bsc->mscs);
 	INIT_LLIST_HEAD(&bsc->apps);
 
-	bsc->dpc = 1;
-	bsc->opc = 0;
-	bsc->sccp_opc = -1;
-	bsc->isup_opc = -1;
 	bsc->udp_port = 3456;
 	bsc->udp_ip = NULL;
 	bsc->udp_nr_links = 1;
+
 	bsc->src_port = 1313;
-	bsc->ni_ni = MTP_NI_NATION_NET;
-	bsc->ni_spare = 0;
 	bsc->pcap_fd = -1;
 	bsc->udp_reset_timeout = 180;
 

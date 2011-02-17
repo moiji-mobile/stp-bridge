@@ -227,32 +227,15 @@ int main(int argc, char **argv)
 
 	srand(time(NULL));
 
-	cell_vty_init();
-	if (vty_read_config_file(config, NULL) < 0) {
-		fprintf(stderr, "Failed to read the VTY config.\n");
-		return -1;
-	}
-
-	rc = telnet_init(NULL, NULL, 4242);
-	if (rc < 0)
-		return rc;
-
-	if (inject_init(bsc) != 0) {
-		LOGP(DINP, LOGL_NOTICE, "Failed to initialize inject interface.\n");
+	set = link_set_create(bsc);
+	if (!set) {
+		LOGP(DINP, LOGL_ERROR, "Failed to allocate the link.\n");
 		return -1;
 	}
 
 	app = ss7_application_alloc(bsc);
-	if (!app)
-		return -1;
-
-	set = link_init(bsc);
-	if (!set)
-		return -1;
-
-	bsc->m2ua_trans = sctp_m2ua_transp_create("0.0.0.0", 2904);
-	if (!bsc->m2ua_trans) {
-		LOGP(DINP, LOGL_ERROR, "Failed to create SCTP transport.\n");
+	if (!app) {
+		LOGP(DINP, LOGL_ERROR, "Failed to create the SS7 application.\n");
 		return -1;
 	}
 
@@ -270,10 +253,31 @@ int main(int argc, char **argv)
 	m2ua_set->supported_ssn[146] = 1;
 	m2ua_set->supported_ssn[254] = 1;
 
-	/* setup things */
-	set->pass_all_isup = bsc->isup_pass;
-	m2ua_set->pass_all_isup = bsc->isup_pass;
+	cell_vty_init();
+	if (vty_read_config_file(config, NULL) < 0) {
+		fprintf(stderr, "Failed to read the VTY config.\n");
+		return -1;
+	}
 
+	rc = telnet_init(NULL, NULL, 4242);
+	if (rc < 0)
+		return rc;
+
+	if (inject_init(bsc) != 0) {
+		LOGP(DINP, LOGL_NOTICE, "Failed to initialize inject interface.\n");
+		return -1;
+	}
+
+	if (link_init(bsc, set) != 0)
+		return -1;
+
+	bsc->m2ua_trans = sctp_m2ua_transp_create("0.0.0.0", 2904);
+	if (!bsc->m2ua_trans) {
+		LOGP(DINP, LOGL_ERROR, "Failed to create SCTP transport.\n");
+		return -1;
+	}
+
+	/* setup things */
 	lnk = mtp_m2ua_link_create(bsc->m2ua_trans, m2ua_set);
 
 	ss7_application_setup(app, APP_STP,

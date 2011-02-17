@@ -69,22 +69,10 @@ struct bsc_data {
 	/* udp code */
 	struct mtp_udp_data udp_data;
 
-	int dpc;
-	int opc;
-	int sccp_opc;
-	int isup_opc;
 	int src_port;
 	int udp_port;
 	char *udp_ip;
 	int udp_nr_links;
-	int once;
-
-	/* the network header to use */
-	int ni_ni;
-	int ni_spare;
-
-	/* isup handling */
-	int isup_pass;
 
 	/* MTP Links */
 	struct llist_head linksets;
@@ -115,9 +103,10 @@ void mtp_linkset_up(struct mtp_link_set *);
 /* connection tracking and action */
 
 /* udp init */
+struct mtp_link_set *link_set_create(struct bsc_data *bsc);
 int link_global_init(struct mtp_udp_data *data, int src_port);
 int link_udp_init(struct mtp_udp_link *data, char *dest_ip, int port);
-struct mtp_link_set *link_init(struct bsc_data *bsc);
+int link_init(struct bsc_data *bsc, struct mtp_link_set *set);
 int link_shutdown_all(struct mtp_link_set *);
 int link_reset_all(struct mtp_link_set *);
 int link_clear_all(struct mtp_link_set *);
