@@ -44,6 +44,15 @@ struct sctp_m2ua_transport {
 struct mtp_m2ua_link {
 	struct mtp_link *base;
 
+	/*
+	 * The state of the link, who is using it and
+	 * what will happen to it. For load-sharing we
+	 * will need to turn this into a list.
+	 */
+	int asp_active;
+	int established;
+	struct sctp_m2ua_conn *conn;
+
 	int link_index;
 	struct llist_head entry;
 	struct sctp_m2ua_transport *transport;
@@ -56,8 +65,6 @@ struct sctp_m2ua_conn {
 	struct llist_head entry;
 	uint8_t asp_ident[4];
 	int asp_up;
-	int asp_active;
-	int established;
 
 	struct write_queue queue;
 	struct sctp_m2ua_transport *trans;

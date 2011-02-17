@@ -58,10 +58,17 @@ static void m2ua_conn_destroy(struct sctp_m2ua_conn *conn)
 	write_queue_clear(&conn->queue);
 	llist_del(&conn->entry);
 
-	/* TODO: hardcoded link index */
-	link = find_m2ua_link(conn->trans, 0);
-	if (link && conn->asp_up && conn->asp_active && conn->established)
-		link_down(link->base);
+	llist_for_each_entry(link, &conn->trans->links, entry) {
+		if (link->conn != conn)
+			continue;
+
+		if (link->established)
+			link_down(link->base);
+		link->established = 0;
+		link->asp_active = 0;
+		link->conn = NULL;
+	}
+
 	talloc_free(conn);
 
 	#warning "Notify any other AS(P) for failover scenario"
@@ -108,7 +115,7 @@ static int m2ua_conn_send_ntfy(struct mtp_m2ua_link *link,
 	/* state change */
 	state[0] = ntohs(M2UA_STP_AS_STATE_CHG);
 
-	if (conn->asp_active)
+	if (link->asp_active)
 		state[1] = ntohs(M2UA_STP_AS_ACTIVE);
 	else
 		state[1] = ntohs(M2UA_STP_AS_INACTIVE);
@@ -179,14 +186,13 @@ static int m2ua_handle_asp(struct sctp_m2ua_conn *conn,
 	return 0;
 }
 
-static int m2ua_handle_asptm_act(struct mtp_m2ua_link *link,
-				 struct sctp_m2ua_conn *conn,
+static int m2ua_handle_asptm_act(struct sctp_m2ua_conn *conn,
 				 struct m2ua_msg *m2ua,
 				 struct sctp_sndrcvinfo *info)
 {
+	struct m2ua_msg_part *part;
 	struct m2ua_msg *ack;
 
-	/* TODO: parse the interface identifiers. This is plural */
 	ack = m2ua_msg_alloc();
 	if (!ack)
 		return -1;
@@ -194,30 +200,67 @@ static int m2ua_handle_asptm_act(struct mtp_m2ua_link *link,
 	ack->hdr.msg_class = M2UA_CLS_ASPTM;
 	ack->hdr.msg_type = M2UA_ASPTM_ACTIV_ACK;
 
+	/*
+	 * Move things over to this connection now.
+	 */
+	llist_for_each_entry(part, &m2ua->headers, entry) {
+		struct mtp_m2ua_link *link;
+		uint32_t interf;
+
+
+		if (part->tag != MUA_TAG_IDENT_INT)
+			continue;
+		if (part->len != 4)
+			continue;
+
+		memcpy(&interf, part->dat, 4);
+		link = find_m2ua_link(conn->trans, ntohl(interf));
+		if (!link) {
+			LOGP(DINP, LOGL_ERROR,
+			     "M2UA Link index %d is not configured.\n", ntohl(interf));
+			continue;
+		}
+
+		link->conn = conn;
+		link->asp_active = 1;
+		m2ua_msg_add_data(ack, MUA_TAG_IDENT_INT, 4, (uint8_t *) &interf);
+	}
+
+
 	if (m2ua_conn_send(conn, ack, info) != 0) {
 		m2ua_msg_free(ack);
 		return -1;
 	}
 
-	conn->asp_active = 1;
-	m2ua_conn_send_ntfy(link, conn, info);
+	/* now again send NTFY on all these links */
+	llist_for_each_entry(part, &m2ua->headers, entry) {
+		struct mtp_m2ua_link *link;
+		uint32_t interf;
+
+
+		if (part->tag != MUA_TAG_IDENT_INT)
+			continue;
+		if (part->len != 4)
+			continue;
+
+		memcpy(&interf, part->dat, 4);
+		link = find_m2ua_link(conn->trans, ntohl(interf));
+		if (!link)
+			continue;
+		m2ua_conn_send_ntfy(link, conn,	info);
+	}
+
 	m2ua_msg_free(ack);
 	return 0;
 }
 
-static int m2ua_handle_asptm(struct mtp_m2ua_link *link,
-			     struct sctp_m2ua_conn *conn,
+static int m2ua_handle_asptm(struct sctp_m2ua_conn *conn,
 			     struct m2ua_msg *m2ua,
 			     struct sctp_sndrcvinfo *info)
 {
-	if (!link) {
-		LOGP(DINP, LOGL_ERROR, "Link is required.\n");
-		return -1;
-	}
-
 	switch (m2ua->hdr.msg_type) {
 	case M2UA_ASPTM_ACTIV:
-		m2ua_handle_asptm_act(link, conn, m2ua, info);
+		m2ua_handle_asptm_act(conn, m2ua, info);
 		break;
 	default:
 		LOGP(DINP, LOGL_ERROR, "Unhandled msg_type %d\n",
@@ -236,6 +279,13 @@ static int m2ua_handle_state_req(struct mtp_m2ua_link *link,
 	struct m2ua_msg_part *state;
 	struct m2ua_msg *conf;
 	int req;
+
+	if (link->conn != conn) {
+		LOGP(DINP, LOGL_ERROR,
+		     "Someone forgot the ASP Activate on link-index %d\n",
+		     link->link_index);
+		return -1;
+	}
 
 	state = m2ua_msg_find_tag(m2ua, M2UA_TAG_STATE_REQ);
 	if (!state || state->len != 4) {
@@ -285,11 +335,12 @@ static int m2ua_handle_est_req(struct mtp_m2ua_link *link,
 	conf->hdr.msg_type = M2UA_MAUP_EST_CON;
 
 	if (m2ua_conn_send(conn, conf, info) != 0) {
+		link->established = 0;
 		m2ua_msg_free(conf);
 		return -1;
 	}
 
-	conn->established = 1;
+	link->established = 1;
 	LOGP(DINP, LOGL_NOTICE, "M2UA/Link is established.\n");
 	mtp_link_up(link->base);
 	m2ua_msg_free(conf);
@@ -315,7 +366,7 @@ static int m2ua_handle_rel_req(struct mtp_m2ua_link *link,
 		return -1;
 	}
 
-	conn->established = 0;
+	link->established = 0;
 	LOGP(DINP, LOGL_NOTICE, "M2UA/Link is released.\n");
 	link_down(link->base);
 	m2ua_msg_free(conf);
@@ -368,6 +419,13 @@ static int m2ua_handle_maup(struct mtp_m2ua_link *link,
 {
 	if (!link) {
 		LOGP(DINP, LOGL_ERROR, "Link is required.\n");
+		return -1;
+	}
+
+	if (link->conn != conn) {
+		LOGP(DINP, LOGL_ERROR,
+		     "Someone forgot the ASP Activate on link-index %d\n",
+		     link->link_index);
 		return -1;
 	}
 
@@ -442,7 +500,7 @@ static int m2ua_conn_handle(struct sctp_m2ua_conn *conn,
 		m2ua_handle_asp(conn, m2ua, info);
 		break;
 	case M2UA_CLS_ASPTM:
-		m2ua_handle_asptm(link, conn, m2ua, info);
+		m2ua_handle_asptm(conn, m2ua, info);
 		break;
 	case M2UA_CLS_MAUP:
 		m2ua_handle_maup(link, conn, m2ua, info);
@@ -493,26 +551,22 @@ static int m2ua_conn_read(struct bsc_fd *fd)
 static int sctp_m2ua_write(struct mtp_link *link, struct msgb *msg)
 {
 	struct mtp_m2ua_link *mlink;
-	struct sctp_m2ua_transport *trans;
-	struct sctp_m2ua_conn *conn = NULL, *tmp;
 	struct sctp_sndrcvinfo info;
 	struct m2ua_msg *m2ua;
 	uint32_t interface;
 
 	mlink = (struct mtp_m2ua_link *) link->data;
-	trans = mlink->transport;
 
-	if (llist_empty(&trans->conns))
+
+	if (!mlink->conn) {
+		LOGP(DINP, LOGL_ERROR, "M2UA write with no ASP for %d/%s of %d/%s.\n",
+		     link->nr, link->name, link->set->nr, link->set->name);
 		goto clean;
+	}
 
-	llist_for_each_entry(tmp, &trans->conns, entry)
-		if (tmp->established && tmp->asp_active && tmp->asp_up) {
-			conn = tmp;
-			break;
-		}
-
-	if (!conn) {
-		LOGP(DINP, LOGL_ERROR, "No active ASP?\n");
+	if (!mlink->asp_active || !mlink->established) {
+		LOGP(DINP, LOGL_ERROR, "ASP not ready  for %d/%s of %d/%s.\n",
+		     link->nr, link->name, link->set->nr, link->set->name);
 		goto clean;
 	}
 
@@ -534,7 +588,7 @@ static int sctp_m2ua_write(struct mtp_link *link, struct msgb *msg)
 	info.sinfo_assoc_id = 1;
 	info.sinfo_ppid = htonl(2);
 
-	m2ua_conn_send(conn, m2ua, &info);
+	m2ua_conn_send(mlink->conn, m2ua, &info);
 	m2ua_msg_free(m2ua);
 
 clean:
