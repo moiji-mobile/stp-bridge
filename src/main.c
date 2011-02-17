@@ -95,6 +95,20 @@ int main(int argc, char **argv)
 	srand(time(NULL));
 
 	cell_vty_init();
+
+	set = link_set_create(bsc);
+	if (!set) {
+		LOGP(DINP, LOGL_ERROR, "Failed to allocate the link.\n");
+		return -1;
+	}
+
+	app = ss7_application_alloc(bsc);
+	if (!app) {
+		LOGP(DINP, LOGL_ERROR, "Failed to create the SS7 application.\n");
+		return -1;
+	}
+
+	/* Now parse the configuration file */
 	if (vty_read_config_file(config, NULL) < 0) {
 		fprintf(stderr, "Failed to read the VTY config.\n");
 		return -1;
@@ -104,15 +118,9 @@ int main(int argc, char **argv)
 	if (rc < 0)
 		return rc;
 
-	set = link_init(bsc);
-	if (!set)
+	/* create the links and start */
+	if (link_init(bsc, set) != 0)
 		return -1;
-
-	app = ss7_application_alloc(bsc);
-	if (!app) {
-		LOGP(DINP, LOGL_ERROR, "Failed to create the SS7 application.\n");
-		return -1;
-	}
 
 	ss7_application_setup(app, APP_CELLMGR,
 			      SS7_SET_LINKSET, 0,

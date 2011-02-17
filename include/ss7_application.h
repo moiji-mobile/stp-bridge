@@ -64,6 +64,9 @@ struct ss7_application {
 
 	struct bsc_data *bsc;
 
+	/* isup handling */
+	int isup_pass;
+
 	/* handling for the NAT/State handling */
 	struct llist_head sccp_connections;
 	struct timer_list reset_timeout;
@@ -80,5 +83,8 @@ int ss7_application_setup(struct ss7_application *, int type,
 			  int dst_type, int dst_num);
 
 int ss7_application_start(struct ss7_application *);
+
+/* config changes */
+void ss7_application_pass_isup(struct ss7_application *, int pass);
 
 #endif

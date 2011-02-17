@@ -22,6 +22,7 @@
 #include <bsc_data.h>
 #include <mtp_pcap.h>
 #include <msc_connection.h>
+#include <ss7_application.h>
 
 #include <osmocore/talloc.h>
 #include <osmocore/gsm48.h>
@@ -65,22 +66,24 @@ static struct cmd_node cell_node = {
 
 static int config_write_cell(struct vty *vty)
 {
+	struct mtp_link_set *set = mtp_link_set_num(bsc, 0);
 	struct msc_connection *msc = msc_connection_num(bsc, 0);
+	struct ss7_application *app = ss7_application_num(bsc, 0);
 
 	vty_out(vty, "cellmgr%s", VTY_NEWLINE);
-	vty_out(vty, " mtp dpc %d%s", bsc->dpc, VTY_NEWLINE);
-	vty_out(vty, " mtp opc %d%s", bsc->opc, VTY_NEWLINE);
-	vty_out(vty, " mtp sccp-opc %d%s", bsc->sccp_opc, VTY_NEWLINE);
-	vty_out(vty, " mtp ni %d%s", bsc->ni_ni, VTY_NEWLINE);
-	vty_out(vty, " mtp spare %d%s", bsc->ni_spare, VTY_NEWLINE);
-	vty_out(vty, " mtp sltm once %d%s", bsc->once, VTY_NEWLINE);
+	vty_out(vty, " mtp dpc %d%s", set->dpc, VTY_NEWLINE);
+	vty_out(vty, " mtp opc %d%s", set->opc, VTY_NEWLINE);
+	vty_out(vty, " mtp sccp-opc %d%s", set->sccp_opc, VTY_NEWLINE);
+	vty_out(vty, " mtp ni %d%s", set->ni, VTY_NEWLINE);
+	vty_out(vty, " mtp spare %d%s", set->spare, VTY_NEWLINE);
+	vty_out(vty, " mtp sltm once %d%s", set->sltm_once, VTY_NEWLINE);
 	if (bsc->udp_ip)
 		vty_out(vty, " udp dest ip %s%s", bsc->udp_ip, VTY_NEWLINE);
 	vty_out(vty, " udp dest port %d%s", bsc->udp_port, VTY_NEWLINE);
 	vty_out(vty, " udp src port %d%s", bsc->src_port, VTY_NEWLINE);
 	vty_out(vty, " udp reset %d%s", bsc->udp_reset_timeout, VTY_NEWLINE);
 	vty_out(vty, " udp number-links %d%s", bsc->udp_nr_links, VTY_NEWLINE);
-	vty_out(vty, " isup pass-through %d%s", bsc->isup_pass, VTY_NEWLINE);
+	vty_out(vty, " isup pass-through %d%s", app->isup_pass, VTY_NEWLINE);
 
 	if (msc) {
 		vty_out(vty, " msc ip %s%s", msc->ip, VTY_NEWLINE);
@@ -103,7 +106,8 @@ DEFUN(cfg_net_dpc, cfg_net_dpc_cmd,
       "mtp dpc DPC_NR",
       "Set the DPC to be used.")
 {
-	bsc->dpc = atoi(argv[0]);
+	struct mtp_link_set *set = mtp_link_set_num(bsc, 0);
+	set->dpc = atoi(argv[0]);
 	return CMD_SUCCESS;
 }
 
@@ -111,7 +115,8 @@ DEFUN(cfg_net_opc, cfg_net_opc_cmd,
       "mtp opc OPC_NR",
       "Set the OPC to be used.")
 {
-	bsc->opc = atoi(argv[0]);
+	struct mtp_link_set *set = mtp_link_set_num(bsc, 0);
+	set->opc = atoi(argv[0]);
 	return CMD_SUCCESS;
 }
 
@@ -119,7 +124,8 @@ DEFUN(cfg_net_sccp_opc, cfg_net_sccp_opc_cmd,
       "mtp sccp-opc OPC_NR",
       "Set the SCCP OPC to be used.")
 {
-	bsc->sccp_opc = atoi(argv[0]);
+	struct mtp_link_set *set = mtp_link_set_num(bsc, 0);
+	set->sccp_opc = atoi(argv[0]);
 	return CMD_SUCCESS;
 }
 
@@ -127,7 +133,8 @@ DEFUN(cfg_net_mtp_ni, cfg_net_mtp_ni_cmd,
       "mtp ni NR",
       "Set the MTP NI to be used.\n" "NR")
 {
-	bsc->ni_ni = atoi(argv[0]);
+	struct mtp_link_set *set = mtp_link_set_num(bsc, 0);
+	set->ni = atoi(argv[0]);
 	return CMD_SUCCESS;
 }
 
@@ -135,7 +142,8 @@ DEFUN(cfg_net_mtp_spare, cfg_net_mtp_spare_cmd,
       "mtp spare NR",
       "Set the MTP Spare to be used.\n" "NR")
 {
-	bsc->ni_spare = atoi(argv[0]);
+	struct mtp_link_set *set = mtp_link_set_num(bsc, 0);
+	set->spare = atoi(argv[0]);
 	return CMD_SUCCESS;
 }
 
@@ -194,7 +202,8 @@ DEFUN(cfg_sltm_once, cfg_sltm_once_cmd,
       "mtp sltm once (0|1)",
       "Send SLTMs until the link is established.")
 {
-	bsc->once = !!atoi(argv[0]);
+	struct mtp_link_set *set = mtp_link_set_num(bsc, 0);
+	set->sltm_once = !!atoi(argv[0]);
 	return CMD_SUCCESS;
 }
 
@@ -314,12 +323,8 @@ DEFUN(cfg_isup_pass, cfg_isup_pass_cmd,
       "Pass through all ISUP messages directly\n"
       "Handle some messages locally\n" "Pass through everything\n")
 {
-	struct mtp_link_set *set;
-
-	bsc->isup_pass = atoi(argv[0]);
-
-	llist_for_each_entry(set, &bsc->linksets, entry)
-		set->pass_all_isup = bsc->isup_pass;
+	struct ss7_application *app = ss7_application_num(bsc, 0);
+	ss7_application_pass_isup(app, atoi(argv[0]));
 
 	return CMD_SUCCESS;
 }

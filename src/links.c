@@ -24,6 +24,7 @@
 #include <cellmgr_debug.h>
 #include <msc_connection.h>
 #include <mtp_data.h>
+#include <mtp_level3.h>
 #include <mtp_pcap.h>
 #include <snmp_mtp.h>
 
@@ -87,23 +88,17 @@ void mtp_link_restart(struct mtp_link *link)
 	link->reset(link);
 }
 
-struct mtp_link_set *link_init(struct bsc_data *bsc)
+struct mtp_link_set *link_set_create(struct bsc_data *bsc)
 {
-	int i;
-	struct mtp_udp_link *lnk;
-	struct mtp_link *blnk;
 	struct mtp_link_set *set;
 
 	set = mtp_link_set_alloc(bsc);
 	set->name = talloc_strdup(set, "MTP");
-	set->dpc = bsc->dpc;
-	set->opc = bsc->opc;
-	set->sccp_opc = bsc->sccp_opc > -1 ? bsc->sccp_opc : bsc->opc;
-	set->isup_opc = bsc->isup_opc > -1 ? bsc->isup_opc : bsc->opc;
-	set->sltm_once = bsc->once;
-	set->ni = bsc->ni_ni;
-	set->spare = bsc->ni_spare;
+	set->sccp_opc = set->isup_opc = -1;
 	set->pcap_fd = bsc->pcap_fd;
+
+	set->ni = MTP_NI_NATION_NET;
+	set->spare = 0;
 
 	set->supported_ssn[1] = 1;
 	set->supported_ssn[7] = 1;
@@ -111,15 +106,25 @@ struct mtp_link_set *link_init(struct bsc_data *bsc)
 	set->supported_ssn[146] = 1;
 	set->supported_ssn[254] = 1;
 
+	return set;
+}
+
+int link_init(struct bsc_data *bsc, struct mtp_link_set *set)
+{
+	int i;
+	struct mtp_udp_link *lnk;
+	struct mtp_link *blnk;
+
+
 	if (!bsc->src_port) {
 		LOGP(DINP, LOGL_ERROR, "You need to set a UDP address.\n");
-		return NULL;
+		return -1;
 	}
 
 	LOGP(DINP, LOGL_NOTICE, "Using UDP MTP mode.\n");
 
 	if (link_global_init(&bsc->udp_data, bsc->src_port) != 0)
-		return NULL;
+		return -1;
 
 
 	for (i = 1; i <= bsc->udp_nr_links; ++i) {
@@ -135,10 +140,10 @@ struct mtp_link_set *link_init(struct bsc_data *bsc)
 
 		/* now connect to the transport */
 		if (link_udp_init(lnk, bsc->udp_ip, bsc->udp_port) != 0)
-			return NULL;
+			return -1;
 	}
 
-	return set;
+	return 0;
 }
 
 int link_shutdown_all(struct mtp_link_set *set)
