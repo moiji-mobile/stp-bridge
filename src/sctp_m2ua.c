@@ -96,6 +96,7 @@ static int m2ua_conn_send_ntfy(struct mtp_m2ua_link *link,
 {
 	struct m2ua_msg *msg;
 	uint16_t state[2];
+	uint32_t ident;
 	int rc;
 
 	msg = m2ua_msg_alloc();
@@ -112,10 +113,12 @@ static int m2ua_conn_send_ntfy(struct mtp_m2ua_link *link,
 	else
 		state[1] = ntohs(M2UA_STP_AS_INACTIVE);
 
-	/* TODO: embed the interface identifier */
-
 	m2ua_msg_add_data(msg, MUA_TAG_STATUS, 4, (uint8_t *) state);
 	m2ua_msg_add_data(msg, MUA_TAG_ASP_IDENT, 4, conn->asp_ident);
+
+	ident = htonl(link->link_index);
+	m2ua_msg_add_data(msg, MUA_TAG_IDENT_INT, 4, (uint8_t *) &ident);
+
 	rc = m2ua_conn_send(conn, msg, info);
 	m2ua_msg_free(msg);
 
