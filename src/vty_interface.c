@@ -492,12 +492,12 @@ DEFUN(pcap_set_stop, pcap_set_stop_cmd,
 	return CMD_SUCCESS;
 }
 
-#define FIND_LINK(vty, type, nr) ({						\
+#define FIND_LINK(vty, set_no, nr) ({						\
 	struct mtp_link_set *set = NULL;					\
 	struct mtp_link *link = NULL, *tmp;					\
-	set = find_link_set(&bsc->linksets, type);				\
+	set = mtp_link_set_num(bsc, set_no);					\
 	if (!set) {								\
-		vty_out(vty, "Unknown linkset %s.%s", type, VTY_NEWLINE);	\
+		vty_out(vty, "Unknown Linkset nr %d.%s", set_no, VTY_NEWLINE);	\
 		return CMD_WARNING;						\
 	}									\
 	llist_for_each_entry(tmp, &set->links, entry) {				\
@@ -513,32 +513,32 @@ DEFUN(pcap_set_stop, pcap_set_stop_cmd,
 	link; })
 
 #define LINK_STR "Operations on the link\n"					\
-		 "Linkset name\n"						\
+		 "Linkset number\n"						\
 		 "Link number\n"
 
 DEFUN(lnk_block, lnk_block_cmd,
-      "link NAME <0-15> block",
+      "link <0-100> <0-15> block",
       LINK_STR "Block it\n")
 {
-	struct mtp_link *link = FIND_LINK(vty, argv[0], atoi(argv[1]));
+	struct mtp_link *link = FIND_LINK(vty, atoi(argv[0]), atoi(argv[1]));
 	mtp_link_block(link);
 	return CMD_SUCCESS;
 }
 
 DEFUN(lnk_unblock, lnk_unblock_cmd,
-      "link NAME <0-15> unblock",
+      "link <0-100> <0-15> unblock",
       LINK_STR "Unblock it\n")
 {
-	struct mtp_link *link = FIND_LINK(vty, argv[0], atoi(argv[1]));
+	struct mtp_link *link = FIND_LINK(vty, atoi(argv[0]), atoi(argv[1]));
 	mtp_link_unblock(link);
 	return CMD_SUCCESS;
 }
 
 DEFUN(lnk_reset, lnk_reset_cmd,
-      "link NAME <0-15> reset",
+      "link <0-100> <0-15> reset",
       LINK_STR "Reset it\n")
 {
-	struct mtp_link *link = FIND_LINK(vty, argv[0], atoi(argv[1]));
+	struct mtp_link *link = FIND_LINK(vty, atoi(argv[0]), atoi(argv[1]));
 	mtp_link_failure(link);
 	return CMD_SUCCESS;
 }
