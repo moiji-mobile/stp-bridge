@@ -49,6 +49,7 @@ struct mtp_m2ua_link {
 	 * what will happen to it. For load-sharing we
 	 * will need to turn this into a list.
 	 */
+	int active;
 	int asp_active;
 	int established;
 	struct sctp_m2ua_conn *conn;

@@ -66,6 +66,7 @@ static void m2ua_conn_destroy(struct sctp_m2ua_conn *conn)
 			link_down(link->base);
 		link->established = 0;
 		link->asp_active = 0;
+		link->active = 0;
 		link->conn = NULL;
 	}
 
@@ -311,6 +312,10 @@ static int m2ua_handle_state_req(struct mtp_m2ua_link *link,
 			return -1;
 		}
 		m2ua_msg_free(conf);
+
+		LOGP(DINP, LOGL_NOTICE, "M2UA link-index %d is running.\n", link->link_index);
+		link->active = 1;
+		mtp_link_up(link->base);
 		break;
 	default:
 		LOGP(DINP, LOGL_ERROR, "Unknown STATE Request: %d\n", req);
@@ -341,8 +346,6 @@ static int m2ua_handle_est_req(struct mtp_m2ua_link *link,
 	}
 
 	link->established = 1;
-	LOGP(DINP, LOGL_NOTICE, "M2UA/Link is established.\n");
-	mtp_link_up(link->base);
 	m2ua_msg_free(conf);
 	return 0;
 }
@@ -367,6 +370,7 @@ static int m2ua_handle_rel_req(struct mtp_m2ua_link *link,
 	}
 
 	link->established = 0;
+	link->active = 0;
 	LOGP(DINP, LOGL_NOTICE, "M2UA/Link is released.\n");
 	link_down(link->base);
 	m2ua_msg_free(conf);
@@ -564,7 +568,7 @@ static int sctp_m2ua_write(struct mtp_link *link, struct msgb *msg)
 		goto clean;
 	}
 
-	if (!mlink->asp_active || !mlink->established) {
+	if (!mlink->asp_active || !mlink->established || !mlink->active) {
 		LOGP(DINP, LOGL_ERROR, "ASP not ready  for %d/%s of %d/%s.\n",
 		     link->nr, link->name, link->set->nr, link->set->name);
 		goto clean;
