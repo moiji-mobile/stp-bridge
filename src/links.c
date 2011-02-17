@@ -103,6 +103,12 @@ struct mtp_link_set *link_init(struct bsc_data *bsc)
 	set->spare = bsc->ni_spare;
 	set->pcap_fd = bsc->pcap_fd;
 
+	set->supported_ssn[1] = 1;
+	set->supported_ssn[7] = 1;
+	set->supported_ssn[8] = 1;
+	set->supported_ssn[146] = 1;
+	set->supported_ssn[254] = 1;
+
 	if (!bsc->src_port) {
 		LOGP(DINP, LOGL_ERROR, "You need to set a UDP address.\n");
 		return NULL;

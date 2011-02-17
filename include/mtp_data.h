@@ -66,6 +66,9 @@ struct mtp_link_set {
 	struct mtp_link *slc[16];
 	int sltm_once;
 
+	/* ssn map */
+	int supported_ssn[256];
+
 	int pcap_fd;
 
 	/* special handling */

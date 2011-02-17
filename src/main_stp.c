@@ -264,6 +264,11 @@ int main(int argc, char **argv)
 	m2ua_set->ni = 3;
 	m2ua_set->pcap_fd = bsc->pcap_fd;
 	m2ua_set->name = talloc_strdup(m2ua_set, "M2UA");
+	m2ua_set->supported_ssn[1] = 1;
+	m2ua_set->supported_ssn[7] = 1;
+	m2ua_set->supported_ssn[8] = 1;
+	m2ua_set->supported_ssn[146] = 1;
+	m2ua_set->supported_ssn[254] = 1;
 
 	/* setup things */
 	set->pass_all_isup = bsc->isup_pass;

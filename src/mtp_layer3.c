@@ -402,8 +402,7 @@ static int mtp_link_sccp_data(struct mtp_link_set *link, struct mtp_level_3_hdr 
 			LOGP(DINP, LOGL_ERROR, "Unknown APOC: %u/%u\n",
 			     ntohs(prt->apoc), prt->apoc);
 			type = SCCP_SSP;
-		} else if (prt->assn != 1 && prt->assn != 254 &&
-			   prt->assn != 7 && prt->assn != 8 && prt->assn != 146) {
+		} else if (!link->supported_ssn[prt->assn]) {
 			LOGP(DINP, LOGL_ERROR, "Unknown affected SSN assn: %u\n",
 			     prt->assn);
 			type = SCCP_SSP;
