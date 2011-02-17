@@ -434,8 +434,9 @@ int mtp_link_set_data(struct mtp_link *link, struct msgb *msg)
 		return -1;
 
 	if (!link->set->running) {
-		LOGP(DINP, LOGL_ERROR, "Link is not running. Call mtp_link_reset first: %s/%d\n",
-		     link->set->name, link->link_no);
+		LOGP(DINP, LOGL_ERROR,
+		     "Link %d/%s of Linkse %d/%s is not running. Call mtp_link_reset first.\n",
+		     link->nr, link->name, link->set->nr, link->set->name);
 		return -1;
 	}
 

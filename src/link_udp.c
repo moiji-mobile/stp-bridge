@@ -116,31 +116,31 @@ static int udp_read_cb(struct bsc_fd *fd)
 	}
 
 	if (hdr->data_type == UDP_DATA_RETR_COMPL || hdr->data_type == UDP_DATA_RETR_IMPOS) {
-		LOGP(DINP, LOGL_ERROR, "Link retrieval done on %s/%d.\n",
-		     link->set->name, link->link_no);
+		LOGP(DINP, LOGL_ERROR, "Link retrieval done on %d/%s of %d/%s.\n",
+		     link->nr, link->name, link->set->nr, link->set->name);
 		mtp_link_failure(link);
 		goto exit;
 	} else if (hdr->data_type == UDP_DATA_LINK_UP) {
-		LOGP(DINP, LOGL_NOTICE, "Link of %s/%d is up.\n",
-		     link->set->name, link->link_no);
+		LOGP(DINP, LOGL_NOTICE, "Link of %d/%s of %d/%s is up.\n",
+		     link->nr, link->name, link->set->nr, link->set->name);
 		mtp_link_up(link);
 		goto exit;
 	} else if (hdr->data_type == UDP_DATA_LINK_DOWN) {
-		LOGP(DINP, LOGL_NOTICE, "Link of %s/%d is down.\n",
-		     link->set->name, link->link_no);
+		LOGP(DINP, LOGL_NOTICE, "Link of %d/%s of %d/%s is down.\n",
+		     link->nr, link->name, link->set->nr, link->set->name);
 		mtp_link_failure(link);
 		goto exit;
 	} else if (hdr->data_type > UDP_DATA_MSU_PRIO_3) {
-		LOGP(DINP, LOGL_ERROR, "Link failue on %s/%d.\n",
-		     link->set->name, link->link_no);
+		LOGP(DINP, LOGL_ERROR, "Link failue on %d/%s of %d/%s.\n",
+		     link->nr, link->name, link->set->nr, link->set->name);
 		mtp_link_failure(link);
 		goto exit;
 	}
 
 	/* throw away data as the link is down */
 	if (link->set->available == 0) {
-		LOGP(DINP, LOGL_ERROR, "Link %s/%d is down. Not forwarding.\n",
-		     link->set->name, link->link_no);
+		LOGP(DINP, LOGL_ERROR, "Link %d/%s of %d/%s is down. Not forwarding.\n",
+		     link->nr, link->name, link->set->nr, link->set->name);
 		rc = 0;
 		goto exit;
 	}
@@ -148,16 +148,19 @@ static int udp_read_cb(struct bsc_fd *fd)
 	length = ntohl(hdr->data_length);
 	if (length + sizeof(*hdr) > (unsigned int) rc) {
 		LOGP(DINP, LOGL_ERROR,
-		     "The MSU payload does not fit: %u + %u > %d on %s/%d.\n",
-		     length, sizeof(*hdr), rc, link->set->name, link->link_no);
+		     "The MSU payload does not fit: %u + %u > %d on link %d/%s of %d/%s.\n",
+		     length, sizeof(*hdr), rc,
+		     link->nr, link->name, link->set->nr, link->set->name);
+		rc = 0;
 		rc = -1;
 		goto exit;
 	}
 
 	msg->l2h = msgb_put(msg, length);
 
-	LOGP(DINP, LOGL_DEBUG, "MSU data on: %s/%d data %s.\n",
-	     link->set->name, link->link_no, hexdump(msg->data, msg->len));
+	LOGP(DINP, LOGL_DEBUG, "MSU data on link %d/%s of %d/%s data %s.\n",
+	     link->nr, link->name, link->set->nr, link->set->name,
+	     hexdump(msg->data, msg->len));
 	mtp_handle_pcap(link, NET_IN, msg->l2h, msgb_l2len(msg));
 	mtp_link_set_data(link, msg);
 
@@ -211,8 +214,8 @@ static int udp_link_write(struct mtp_link *link, struct msgb *msg)
 	msg->cb[0] = ulnk->link_index;
 
 	if (write_queue_enqueue(&ulnk->data->write_queue, msg) != 0) {
-		LOGP(DINP, LOGL_ERROR, "Failed to enqueue msg on %s/%d.\n",
-		     link->set->name, link->link_no);
+		LOGP(DINP, LOGL_ERROR, "Failed to enqueue msg on link %d/%s of %d/%s.\n",
+		     link->nr, link->name, link->set->nr, link->set->name);
 		msgb_free(msg);
 		return -1;
 	}
@@ -322,8 +325,9 @@ void snmp_mtp_callback(struct snmp_mtp_session *session,
 	link = ulink->base;
 
 	if (res == SNMP_STATUS_TIMEOUT && !link->blocked) {
-		LOGP(DINP, LOGL_ERROR, "Failed to restart link: %s/%d\n",
-		     link->set->name, link->link_no);
+		LOGP(DINP, LOGL_ERROR,
+		     "Failed to restart link %d/%s of linkset %d/%s\n",
+		     link->nr, link->name, link->set->nr, link->set->name);
 		udp_link_reset(link);
 		return;
 	}
@@ -343,12 +347,15 @@ void snmp_mtp_callback(struct snmp_mtp_session *session,
 			link->link_activate.data = ulink;
 			bsc_schedule_timer(&link->link_activate, ulink->reset_timeout, 0);
 			LOGP(DINP, LOGL_NOTICE,
-			     "Will bring up link %s/%d in %d seconds.\n",
-			     link->set->name, link->link_no, ulink->reset_timeout);
+			     "Will bring up link %d/%s of linkset %d/%s in %d seconds.\n",
+			     link->nr, link->name,
+			     link->set->nr, link->set->name,
+			     ulink->reset_timeout);
 		}
 		break;
 	default:
-		LOGP(DINP, LOGL_ERROR, "Unknown event %d on %s/%d.\n",
-		     area, link->set->name, link->link_no);
+		LOGP(DINP, LOGL_ERROR,
+		     "Unknown event %d on %d/%s of linkset %d/%s.\n",
+		      area, link->nr, link->name, link->set->nr, link->set->name);
 	}
 }

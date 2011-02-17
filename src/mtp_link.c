@@ -40,7 +40,7 @@ static struct msgb *mtp_create_sltm(struct mtp_link *link)
 
 	hdr = (struct mtp_level_3_hdr *) msg->l2h;
 	hdr->ser_ind = MTP_SI_MNT_REG_MSG;
-	hdr->addr = MTP_ADDR(link->link_no % 16, link->set->dpc, link->set->opc);
+	hdr->addr = MTP_ADDR(link->nr % 16, link->set->dpc, link->set->opc);
 
 	mng = (struct mtp_level_3_mng *) msgb_put(msg, sizeof(*mng));
 	mng->cmn.h0 = MTP_TST_MSG_GRP;
@@ -63,8 +63,8 @@ static void mtp_send_sltm(struct mtp_link *link)
 	link->sltm_pending = 1;
 	msg = mtp_create_sltm(link);
 	if (!msg) {
-		LOGP(DINP, LOGL_ERROR, "Failed to allocate SLTM on %s/%d.\n",
-		     link->set->name, link->link_no);
+		LOGP(DINP, LOGL_ERROR, "Failed to allocate SLTM on link %d/%s of %d/%s.\n",
+		     link->nr, link->name, link->set->nr, link->set->name);
 		return;
 	}
 
@@ -79,15 +79,15 @@ static void mtp_sltm_t1_timeout(void *_link)
 
 	if (link->slta_misses == 0) {
 		LOGP(DINP, LOGL_ERROR,
-		     "No SLTM response on link %s/%d.\n",
-		     link->set->name, link->link_no);
+		     "No SLTM response on link %d/%s of %d/%s.\n",
+		     link->nr, link->name, link->set->nr, link->set->name);
 		++link->slta_misses;
 		mtp_send_sltm(link);
 		bsc_schedule_timer(&link->t1_timer, MTP_T1);
 	} else {
 		LOGP(DINP, LOGL_ERROR,
-		     "Two missing SLTAs on link %s/%d.\n",
-		     link->set->name, link->link_no);
+		     "Two missing SLTAs on link %d/%s of %d/%s.\n",
+		     link->nr, link->name, link->set->nr, link->set->name);
 		bsc_del_timer(&link->t2_timer);
 		mtp_link_failure(link);
 	}
@@ -99,8 +99,8 @@ static void mtp_sltm_t2_timeout(void *_link)
 
 	if (!link->set->running) {
 		LOGP(DINP, LOGL_INFO,
-		     "The linkset is not active. Stopping the link test on %s/%d.\n",
-		     link->set->name, link->link_no);
+		     "The linkset is not active. Stopping link test on %d/%s of %d/%s.\n",
+		     link->nr, link->name, link->set->nr, link->set->name);
 		return;
 	}
 
@@ -110,8 +110,8 @@ static void mtp_sltm_t2_timeout(void *_link)
 	bsc_schedule_timer(&link->t1_timer, MTP_T1);
 
 	if (link->set->sltm_once && link->was_up)
-		LOGP(DINP, LOGL_INFO, "Not sending SLTM again as configured on %s/%d.\n",
-		     link->set->name, link->link_no);
+		LOGP(DINP, LOGL_INFO, "Not sending SLTM again on link %d/%s of %d/%s.\n",
+		     link->nr, link->name, link->set->nr, link->set->name);
 	else
 		bsc_schedule_timer(&link->t2_timer, MTP_T2);
 }
@@ -158,13 +158,13 @@ int mtp_link_slta(struct mtp_link *link, uint16_t l3_len,
 void mtp_link_failure(struct mtp_link *link)
 {
 	if (link->blocked) {
-		LOGP(DINP, LOGL_ERROR, "Ignoring failure on blocked link %s/%d.\n",
-		     link->set->name, link->link_no);
+		LOGP(DINP, LOGL_ERROR, "Ignoring failure on blocked link %d/%s on %d/%s.\n",
+		     link->nr, link->name, link->set->nr, link->set->name);
 		return;
 	}
 
-	LOGP(DINP, LOGL_ERROR, "Link %s/%d has failed, going to reset it.\n",
-	     link->set->name, link->link_no);
+	LOGP(DINP, LOGL_ERROR, "Link %d/%s of %d/%s has failed, going to reset it.\n",
+		     link->nr, link->name, link->set->nr, link->set->name);
 	rate_ctr_inc(&link->ctrg->ctr[MTP_LNK_ERROR]);
 	link->reset(link);
 }
@@ -185,15 +185,15 @@ void mtp_link_unblock(struct mtp_link *link)
 
 static int dummy_arg1(struct mtp_link *link)
 {
-	LOGP(DINP, LOGL_ERROR, "The link %d of linkset %d/%s is not typed.\n",
-	     link->link_no, link->set->nr, link->set->name);
+	LOGP(DINP, LOGL_ERROR, "The link %d/%s of linkset %d/%s is not typed.\n",
+	     link->nr, link->name, link->set->nr, link->set->name);
 	return 0;
 }
 
 static int dummy_arg2(struct mtp_link *link, struct msgb *msg)
 {
-	LOGP(DINP, LOGL_ERROR, "The link %d of linkset %d/%s is not typed.\n",
-	     link->link_no, link->set->nr, link->set->name);
+	LOGP(DINP, LOGL_ERROR, "The link %d/%s of linkset %d/%s is not typed.\n",
+	     link->nr, link->name, link->set->nr, link->set->name);
 	msgb_free(msg);
 	return 0;
 }
@@ -208,9 +208,9 @@ struct mtp_link *mtp_link_alloc(struct mtp_link_set *set)
 		return NULL;
 	}
 
-	link->link_no = set->nr_links++;
+	link->nr = set->nr_links++;
 	link->ctrg = rate_ctr_group_alloc(link,
-					  mtp_link_rate_ctr_desc(), link->link_no);
+					  mtp_link_rate_ctr_desc(), link->nr);
 	if (!link->ctrg) {
 		LOGP(DINP, LOGL_ERROR, "Failed to allocate rate_ctr.\n");
 		talloc_free(link);
@@ -244,7 +244,7 @@ struct mtp_link *mtp_link_num(struct mtp_link_set *set, int num)
 	struct mtp_link *link;
 
 	llist_for_each_entry(link, &set->links, entry)
-		if (link->link_no == num)
+		if (link->nr == num)
 			return link;
 
 	return NULL;

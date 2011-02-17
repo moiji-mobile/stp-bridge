@@ -64,8 +64,9 @@ void mtp_link_up(struct mtp_link *link)
 	int one_up;
 
 	if (link->blocked) {
-		LOGP(DINP, LOGL_ERROR, "Ignoring link up on blocked link %s/%d.\n",
-		     link->set->name, link->link_no);
+		LOGP(DINP, LOGL_ERROR,
+		     "Ignoring link up on blocked link %d/%s of linkset %d/%s.\n",
+		     link->nr, link->name, link->set->nr, link->set->name);
 		return;
 	}
 

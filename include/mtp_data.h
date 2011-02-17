@@ -95,6 +95,8 @@ struct mtp_link_set {
  */
 struct mtp_link {
 	struct llist_head entry;
+	int nr;
+	char *name;
 
 	int pcap_fd;
 	struct mtp_link_set *set;
@@ -109,7 +111,6 @@ struct mtp_link {
 	int blocked;
 
 	int first_sls;
-	int link_no;
 	int sltm_pending;
 	int was_up;
 

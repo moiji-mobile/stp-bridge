@@ -332,7 +332,7 @@ static void dump_stats(struct vty *vty, struct mtp_link_set *set)
 	vty_out_rate_ctr_group(vty, " ", set->ctrg);
 
 	llist_for_each_entry(link, &set->links, entry) {
-		vty_out(vty, " Link %d%s", link->link_no, VTY_NEWLINE);
+		vty_out(vty, " Link %d%s", link->nr, VTY_NEWLINE);
 		vty_out_rate_ctr_group(vty, "  ", link->ctrg);
 	}
 }
@@ -367,10 +367,10 @@ static void dump_state(struct vty *vty, struct mtp_link_set *set)
 	llist_for_each_entry(link, &set->links, entry) {
 		if (link->blocked)
 			vty_out(vty, " Link %d is blocked.%s",
-				link->link_no, VTY_NEWLINE);
+				link->nr, VTY_NEWLINE);
 		else
 			vty_out(vty, " Link %d is %s.%s",
-				link->link_no,
+				link->nr,
 				link->available == 0 ? "not available" : "available",
 				VTY_NEWLINE);
 	}
@@ -435,7 +435,7 @@ DEFUN(show_slc, show_slc_cmd,
 	for (i = 0; i < ARRAY_SIZE(set->slc); ++i) {
 		if (set->slc[i])
 			vty_out(vty, " SLC[%.2d] is on link %d.%s",
-				i, set->slc[i]->link_no, VTY_NEWLINE);
+				i, set->slc[i]->nr, VTY_NEWLINE);
 		else
 			vty_out(vty, " SLC[%d] is down.%s",
 				i, VTY_NEWLINE);
