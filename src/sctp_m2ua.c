@@ -279,6 +279,7 @@ static int m2ua_handle_state_req(struct mtp_m2ua_link *link,
 {
 	struct m2ua_msg_part *state;
 	struct m2ua_msg *conf;
+	uint32_t index;
 	int req;
 
 	if (link->conn != conn) {
@@ -303,9 +304,10 @@ static int m2ua_handle_state_req(struct mtp_m2ua_link *link,
 		if (!conf)
 			return -1;
 
+		index = htonl(link->link_index);
 		conf->hdr.msg_class = M2UA_CLS_MAUP;
 		conf->hdr.msg_type = M2UA_MAUP_STATE_CON;
-		m2ua_msg_add_data(conf, MUA_TAG_IDENT_INT, 4, (uint8_t *) &link->link_index);
+		m2ua_msg_add_data(conf, MUA_TAG_IDENT_INT, 4, (uint8_t *) &index);
 		m2ua_msg_add_data(conf, M2UA_TAG_STATE_REQ, 4, (uint8_t *) &req);
 		if (m2ua_conn_send(conn, conf, info) != 0) {
 			m2ua_msg_free(conf);
@@ -330,6 +332,7 @@ static int m2ua_handle_est_req(struct mtp_m2ua_link *link,
 			       struct m2ua_msg *m2ua,
 			       struct sctp_sndrcvinfo *info)
 {
+	uint32_t index;
 	struct m2ua_msg *conf;
 
 	conf = m2ua_msg_alloc();
@@ -338,6 +341,9 @@ static int m2ua_handle_est_req(struct mtp_m2ua_link *link,
 
 	conf->hdr.msg_class = M2UA_CLS_MAUP;
 	conf->hdr.msg_type = M2UA_MAUP_EST_CON;
+
+	index = htonl(link->link_index);
+	m2ua_msg_add_data(conf, MUA_TAG_IDENT_INT, 4, (uint8_t *) &index);
 
 	if (m2ua_conn_send(conn, conf, info) != 0) {
 		link->established = 0;
@@ -355,6 +361,7 @@ static int m2ua_handle_rel_req(struct mtp_m2ua_link *link,
 			       struct m2ua_msg *m2ua,
 			       struct sctp_sndrcvinfo *info)
 {
+	uint32_t index;
 	struct m2ua_msg *conf;
 
 	conf = m2ua_msg_alloc();
@@ -363,6 +370,9 @@ static int m2ua_handle_rel_req(struct mtp_m2ua_link *link,
 
 	conf->hdr.msg_class = M2UA_CLS_MAUP;
 	conf->hdr.msg_type = M2UA_MAUP_REL_CON;
+
+	index = htonl(link->link_index);
+	m2ua_msg_add_data(conf, MUA_TAG_IDENT_INT, 4, (uint8_t *) &index);
 
 	if (m2ua_conn_send(conn, conf, info) != 0) {
 		m2ua_msg_free(conf);
