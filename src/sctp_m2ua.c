@@ -681,12 +681,18 @@ static int sctp_m2ua_start(struct mtp_link *_link)
 
 static int sctp_m2ua_reset(struct mtp_link *_link)
 {
-	struct sctp_m2ua_conn *conn, *tmp;
 	struct mtp_m2ua_link *link = (struct mtp_m2ua_link *) _link->data;
 
-	/* TODO: only connection that use the current link index! */
-	llist_for_each_entry_safe(conn, tmp, &link->transport->conns, entry)
-		m2ua_conn_destroy(conn);
+	/*
+	 * TODO: Send a Release Indication? Send NTFY to other ASPs to
+	 * ask them to activate the link? What should we do here? Right
+	 * now do exactly nothing.
+	 */
+	LOGP(DINP, LOGL_ERROR,
+	     "M2UA link-index %d not doing the reset.\n", link->link_index);
+
+	if (link->conn && link->asp_active && link->established)
+		mtp_link_start_link_test(_link);
 
 	return 0;
 }
