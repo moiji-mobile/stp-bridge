@@ -541,7 +541,7 @@ static int m2ua_conn_read(struct bsc_fd *fd)
 	}
 
 	msgb_put(msg, rc);
-	LOGP(DINP, LOGL_NOTICE, "Read %d on stream: %d ssn: %d assoc: %d\n",
+	LOGP(DINP, LOGL_DEBUG, "Read %d on stream: %d ssn: %d assoc: %d\n",
 		rc, info.sinfo_stream, info.sinfo_ssn, info.sinfo_assoc_id);
 	m2ua_conn_handle(fd->data, msg, &info);
 	msgb_free(msg);

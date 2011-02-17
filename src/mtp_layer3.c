@@ -266,7 +266,7 @@ static int linkset_up(struct mtp_link *link)
 
 	set->linkset_up = 1;
 	LOGP(DINP, LOGL_NOTICE,
-	     "The linkset %s is considered running.\n", set->name);
+	     "The linkset %d/%s is considered running.\n", set->nr, set->name);
 	return 0;
 }
 
@@ -289,9 +289,9 @@ static int mtp_link_sign_msg(struct mtp_link_set *link, struct mtp_level_3_hdr *
 	case MTP_TRF_RESTR_MSG_GRP:
 		switch (cmn->h1) {
 		case MTP_RESTR_MSG_ALLWED:
-			LOGP(DINP, LOGL_INFO, "Received Restart Allowed. SST could be next: %s.\n", link->name);
+			LOGP(DINP, LOGL_INFO, "Received Restart Allowed. SST could be next on %d/%s.\n", link->nr, link->name);
 			link->sccp_up = 1;
-			LOGP(DINP, LOGL_INFO, "SCCP traffic allowed on %s.\n", link->name);
+			LOGP(DINP, LOGL_INFO, "SCCP traffic allowed on %d/%s.\n", link->nr, link->name);
 			return 0;
 			break;
 		}
@@ -300,20 +300,23 @@ static int mtp_link_sign_msg(struct mtp_link_set *link, struct mtp_level_3_hdr *
 		switch (cmn->h1) {
 		case MTP_PROHIBIT_MSG_SIG:
 			if (l3_len < 3) {
-				LOGP(DINP, LOGL_ERROR, "TFP is too short.\n");
+				LOGP(DINP, LOGL_ERROR, "TFP is too short on %d/%s.\n", link->nr, link->name);
 				return -1;
 			}
 
 			apc = (uint16_t *) &hdr->data[1];
 			LOGP(DINP, LOGL_INFO,
-			     "TFP for the affected point code: %d\n", *apc);
+			     "TFP for the affected point code %d on %d/%s\n",
+			     *apc, link->nr, link->name);
 			return 0;
 			break;
 		}
 		break;
 	}
 
-	LOGP(DINP, LOGL_ERROR, "Unknown message:%d/%d %s\n", cmn->h0, cmn->h1, hexdump(&hdr->data[0], l3_len));
+	LOGP(DINP, LOGL_ERROR, "Unknown message:%d/%d %s on %d/%s.\n",
+	     cmn->h0, cmn->h1, hexdump(&hdr->data[0], l3_len),
+	     link->nr, link->name);
 	return -1;
 }
 
@@ -329,8 +332,8 @@ static int mtp_link_regular_msg(struct mtp_link *link, struct mtp_level_3_hdr *h
 	}
 
 	if (MTP_ADDR_DPC(hdr->addr) != link->set->opc) {
-		LOGP(DINP, LOGL_ERROR, "MSG for 0x%x not handled by 0x%x\n",
-			MTP_ADDR_DPC(hdr->addr), link->set->opc);
+		LOGP(DINP, LOGL_ERROR, "MSG for OPC %d not handled on %d/%s\n",
+			MTP_ADDR_DPC(hdr->addr), link->set->nr, link->set->name);
 		return -1;
 	}
 
@@ -377,7 +380,8 @@ static int mtp_link_sccp_data(struct mtp_link_set *link, struct mtp_level_3_hdr 
 	}
 
 	if (!link->sccp_up) {
-		LOGP(DINP, LOGL_ERROR, "SCCP traffic is not allowed.\n");
+		LOGP(DINP, LOGL_ERROR, "SCCP traffic is not allowed on %d/%s\n",
+		     link->nr, link->name);
 		return -1;
 	}
 
@@ -399,12 +403,12 @@ static int mtp_link_sccp_data(struct mtp_link_set *link, struct mtp_level_3_hdr 
 
 		prt = (struct sccp_con_ctrl_prt_mgt *) &msg->l3h[0];
 		if (prt->apoc != MTP_MAKE_APOC(link->sccp_opc)) {
-			LOGP(DINP, LOGL_ERROR, "Unknown APOC: %u/%u\n",
-			     ntohs(prt->apoc), prt->apoc);
+			LOGP(DINP, LOGL_ERROR, "Unknown APOC: %u/%u on %d/%s\n",
+			     ntohs(prt->apoc), prt->apoc, link->nr, link->name);
 			type = SCCP_SSP;
 		} else if (!link->supported_ssn[prt->assn]) {
-			LOGP(DINP, LOGL_ERROR, "Unknown affected SSN assn: %u\n",
-			     prt->assn);
+			LOGP(DINP, LOGL_ERROR, "Unknown affected SSN assn: %u on %d/%s\n",
+			     prt->assn, link->nr, link->name);
 			type = SCCP_SSP;
 		} else {
 			type = SCCP_SSA;
@@ -435,7 +439,7 @@ int mtp_link_set_data(struct mtp_link *link, struct msgb *msg)
 
 	if (!link->set->running) {
 		LOGP(DINP, LOGL_ERROR,
-		     "Link %d/%s of Linkse %d/%s is not running. Call mtp_link_reset first.\n",
+		     "Link %d/%s of %d/%s is not running. Call mtp_link_reset first.\n",
 		     link->nr, link->name, link->set->nr, link->set->name);
 		return -1;
 	}
@@ -473,7 +477,8 @@ int mtp_link_set_submit_sccp_data(struct mtp_link_set *link, int sls, const uint
 {
 
 	if (!link->sccp_up) {
-		LOGP(DINP, LOGL_ERROR, "SCCP msg after TRA and before SSA. Dropping it.\n");
+		LOGP(DINP, LOGL_ERROR, "SCCP msg after TRA and before SSA. Dropping it on %d/%s\n",
+		     link->nr, link->name);
 		return -1;
 	}
 
