@@ -18,6 +18,7 @@
  *
  */
 #include <snmp_mtp.h>
+#include <cellmgr_debug.h>
 #include <osmocore/talloc.h>
 
 static void add_pdu_var(netsnmp_pdu *pdu, const char *mib_name, int id, const char *value)
@@ -120,7 +121,7 @@ static void snmp_mtp_stop_c7_datalink(struct snmp_mtp_session *session, int link
 		session->last_do_req = status;
 }
 
-struct snmp_mtp_session *snmp_mtp_session_create(char *host)
+struct snmp_mtp_session *snmp_mtp_session_create()
 {
 	struct snmp_mtp_session *session = talloc_zero(NULL, struct snmp_mtp_session);
 	if (!session)
@@ -128,21 +129,32 @@ struct snmp_mtp_session *snmp_mtp_session_create(char *host)
 
 	init_snmp("cellmgr_ng");
 	snmp_sess_init(&session->session);
-	session->session.peername = host;
 	session->session.version = SNMP_VERSION_1;
 	session->session.community = (unsigned char *) "private";
 	session->session.community_len = strlen((const char *) session->session.community);
 	session->session.myvoid = session;
 
+	return session;
+}
+
+int snmp_mtp_peer_name(struct snmp_mtp_session *session, char *host)
+{
+	if (session->ss) {
+		snmp_close(session->ss);
+		session->ss = NULL;
+	}
+
+	session->session.peername = host;
+
 	session->ss = snmp_open(&session->session);
 	if (!session->ss) {
 		snmp_perror("create failure");
 		snmp_log(LOG_ERR, "Could not connect to the remote.\n");
-		talloc_free(session);
-		return NULL;
+		LOGP(DINP, LOGL_ERROR, "Failed to open a SNMP session.\n");
+		return -1;
 	}
 
-	return session;
+	return 0;
 }
 
 void snmp_mtp_deactivate(struct snmp_mtp_session *session, int index)

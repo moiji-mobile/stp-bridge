@@ -213,6 +213,7 @@ static int ss7_app_setup_stp(struct ss7_application *app,
 
 	app->type = APP_STP;
 	app->bsc->m2ua_trans->started = 1;
+	app->route_is_set = 1;
 
 	return 0;
 }
@@ -287,6 +288,7 @@ static int ss7_app_setup_relay(struct ss7_application *app, int type,
 	app->route_dst.msc = msc;
 
 	app->type = type;
+	app->route_is_set = 1;
 
 	return 0;
 }
@@ -338,6 +340,12 @@ static void start_set(struct ss7_application *app, struct mtp_link_set *set)
 
 int ss7_application_start(struct ss7_application *app)
 {
+	if (!app->route_is_set) {
+		LOGP(DINP, LOGL_ERROR,
+		     "The routes are not configured on app %d.\n", app->nr);
+		return -1;
+	}
+
 	start_set(app, app->route_src.set);
 	start_set(app, app->route_dst.set);
 

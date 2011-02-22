@@ -65,13 +65,14 @@ static void dump_state(struct vty *vty, struct mtp_link_set *set)
 {
 	struct mtp_link *link;
 
-	if (!set) {
-		vty_out(vty, "LinkSet for %s is not configured.%s", set->name, VTY_NEWLINE);
+	if (!set->app) {
+		vty_out(vty, "LinkSet %d not assigned to an application.%s",
+			set->nr, VTY_NEWLINE);
 		return;
 	}
 
-	vty_out(vty, "LinkSet for %s is %s, remote sccp is %s.%s",
-		set->name,
+	vty_out(vty, "LinkSet for %d/%s is %s, remote sccp is %s.%s",
+		set->nr, set->name,
 		set->available == 0 ? "not available" : "available",
 		set->sccp_up == 0? "not established" : "established",
 		VTY_NEWLINE);
@@ -199,6 +200,10 @@ DEFUN(pcap_set_stop, pcap_set_stop_cmd,
 	if (!set) {								\
 		vty_out(vty, "Unknown Linkset nr %d.%s", set_no, VTY_NEWLINE);	\
 		return CMD_WARNING;						\
+	}									\
+	if (!set->app) {							\
+		vty_out(vty, "Linkset nr %d has no application.%s",		\
+			set_no, VTY_NEWLINE);					\
 	}									\
 	link = mtp_link_num(set, nr);						\
 	if (!link) {								\

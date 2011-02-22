@@ -49,7 +49,8 @@ enum {
 	SNMP_STATUS_TIMEOUT,
 };
 
-struct snmp_mtp_session *snmp_mtp_session_create(char *host);
+struct snmp_mtp_session *snmp_mtp_session_create(void);
+int snmp_mtp_peer_name(struct snmp_mtp_session *, char *name);
 void snmp_mtp_deactivate(struct snmp_mtp_session *, int link_id);
 void snmp_mtp_activate(struct snmp_mtp_session *, int link_id);
 void snmp_mtp_poll();

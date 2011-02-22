@@ -196,9 +196,6 @@ static int inject_init(struct bsc_data *bsc)
 int main(int argc, char **argv)
 {
 	int rc;
-	struct mtp_link_set *set;
-	struct mtp_link_set *m2ua_set;
-	struct mtp_m2ua_link *lnk;
 	struct ss7_application *app;
 
 	thread_init();
@@ -227,38 +224,7 @@ int main(int argc, char **argv)
 
 	srand(time(NULL));
 
-	set = link_set_create(bsc);
-	if (!set) {
-		LOGP(DINP, LOGL_ERROR, "Failed to allocate the link.\n");
-		return -1;
-	}
-
-	app = ss7_application_alloc(bsc);
-	if (!app) {
-		LOGP(DINP, LOGL_ERROR, "Failed to create the SS7 application.\n");
-		return -1;
-	}
-
-	m2ua_set = mtp_link_set_alloc(bsc);
-	m2ua_set->dpc = 92;
-	m2ua_set->opc = 9;
-	m2ua_set->sccp_opc = 9;
-	m2ua_set->isup_opc = 9;
-	m2ua_set->ni = 3;
-	m2ua_set->pcap_fd = bsc->pcap_fd;
-	m2ua_set->name = talloc_strdup(m2ua_set, "M2UA");
-	m2ua_set->supported_ssn[1] = 1;
-	m2ua_set->supported_ssn[7] = 1;
-	m2ua_set->supported_ssn[8] = 1;
-	m2ua_set->supported_ssn[146] = 1;
-	m2ua_set->supported_ssn[254] = 1;
-
 	cell_vty_init();
-	if (vty_read_config_file(config, NULL) < 0) {
-		fprintf(stderr, "Failed to read the VTY config.\n");
-		return -1;
-	}
-
 	rc = telnet_init(NULL, NULL, 4242);
 	if (rc < 0)
 		return rc;
@@ -268,23 +234,40 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
-	if (link_init(bsc, set) != 0)
+	/* now bind the the UDP and SCTP port */
+	if (link_global_init(&bsc->udp_data) != 0) {
+		LOGP(DINP, LOGL_ERROR, "Global UDP input init failed.\n");
 		return -1;
+	}
 
-	bsc->m2ua_trans = sctp_m2ua_transp_create("0.0.0.0", 2904);
+	bsc->m2ua_trans = sctp_m2ua_transp_create(bsc);
 	if (!bsc->m2ua_trans) {
 		LOGP(DINP, LOGL_ERROR, "Failed to create SCTP transport.\n");
 		return -1;
 	}
 
-	/* setup things */
-	lnk = mtp_m2ua_link_create(bsc->m2ua_trans, m2ua_set);
+	if (vty_read_config_file(config, NULL) < 0) {
+		fprintf(stderr, "Failed to read the VTY config.\n");
+		return -1;
+	}
 
-	ss7_application_setup(app, APP_STP,
-			      SS7_SET_LINKSET, 0,
-			      SS7_SET_LINKSET, 1);
+	if (link_global_bind(&bsc->udp_data, bsc->udp_src_port) != 0) {
+		LOGP(DINP, LOGL_ERROR, "Global UDP bind failed.\n");
+		return -1;
+	}
 
-	ss7_application_start(app);
+	if (sctp_m2ua_transport_bind(bsc->m2ua_trans, "0.0.0.0", bsc->m2ua_src_port) != 0) {
+		LOGP(DINP, LOGL_ERROR,
+		     "Failed to bind on port %d\n", bsc->m2ua_src_port);
+		return -1;
+	}
+
+	/* start all apps */
+	llist_for_each_entry(app, &bsc->apps, entry) {
+		LOGP(DINP, LOGL_NOTICE,
+		     "Going to start app %d/%s.\n", app->nr, app->name);
+		ss7_application_start(app);
+	}
 
         while (1) {
 		bsc_select_main(0);
@@ -293,33 +276,3 @@ int main(int argc, char **argv)
 	return 0;
 }
 
-/* dummy for links */
-int msc_connection_start(struct msc_connection *conn)
-{
-	return 0;
-}
-
-struct msc_connection *msc_connection_num(struct bsc_data *bsc, int num)
-{
-	return NULL;
-}
-
-
-void msc_mgcp_reset(struct msc_connection *msc)
-{
-}
-void msc_send_reset(struct msc_connection *bsc)
-{
-}
-void msc_close_connection(struct msc_connection *bsc)
-{
-}
-void app_resources_released(struct ss7_application *ss7)
-{
-}
-void app_clear_connections(struct ss7_application *ss7)
-{
-}
-void app_forward_sccp(struct ss7_application *ss7, struct msgb *_msg, int sls)
-{
-}

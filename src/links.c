@@ -94,8 +94,6 @@ struct mtp_link_set *link_set_create(struct bsc_data *bsc)
 
 	set = mtp_link_set_alloc(bsc);
 	set->name = talloc_strdup(set, "MTP");
-	set->sccp_opc = set->isup_opc = -1;
-	set->pcap_fd = bsc->pcap_fd;
 
 	set->ni = MTP_NI_NATION_NET;
 	set->spare = 0;
@@ -116,29 +114,29 @@ int link_init(struct bsc_data *bsc, struct mtp_link_set *set)
 	struct mtp_link *blnk;
 
 
-	if (!bsc->src_port) {
+	if (!bsc->udp_src_port) {
 		LOGP(DINP, LOGL_ERROR, "You need to set a UDP address.\n");
 		return -1;
 	}
 
 	LOGP(DINP, LOGL_NOTICE, "Using UDP MTP mode.\n");
 
-	if (link_global_init(&bsc->udp_data, bsc->src_port) != 0)
+	if (link_global_init(&bsc->udp_data) != 0)
 		return -1;
 
+	if (link_global_bind(&bsc->udp_data, bsc->udp_src_port) != 0)
+		return -1;
 
 	for (i = 1; i <= bsc->udp_nr_links; ++i) {
 		blnk = mtp_link_alloc(set);
-		lnk = talloc_zero(blnk, struct mtp_udp_link);
-		lnk->base = blnk;
-		lnk->base->data = lnk;
-		lnk->base->type = SS7_LTYPE_UDP;
-		lnk->bsc = bsc;
-		lnk->data = &bsc->udp_data;
-		lnk->link_index = i;
-		lnk->reset_timeout = bsc->udp_reset_timeout;
+		lnk = mtp_udp_link_init(blnk);
+
+		lnk->link_index = 1;
 
 		/* now connect to the transport */
+		if (snmp_mtp_peer_name(lnk->session, bsc->udp_ip) != 0)
+			return -1;
+
 		if (link_udp_init(lnk, bsc->udp_ip, bsc->udp_port) != 0)
 			return -1;
 	}

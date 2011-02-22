@@ -35,6 +35,7 @@ enum ss7_set_type {
 };
 
 enum ss7_app_type {
+	APP_NONE,
 	APP_CELLMGR,
 	APP_RELAY,
 	APP_STP,
@@ -59,6 +60,7 @@ struct ss7_application {
 	int type;
 
 	/* for the routing */
+	int route_is_set;
 	struct ss7_application_route route_src;
 	struct ss7_application_route route_dst;
 
