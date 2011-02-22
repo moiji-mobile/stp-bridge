@@ -560,7 +560,7 @@ struct msc_connection *msc_connection_create(struct bsc_data *bsc, int mgcp)
 		return NULL;
 	}
 
-	llist_add(&msc->entry, &bsc->mscs);
+	llist_add_tail(&msc->entry, &bsc->mscs);
 	msc->nr = bsc->num_mscs++;
 
 	return msc;

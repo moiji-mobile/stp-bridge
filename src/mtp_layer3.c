@@ -609,7 +609,7 @@ struct mtp_link_set *mtp_link_set_alloc(struct bsc_data *bsc)
 	INIT_LLIST_HEAD(&link->links);
 
 	link->nr = bsc->num_linksets++;
-	llist_add(&link->entry, &bsc->linksets);
+	llist_add_tail(&link->entry, &bsc->linksets);
 
 	return link;
 }

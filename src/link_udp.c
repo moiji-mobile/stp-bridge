@@ -252,7 +252,7 @@ int link_udp_init(struct mtp_udp_link *link, char *remote, int port)
 	inet_aton(remote, &link->remote.sin_addr);
 
 	/* add it to the list of udp connections */
-	llist_add(&link->entry, &link->data->links);
+	llist_add_tail(&link->entry, &link->data->links);
 	return 0;
 }
 

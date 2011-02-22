@@ -126,7 +126,7 @@ struct ss7_application *ss7_application_alloc(struct bsc_data *bsc)
 	}
 
 	INIT_LLIST_HEAD(&app->sccp_connections);
-	llist_add(&app->entry, &bsc->apps);
+	llist_add_tail(&app->entry, &bsc->apps);
 	app->nr = bsc->num_apps++;
 	app->bsc = bsc;
 

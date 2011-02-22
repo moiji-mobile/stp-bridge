@@ -793,7 +793,7 @@ struct mtp_m2ua_link *mtp_m2ua_link_create(struct sctp_m2ua_transport *trans,
 	blnk->type = SS7_LTYPE_M2UA;
 
 	/* remember we have a link here */
-	llist_add(&lnk->entry, &trans->links);
+	llist_add_tail(&lnk->entry, &trans->links);
 
 	lnk->base->shutdown = sctp_m2ua_reset;
 	lnk->base->clear_queue = sctp_m2ua_dummy;
