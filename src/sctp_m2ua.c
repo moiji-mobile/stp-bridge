@@ -711,16 +711,33 @@ static int sctp_m2ua_reset(struct mtp_link *_link)
 	return 0;
 }
 
-struct sctp_m2ua_transport *sctp_m2ua_transp_create(const char *ip, int port)
+struct sctp_m2ua_transport *sctp_m2ua_transp_create(struct bsc_data *bsc)
+{
+	struct sctp_m2ua_transport *trans;
+
+	trans = talloc_zero(bsc, struct sctp_m2ua_transport);
+	if (!trans) {
+		LOGP(DINP, LOGL_ERROR, "Remove the talloc.\n");
+		return NULL;
+	}
+
+	INIT_LLIST_HEAD(&trans->conns);
+	INIT_LLIST_HEAD(&trans->links);
+
+
+	return trans;
+}
+
+int sctp_m2ua_transport_bind(struct sctp_m2ua_transport *trans,
+			     const char *ip, int port)
 {
 	int sctp;
 	struct sockaddr_in addr;
-	struct sctp_m2ua_transport *trans;
 
 	sctp = socket(PF_INET, SOCK_STREAM, IPPROTO_SCTP);
 	if (!sctp) {
 		LOGP(DINP, LOGL_ERROR, "Failed to create socket.\n");
-		return NULL;
+		return -1;
 	}
 
 	memset(&addr, 0, sizeof(addr));
@@ -731,24 +748,17 @@ struct sctp_m2ua_transport *sctp_m2ua_transp_create(const char *ip, int port)
 	if (bind(sctp, (struct sockaddr *) &addr, sizeof(addr)) != 0) {
 		LOGP(DINP, LOGL_ERROR, "Failed to bind.\n");
 		close(sctp);
-		return NULL;
+		return -2;
 	}
 
 	if (listen(sctp, 1) != 0) {
 		LOGP(DINP, LOGL_ERROR, "Failed to listen.\n");
 		close(sctp);
-		return NULL;
+		return -3;
 	}
 
 	int on = 1;
 	setsockopt(sctp, SOL_SCTP, 112, &on, sizeof(on));
-
-	trans = talloc_zero(NULL, struct sctp_m2ua_transport);
-	if (!trans) {
-		LOGP(DINP, LOGL_ERROR, "Remove the talloc.\n");
-		close(sctp);
-		return NULL;
-	}
 
 	trans->bsc.fd = sctp;
 	trans->bsc.data = trans;
@@ -757,33 +767,21 @@ struct sctp_m2ua_transport *sctp_m2ua_transp_create(const char *ip, int port)
 
 	if (bsc_register_fd(&trans->bsc) != 0) {
 		LOGP(DINP, LOGL_ERROR, "Failed to register the fd.\n");
-		talloc_free(trans);
 		close(sctp);
-		return NULL;
+		return -4;
 	}
 
-	INIT_LLIST_HEAD(&trans->conns);
-	INIT_LLIST_HEAD(&trans->links);
-
-	return trans;
+	return 0;
 }
 
-struct mtp_m2ua_link *mtp_m2ua_link_create(struct sctp_m2ua_transport *trans,
-					   struct mtp_link_set *set)
+struct mtp_m2ua_link *mtp_m2ua_link_init(struct mtp_link *blnk)
 {
-	struct mtp_link *blnk;
+	struct sctp_m2ua_transport *trans;
 	struct mtp_m2ua_link *lnk;
-
-	blnk = mtp_link_alloc(set);
-	if (!blnk) {
-		LOGP(DINP, LOGL_ERROR, "Failed to allocate.\n");
-		return NULL;
-	}
 
 	lnk = talloc_zero(blnk, struct mtp_m2ua_link);
 	if (!lnk) {
 		LOGP(DINP, LOGL_ERROR, "Failed to allocate.\n");
-		talloc_free(blnk);
 		return NULL;
 	}
 
@@ -793,6 +791,7 @@ struct mtp_m2ua_link *mtp_m2ua_link_create(struct sctp_m2ua_transport *trans,
 	blnk->type = SS7_LTYPE_M2UA;
 
 	/* remember we have a link here */
+	trans = blnk->set->bsc->m2ua_trans;
 	llist_add_tail(&lnk->entry, &trans->links);
 
 	lnk->base->shutdown = sctp_m2ua_reset;

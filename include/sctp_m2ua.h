@@ -57,6 +57,8 @@ struct mtp_m2ua_link {
 	int link_index;
 	struct llist_head entry;
 	struct sctp_m2ua_transport *transport;
+
+	char *as;
 };
 
 /*
@@ -71,8 +73,11 @@ struct sctp_m2ua_conn {
 	struct sctp_m2ua_transport *trans;
 };
 
-struct sctp_m2ua_transport *sctp_m2ua_transp_create(const char *ip, int port);
+struct sctp_m2ua_transport *sctp_m2ua_transp_create(struct bsc_data *bsc);
+int sctp_m2ua_transport_bind(struct sctp_m2ua_transport *, const char *ip, int port);
 struct mtp_m2ua_link *mtp_m2ua_link_create(struct sctp_m2ua_transport *transport,
 					   struct mtp_link_set *);
+
+struct mtp_m2ua_link *mtp_m2ua_link_init(struct mtp_link *link);
 
 #endif

@@ -609,6 +609,9 @@ struct mtp_link_set *mtp_link_set_alloc(struct bsc_data *bsc)
 	INIT_LLIST_HEAD(&link->links);
 
 	link->nr = bsc->num_linksets++;
+	link->sccp_opc = link->isup_opc = -1;
+	link->pcap_fd = bsc->pcap_fd;
+	link->bsc = bsc;
 	llist_add_tail(&link->entry, &bsc->linksets);
 
 	return link;

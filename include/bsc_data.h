@@ -53,6 +53,7 @@ struct mtp_udp_link {
 	int link_index;
 	int reset_timeout;
 
+	char *dest;
 	struct sockaddr_in remote;
 
 	struct mtp_udp_data *data;
@@ -69,10 +70,12 @@ struct bsc_data {
 	/* udp code */
 	struct mtp_udp_data udp_data;
 
-	int src_port;
+	int udp_src_port;
 	int udp_port;
 	char *udp_ip;
 	int udp_nr_links;
+
+	int m2ua_src_port;
 
 	/* MTP Links */
 	struct llist_head linksets;
@@ -104,7 +107,8 @@ void mtp_linkset_up(struct mtp_link_set *);
 
 /* udp init */
 struct mtp_link_set *link_set_create(struct bsc_data *bsc);
-int link_global_init(struct mtp_udp_data *data, int src_port);
+int link_global_init(struct mtp_udp_data *data);
+int link_global_bind(struct mtp_udp_data *data, int src_port);
 int link_udp_init(struct mtp_udp_link *data, char *dest_ip, int port);
 int link_init(struct bsc_data *bsc, struct mtp_link_set *set);
 int link_shutdown_all(struct mtp_link_set *);
@@ -119,5 +123,7 @@ enum {
 int mtp_handle_pcap(struct mtp_link *, int dir, const uint8_t *data, int length);
 
 struct bsc_data *bsc_data_create();
+
+struct mtp_udp_link *mtp_udp_link_init(struct mtp_link *link);
 
 #endif

@@ -71,9 +71,12 @@ struct bsc_data *bsc_data_create()
 	bsc->udp_ip = NULL;
 	bsc->udp_nr_links = 1;
 
-	bsc->src_port = 1313;
+	bsc->udp_src_port = 1313;
 	bsc->pcap_fd = -1;
 	bsc->udp_reset_timeout = 180;
+
+	/* m2ua code */
+	bsc->m2ua_src_port = 2904;
 
 	return bsc;
 }

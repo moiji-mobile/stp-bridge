@@ -231,28 +231,12 @@ static int udp_link_start(struct mtp_link *link)
 
 int link_udp_init(struct mtp_udp_link *link, char *remote, int port)
 {
-	/* setup SNMP first, it is blocking */
-	link->session = snmp_mtp_session_create(remote);
-	if (!link->session)
-		return -1;
-	link->session->data = link;
-
-	/* function table */
-	link->base->shutdown = udp_link_shutdown;
-	link->base->clear_queue = udp_link_dummy;
-
-	link->base->reset = udp_link_reset;
-	link->base->start = udp_link_start;
-	link->base->write = udp_link_write;
-
 	/* prepare the remote */
 	memset(&link->remote, 0, sizeof(link->remote));
 	link->remote.sin_family = AF_INET;
 	link->remote.sin_port = htons(port);
 	inet_aton(remote, &link->remote.sin_addr);
 
-	/* add it to the list of udp connections */
-	llist_add_tail(&link->entry, &link->data->links);
 	return 0;
 }
 
@@ -263,12 +247,8 @@ static void snmp_poll(void *_data)
 	bsc_schedule_timer(&data->snmp_poll, 0, 5000);
 }
 
-int link_global_init(struct mtp_udp_data *data, int src_port)
+int link_global_init(struct mtp_udp_data *data)
 {
-	struct sockaddr_in addr;
-	int fd;
-	int on;
-
 	INIT_LLIST_HEAD(&data->links);
 	write_queue_init(&data->write_queue, 100);
 
@@ -277,6 +257,15 @@ int link_global_init(struct mtp_udp_data *data, int src_port)
 	data->write_queue.bfd.when = BSC_FD_READ;
 	data->write_queue.read_cb = udp_read_cb;
 	data->write_queue.write_cb = udp_write_cb;
+
+	return 0;
+}
+
+int link_global_bind(struct mtp_udp_data *data, int src_port)
+{
+	struct sockaddr_in addr;
+	int fd;
+	int on;
 
 	data->write_queue.bfd.fd = fd = socket(AF_INET, SOCK_DGRAM, 0);
 	if (fd < 0) {
@@ -358,4 +347,51 @@ void snmp_mtp_callback(struct snmp_mtp_session *session,
 		     "Unknown event %d on %d/%s of linkset %d/%s.\n",
 		      area, link->nr, link->name, link->set->nr, link->set->name);
 	}
+}
+
+struct mtp_udp_link *mtp_udp_link_init(struct mtp_link *blnk)
+{
+	struct bsc_data *bsc;
+	struct mtp_udp_link *lnk;
+
+	lnk = talloc_zero(blnk, struct mtp_udp_link);
+	if (!lnk) {
+		LOGP(DINP, LOGL_ERROR, "Failed to allocate.\n");
+		return NULL;
+	}
+
+	/* setup SNMP first, it is blocking */
+	lnk->session = snmp_mtp_session_create();
+	if (!lnk->session) {
+		LOGP(DINP, LOGL_ERROR, "Failed to allocate snmp session.\n");
+		talloc_free(lnk);
+		return NULL;
+	}
+	lnk->session->data = lnk;
+
+	bsc = blnk->set->bsc;
+	lnk->data = &bsc->udp_data;
+	lnk->reset_timeout = bsc->udp_reset_timeout;
+
+	lnk->base = blnk;
+	lnk->base->data = lnk;
+	lnk->base->type = SS7_LTYPE_UDP;
+	lnk->bsc = bsc;
+
+	/* function table */
+	lnk->base->shutdown = udp_link_shutdown;
+	lnk->base->clear_queue = udp_link_dummy;
+
+	lnk->base->reset = udp_link_reset;
+	lnk->base->start = udp_link_start;
+	lnk->base->write = udp_link_write;
+
+	/* prepare the remote */
+	memset(&lnk->remote, 0, sizeof(lnk->remote));
+	lnk->remote.sin_family = AF_INET;
+
+	/* add it to the list of udp connections */
+	llist_add_tail(&lnk->entry, &lnk->data->links);
+
+	return lnk;
 }
