@@ -410,26 +410,14 @@ DEFUN(show_msc, show_msc_cmd,
 	return CMD_SUCCESS;
 }
 
-static struct mtp_link_set *find_link_set(struct llist_head *head,
-					  const char *name)
-{
-	struct mtp_link_set *set;
-
-	llist_for_each_entry(set, head, entry)
-		if (strcmp(name, set->name) == 0)
-			return set;
-
-	return NULL;
-}
-
 DEFUN(show_slc, show_slc_cmd,
-      "show link-set NAME slc",
-      SHOW_STR "LinkSet\n" "Linkset name\n" "SLS to SLC\n")
+      "show link-set <0-100> slc",
+      SHOW_STR "LinkSet\n" "Linkset nr\n" "SLS to SLC\n")
 {
 	struct mtp_link_set *set = NULL;
 	int i;
 
-	set = find_link_set(&bsc->linksets, argv[0]);
+	set = mtp_link_set_num(bsc, atoi(argv[0]));
 
 	if (!set) {
 		vty_out(vty, "Failed to find linkset.%s", VTY_NEWLINE);
@@ -450,13 +438,13 @@ DEFUN(show_slc, show_slc_cmd,
 }
 
 DEFUN(pcap_set, pcap_set_cmd,
-      "trace-pcap set NAME FILE",
-      "Trace to a PCAP file\n" "Trace a linkset\n"
+      "trace-pcap <0-100> NAME FILE",
+      "Trace to a PCAP file\n" "Linkset nr.\n"
       "Trace Linkset\n" "Filename to trace\n")
 {
 	struct mtp_link_set *set = NULL;
 
-	set = find_link_set(&bsc->linksets, argv[0]);
+	set = mtp_link_set_num(bsc, atoi(argv[0]));
 
 	if (!set) {
 		vty_out(vty, "Failed to find linkset.%s", VTY_NEWLINE);
@@ -478,13 +466,13 @@ DEFUN(pcap_set, pcap_set_cmd,
 }
 
 DEFUN(pcap_set_stop, pcap_set_stop_cmd,
-      "trace-pcap set NAME stop",
-      "Trace to a PCAP file\n" "Trace a linkset\n"
+      "trace-pcap <0-100> NAME stop",
+      "Trace to a PCAP file\n" "Linkset nr\n"
       "Trace Linkset\n" "Stop the tracing\n")
 {
 	struct mtp_link_set *set = NULL;
 
-	set = find_link_set(&bsc->linksets, argv[0]);
+	set = mtp_link_set_num(bsc, atoi(argv[0]));
 
 	if (!set) {
 		vty_out(vty, "Failed to find linkset.%s", VTY_NEWLINE);
