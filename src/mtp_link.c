@@ -126,6 +126,12 @@ void mtp_link_stop_link_test(struct mtp_link *link)
 
 void mtp_link_start_link_test(struct mtp_link *link)
 {
+	if (link->blocked) {
+		LOGP(DINP, LOGL_ERROR, "Not starting linktest on %d/%s of %d/%s.\n",
+		     link->nr, link->name, link->set->nr, link->set->name);
+		return;
+	}
+
 	mtp_sltm_t2_timeout(link);
 }
 
