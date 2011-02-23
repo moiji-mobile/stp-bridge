@@ -29,8 +29,8 @@ static const struct rate_ctr_desc mtp_lset_cfg_description[] = {
 	[MTP_LSET_SCCP_IN_MSG]	= { "sccp.in",        "SCCP messages in   "},
 	[MTP_LSET_IUSP_IN_MSG]	= { "isup.in",        "ISUP messages in   "},
 	[MTP_LSET_TOTA_OUT_MSG]	= { "total.out",      "Total messages out "},
-	[MTP_LSET_SCCP_IN_MSG]	= { "sccp.out",       "SCCP messages out  "},
-	[MTP_LSET_IUSP_IN_MSG]	= { "isup.out",       "ISUP messages out  "},
+	[MTP_LSET_SCCP_OUT_MSG]	= { "sccp.out",       "SCCP messages out  "},
+	[MTP_LSET_ISUP_OUT_MSG]	= { "isup.out",       "ISUP messages out  "},
 };
 
 static const struct rate_ctr_desc mtp_link_cfg_description[] = {
