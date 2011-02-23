@@ -476,6 +476,7 @@ static void send_local_rlsd_for_con(void *data)
 {
 	struct msgb *rlsd;
 	struct active_sccp_con *con = (struct active_sccp_con *) data;
+	struct mtp_link_set *set;
 
 	/* try again in three seconds */
 	con->rlc_timeout.data = con;
@@ -488,9 +489,16 @@ static void send_local_rlsd_for_con(void *data)
 		return;
 
 	++con->rls_tries;
+
+	set = con->app->route_src.set;
+	if (!set) {
+		LOGP(DINP, LOGL_DEBUG, "Application %d has no linkset\n", con->app->nr);
+		return;
+	}
+
 	LOGP(DINP, LOGL_DEBUG, "Sending RLSD for 0x%x the %d time.\n",
 	     sccp_src_ref_to_int(&con->src_ref), con->rls_tries);
-	mtp_link_set_submit_sccp_data(con->link, con->sls, rlsd->l2h, msgb_l2len(rlsd));
+	mtp_link_set_submit_sccp_data(set, con->sls, rlsd->l2h, msgb_l2len(rlsd));
 	msgb_free(rlsd);
 }
 

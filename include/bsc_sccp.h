@@ -57,7 +57,6 @@ struct active_sccp_con {
 
 	/* Link to the SS7 Application */
 	struct ss7_application *app;
-	struct mtp_link_set *link;
 
 	/* sls id */
 	int sls;
