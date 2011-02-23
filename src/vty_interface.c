@@ -366,7 +366,7 @@ DEFUN(cfg_ss7_linkset, cfg_ss7_linkset_cmd,
 }
 
 DEFUN(cfg_linkset_mtp3_dpc, cfg_linkset_mtp3_dpc_cmd,
-      "mtp3 dpc <0-255>",
+      "mtp3 dpc <0-8191>",
       "MTP Level3\n" "Destination Point Code\n" "Point Code\n")
 {
 	struct mtp_link_set *set = vty->index;
@@ -375,7 +375,7 @@ DEFUN(cfg_linkset_mtp3_dpc, cfg_linkset_mtp3_dpc_cmd,
 }
 
 DEFUN(cfg_linkset_mtp3_opc, cfg_linkset_mtp3_opc_cmd,
-      "mtp3 opc <0-255>",
+      "mtp3 opc <0-8191>",
       "MTP Level3\n" "Originating Point Code\n" "Point Code\n")
 {
 	struct mtp_link_set *set = vty->index;
