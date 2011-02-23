@@ -119,7 +119,7 @@ int isup_parse_status(const uint8_t *data, uint8_t in_length)
 
 
 /* Handle incoming ISUP data */
-static int handle_circuit_reset_grs(struct mtp_link_set *link, int sls, int cic,
+static int handle_circuit_reset_grs(struct mtp_link_set *set, int sls, int cic,
 				    const uint8_t *data, int size)
 {
 	struct msgb *resp;
@@ -133,12 +133,12 @@ static int handle_circuit_reset_grs(struct mtp_link_set *link, int sls, int cic,
 	if (!resp)
 		return -1;
 
-	mtp_link_set_submit_isup_data(link, sls, resp->l2h, msgb_l2len(resp));
+	mtp_link_set_submit_isup_data(set, sls, resp->l2h, msgb_l2len(resp));
 	msgb_free(resp);
 	return 0;
 }
 
-static int handle_circuit_reset_cgb(struct mtp_link_set *link, int sls, int cic,
+static int handle_circuit_reset_cgb(struct mtp_link_set *set, int sls, int cic,
 				    const uint8_t *data, int size)
 {
 	struct msgb *resp;
@@ -157,12 +157,12 @@ static int handle_circuit_reset_cgb(struct mtp_link_set *link, int sls, int cic,
 	if (!resp)
 		return -1;
 
-	mtp_link_set_submit_isup_data(link, sls, resp->l2h, msgb_l2len(resp));
+	mtp_link_set_submit_isup_data(set, sls, resp->l2h, msgb_l2len(resp));
 	msgb_free(resp);
 	return 0;
 }
 
-static int send_cgu(struct mtp_link_set *link, int sls, int cic, int range)
+static int send_cgu(struct mtp_link_set *set, int sls, int cic, int range)
 {
 	struct msgb *resp;
 	uint8_t val;
@@ -172,7 +172,7 @@ static int send_cgu(struct mtp_link_set *link, int sls, int cic, int range)
 	if (!resp)
 		return -1;
 
-	mtp_link_set_submit_isup_data(link, sls, resp->l2h, msgb_l2len(resp));
+	mtp_link_set_submit_isup_data(set, sls, resp->l2h, msgb_l2len(resp));
 	msgb_free(resp);
 	return 0;
 }
@@ -189,7 +189,7 @@ static int handle_simple_resp(struct mtp_link_set *set, int sls, int cic, int ms
 	return 0;
 }
 
-int mtp_link_set_isup(struct mtp_link_set *link, struct msgb *msg, int sls)
+int mtp_link_set_isup(struct mtp_link_set *set, struct msgb *msg, int sls)
 {
 	int rc = -1;
 	int payload_size;
@@ -200,8 +200,8 @@ int mtp_link_set_isup(struct mtp_link_set *link, struct msgb *msg, int sls)
 		return -1;
 	}
 
-	if (link->pass_all_isup) {
-		mtp_link_set_forward_isup(link, msg, sls);
+	if (set->pass_all_isup) {
+		mtp_link_set_forward_isup(set, msg, sls);
 		return 0;
 	}
 
@@ -210,21 +210,21 @@ int mtp_link_set_isup(struct mtp_link_set *link, struct msgb *msg, int sls)
 
 	switch (hdr->msg_type) {
 	case ISUP_MSG_GRS:
-		rc = handle_circuit_reset_grs(link, sls, hdr->cic, hdr->data, payload_size);
+		rc = handle_circuit_reset_grs(set, sls, hdr->cic, hdr->data, payload_size);
 		break;
 	case ISUP_MSG_CGB:
-		rc = handle_circuit_reset_cgb(link, sls, hdr->cic, hdr->data, payload_size);
+		rc = handle_circuit_reset_cgb(set, sls, hdr->cic, hdr->data, payload_size);
 		if (rc == 0)
-			rc = send_cgu(link, sls, hdr->cic, 28);
+			rc = send_cgu(set, sls, hdr->cic, 28);
 		break;
 	case ISUP_MSG_CGUA:
 		LOGP(DISUP, LOGL_NOTICE, "CIC %d is now unblocked.\n", hdr->cic);
 		break;
 	case ISUP_MSG_RSC:
-		rc = handle_simple_resp(link, sls, hdr->cic, ISUP_MSG_RLC);
+		rc = handle_simple_resp(set, sls, hdr->cic, ISUP_MSG_RLC);
 		break;
 	default:
-		mtp_link_set_forward_isup(link, msg, sls);
+		mtp_link_set_forward_isup(set, msg, sls);
 		rc = 0;
 		break;
 	}

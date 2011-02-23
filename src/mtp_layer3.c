@@ -33,7 +33,7 @@
 
 #include <string.h>
 
-static int mtp_int_submit(struct mtp_link_set *link, int pc, int sls, int type, const uint8_t *data, unsigned int length);
+static int mtp_int_submit(struct mtp_link_set *set, int pc, int sls, int type, const uint8_t *data, unsigned int length);
 
 void mtp_link_submit(struct mtp_link *link, struct msgb *msg)
 {
@@ -43,7 +43,7 @@ void mtp_link_submit(struct mtp_link *link, struct msgb *msg)
 }
 
 
-struct msgb *mtp_msg_alloc(struct mtp_link_set *link)
+struct msgb *mtp_msg_alloc(struct mtp_link_set *set)
 {
 	struct mtp_level_3_hdr *hdr;
 	struct msgb *msg = msgb_alloc_headroom(4096, 128, "mtp-msg");
@@ -54,25 +54,25 @@ struct msgb *mtp_msg_alloc(struct mtp_link_set *link)
 
 	msg->l2h = msgb_put(msg, sizeof(*hdr));
 	hdr = (struct mtp_level_3_hdr *) msg->l2h;
-	hdr->addr = MTP_ADDR(0x0, link->dpc, link->opc);
-	hdr->ni = link->ni;
-	hdr->spare = link->spare;
+	hdr->addr = MTP_ADDR(0x0, set->dpc, set->opc);
+	hdr->ni = set->ni;
+	hdr->spare = set->spare;
 	return msg;
 }
 
-static struct msgb *mtp_create_slta(struct mtp_link_set *link, int sls,
+static struct msgb *mtp_create_slta(struct mtp_link_set *set, int sls,
 				    struct mtp_level_3_mng *in_mng, int l3_len)
 {
 	struct mtp_level_3_hdr *hdr;
 	struct mtp_level_3_mng *mng;
-	struct msgb *out = mtp_msg_alloc(link);
+	struct msgb *out = mtp_msg_alloc(set);
 
 	if (!out)
 		return NULL;
 
 	hdr = (struct mtp_level_3_hdr *) out->l2h;
 	hdr->ser_ind = MTP_SI_MNT_REG_MSG;
-	hdr->addr = MTP_ADDR(sls, link->dpc, link->opc);
+	hdr->addr = MTP_ADDR(sls, set->dpc, set->opc);
 
 	mng = (struct mtp_level_3_mng *) msgb_put(out, sizeof(*mng));
 	mng->cmn.h0 = MTP_TST_MSG_GRP;
@@ -132,7 +132,7 @@ static struct msgb *mtp_tra_alloc(struct mtp_link *link, int opc)
 	return out;
 }
 
-static struct msgb *mtp_sccp_alloc_scmg(struct mtp_link_set *link,
+static struct msgb *mtp_sccp_alloc_scmg(struct mtp_link_set *set,
 					int type, int assn, int apoc, int sls)
 {
 	struct sccp_data_unitdata *udt;
@@ -141,7 +141,7 @@ static struct msgb *mtp_sccp_alloc_scmg(struct mtp_link_set *link,
 	uint8_t *data;
 
 
-	struct msgb *out = mtp_msg_alloc(link);
+	struct msgb *out = mtp_msg_alloc(set);
 
 	if (!out)
 		return NULL;
@@ -150,7 +150,7 @@ static struct msgb *mtp_sccp_alloc_scmg(struct mtp_link_set *link,
 	hdr->ser_ind = MTP_SI_MNT_SCCP;
 
 	/* this appears to be round robin or such.. */
-	hdr->addr = MTP_ADDR(sls % 16, link->dpc, link->sccp_opc);
+	hdr->addr = MTP_ADDR(sls % 16, set->dpc, set->sccp_opc);
 
 	/* generate the UDT message... libsccp does not offer formating yet */
 	udt = (struct sccp_data_unitdata *) msgb_put(out, sizeof(*udt));
@@ -183,27 +183,27 @@ static struct msgb *mtp_sccp_alloc_scmg(struct mtp_link_set *link,
 	return out;
 }
 
-void mtp_link_set_stop(struct mtp_link_set *link)
+void mtp_link_set_stop(struct mtp_link_set *set)
 {
 	struct mtp_link *lnk;
-	llist_for_each_entry(lnk, &link->links, entry)
+	llist_for_each_entry(lnk, &set->links, entry)
 		mtp_link_stop_link_test(lnk);
 
-	bsc_del_timer(&link->T18);
-	bsc_del_timer(&link->T20);
+	bsc_del_timer(&set->T18);
+	bsc_del_timer(&set->T20);
 
-	link->sccp_up = 0;
-	link->running = 0;
-	link->linkset_up = 0;
+	set->sccp_up = 0;
+	set->running = 0;
+	set->linkset_up = 0;
 }
 
-void mtp_link_set_reset(struct mtp_link_set *link)
+void mtp_link_set_reset(struct mtp_link_set *set)
 {
 	struct mtp_link *lnk;
-	mtp_link_set_stop(link);
-	link->running = 1;
+	mtp_link_set_stop(set);
+	set->running = 1;
 
-	llist_for_each_entry(lnk, &link->links, entry)
+	llist_for_each_entry(lnk, &set->links, entry)
 		mtp_link_start_link_test(lnk);
 }
 
@@ -306,12 +306,12 @@ static void linkset_t20_cb(void *_set)
 	return;
 }
 
-static int mtp_link_sign_msg(struct mtp_link_set *link, struct mtp_level_3_hdr *hdr, int l3_len)
+static int mtp_link_sign_msg(struct mtp_link_set *set, struct mtp_level_3_hdr *hdr, int l3_len)
 {
 	struct mtp_level_3_cmn *cmn;
 	uint16_t *apc;
 
-	if (hdr->ni != link->ni || l3_len < 1) {
+	if (hdr->ni != set->ni || l3_len < 1) {
 		LOGP(DINP, LOGL_ERROR, "Unhandled data (ni: %d len: %d)\n",
 		     hdr->ni, l3_len);
 		return -1;
@@ -326,17 +326,17 @@ static int mtp_link_sign_msg(struct mtp_link_set *link, struct mtp_level_3_hdr *
 		switch (cmn->h1) {
 		case MTP_RESTR_MSG_ALLWED:
 			LOGP(DINP, LOGL_INFO,
-			     "Received TRA on linkset %d/%s.\n", link->nr, link->name);
+			     "Received TRA on linkset %d/%s.\n", set->nr, set->name);
 			/*
 			 * TODO: routing should be done on a higher level. This should not
 			 * arrive after we expired the timer but we are friendly here and
 			 * respond with a TFA and TRA...
 			 */
-			bsc_del_timer(&link->T18);
-			bsc_del_timer(&link->T20);
-			linkset_t18_cb(link);
-			linkset_t20_cb(link);
-			link->sccp_up = 1;
+			bsc_del_timer(&set->T18);
+			bsc_del_timer(&set->T20);
+			linkset_t18_cb(set);
+			linkset_t20_cb(set);
+			set->sccp_up = 1;
 			return 0;
 			break;
 		}
@@ -345,14 +345,14 @@ static int mtp_link_sign_msg(struct mtp_link_set *link, struct mtp_level_3_hdr *
 		switch (cmn->h1) {
 		case MTP_PROHIBIT_MSG_SIG:
 			if (l3_len < 3) {
-				LOGP(DINP, LOGL_ERROR, "TFP is too short on %d/%s.\n", link->nr, link->name);
+				LOGP(DINP, LOGL_ERROR, "TFP is too short on %d/%s.\n", set->nr, set->name);
 				return -1;
 			}
 
 			apc = (uint16_t *) &hdr->data[1];
 			LOGP(DINP, LOGL_INFO,
 			     "TFP for the affected point code %d on %d/%s\n",
-			     *apc, link->nr, link->name);
+			     *apc, set->nr, set->name);
 			return 0;
 			break;
 		}
@@ -361,7 +361,7 @@ static int mtp_link_sign_msg(struct mtp_link_set *link, struct mtp_level_3_hdr *
 
 	LOGP(DINP, LOGL_ERROR, "Unknown message:%d/%d %s on %d/%s.\n",
 	     cmn->h0, cmn->h1, hexdump(&hdr->data[0], l3_len),
-	     link->nr, link->name);
+	     set->nr, set->name);
 	return -1;
 }
 
@@ -411,7 +411,7 @@ static int mtp_link_regular_msg(struct mtp_link *link, struct mtp_level_3_hdr *h
 	return -1;
 }
 
-static int mtp_link_sccp_data(struct mtp_link_set *link, struct mtp_level_3_hdr *hdr, struct msgb *msg, int l3_len)
+static int mtp_link_sccp_data(struct mtp_link_set *set, struct mtp_level_3_hdr *hdr, struct msgb *msg, int l3_len)
 {
 	struct msgb *out;
 	struct sccp_con_ctrl_prt_mgt *prt;
@@ -424,9 +424,9 @@ static int mtp_link_sccp_data(struct mtp_link_set *link, struct mtp_level_3_hdr 
 		return -1;
 	}
 
-	if (!link->sccp_up) {
+	if (!set->sccp_up) {
 		LOGP(DINP, LOGL_ERROR, "SCCP traffic is not allowed on %d/%s\n",
-		     link->nr, link->name);
+		     set->nr, set->name);
 		return -1;
 	}
 
@@ -447,29 +447,29 @@ static int mtp_link_sccp_data(struct mtp_link_set *link, struct mtp_level_3_hdr 
 		}
 
 		prt = (struct sccp_con_ctrl_prt_mgt *) &msg->l3h[0];
-		if (prt->apoc != MTP_MAKE_APOC(link->sccp_opc)) {
+		if (prt->apoc != MTP_MAKE_APOC(set->sccp_opc)) {
 			LOGP(DINP, LOGL_ERROR, "Unknown APOC: %u/%u on %d/%s\n",
-			     ntohs(prt->apoc), prt->apoc, link->nr, link->name);
+			     ntohs(prt->apoc), prt->apoc, set->nr, set->name);
 			type = SCCP_SSP;
-		} else if (!link->supported_ssn[prt->assn]) {
+		} else if (!set->supported_ssn[prt->assn]) {
 			LOGP(DINP, LOGL_ERROR, "Unknown affected SSN assn: %u on %d/%s\n",
-			     prt->assn, link->nr, link->name);
+			     prt->assn, set->nr, set->name);
 			type = SCCP_SSP;
 		} else {
 			type = SCCP_SSA;
 		}
 
-		out = mtp_sccp_alloc_scmg(link, type, prt->assn, prt->apoc,
+		out = mtp_sccp_alloc_scmg(set, type, prt->assn, prt->apoc,
 					  MTP_LINK_SLS(hdr->addr));
 		if (!out)
 			return -1;
 
-		mtp_link_submit(link->slc[MTP_LINK_SLS(hdr->addr)], out);
+		mtp_link_submit(set->slc[MTP_LINK_SLS(hdr->addr)], out);
 		return 0;
 	}
 
-	rate_ctr_inc(&link->ctrg->ctr[MTP_LSET_SCCP_IN_MSG]);
-	mtp_link_set_forward_sccp(link, msg, MTP_LINK_SLS(hdr->addr));
+	rate_ctr_inc(&set->ctrg->ctr[MTP_LSET_SCCP_IN_MSG]);
+	mtp_link_set_forward_sccp(set, msg, MTP_LINK_SLS(hdr->addr));
 	return 0;
 }
 
@@ -518,29 +518,29 @@ int mtp_link_set_data(struct mtp_link *link, struct msgb *msg)
 	return rc;
 }
 
-int mtp_link_set_submit_sccp_data(struct mtp_link_set *link, int sls, const uint8_t *data, unsigned int length)
+int mtp_link_set_submit_sccp_data(struct mtp_link_set *set, int sls, const uint8_t *data, unsigned int length)
 {
 
-	if (!link->sccp_up) {
+	if (!set->sccp_up) {
 		LOGP(DINP, LOGL_ERROR, "SCCP msg after TRA and before SSA. Dropping it on %d/%s\n",
-		     link->nr, link->name);
+		     set->nr, set->name);
 		return -1;
 	}
 
 	if (sls == -1) {
-		sls = link->last_sls;
-		link->last_sls = (link->last_sls + 1) % 16;
+		sls = set->last_sls;
+		set->last_sls = (set->last_sls + 1) % 16;
 	}
 
-	rate_ctr_inc(&link->ctrg->ctr[MTP_LSET_SCCP_OUT_MSG]);
-	return mtp_int_submit(link, link->sccp_opc, sls, MTP_SI_MNT_SCCP, data, length);
+	rate_ctr_inc(&set->ctrg->ctr[MTP_LSET_SCCP_OUT_MSG]);
+	return mtp_int_submit(set, set->sccp_opc, sls, MTP_SI_MNT_SCCP, data, length);
 }
 
-int mtp_link_set_submit_isup_data(struct mtp_link_set *link, int sls,
+int mtp_link_set_submit_isup_data(struct mtp_link_set *set, int sls,
 			      const uint8_t *data, unsigned int length)
 {
-	rate_ctr_inc(&link->ctrg->ctr[MTP_LSET_ISUP_OUT_MSG]);
-	return mtp_int_submit(link, link->isup_opc, sls, MTP_SI_MNT_ISUP, data, length);
+	rate_ctr_inc(&set->ctrg->ctr[MTP_LSET_ISUP_OUT_MSG]);
+	return mtp_int_submit(set, set->isup_opc, sls, MTP_SI_MNT_ISUP, data, length);
 }
 
 int mtp_link_set_send(struct mtp_link_set *set, struct msgb *msg)
@@ -560,30 +560,30 @@ int mtp_link_set_send(struct mtp_link_set *set, struct msgb *msg)
 	return 0;
 }
 
-static int mtp_int_submit(struct mtp_link_set *link, int pc, int sls, int type,
+static int mtp_int_submit(struct mtp_link_set *set, int pc, int sls, int type,
 			  const uint8_t *data, unsigned int length)
 {
 	uint8_t *put_ptr;
 	struct mtp_level_3_hdr *hdr;
 	struct msgb *msg;
 
-	if (!link->slc[sls % 16])
+	if (!set->slc[sls % 16])
 		return -1;
 
-	msg = mtp_msg_alloc(link);
+	msg = mtp_msg_alloc(set);
 	if (!msg)
 		return -1;
 
 	hdr = (struct mtp_level_3_hdr *) msg->l2h;
 	hdr->ser_ind = type;
 
-	hdr->addr = MTP_ADDR(sls % 16, link->dpc, pc);
+	hdr->addr = MTP_ADDR(sls % 16, set->dpc, pc);
 
 	/* copy the raw sccp data */
 	put_ptr = msgb_put(msg, length);
 	memcpy(put_ptr, data, length);
 
-	mtp_link_submit(link->slc[sls % 16], msg);
+	mtp_link_submit(set->slc[sls % 16], msg);
 	return 0;
 }
 
@@ -635,41 +635,41 @@ void mtp_link_set_init_slc(struct mtp_link_set *set)
 
 struct mtp_link_set *mtp_link_set_alloc(struct bsc_data *bsc)
 {
-	struct mtp_link_set *link;
+	struct mtp_link_set *set;
 
-	link = talloc_zero(bsc, struct mtp_link_set);
-	if (!link)
+	set = talloc_zero(bsc, struct mtp_link_set);
+	if (!set)
 		return NULL;
 
-	link->ctrg = rate_ctr_group_alloc(link,
+	set->ctrg = rate_ctr_group_alloc(set,
 					  mtp_link_set_rate_ctr_desc(),
 					  bsc->num_linksets + 1);
-	if (!link->ctrg) {
+	if (!set->ctrg) {
 		LOGP(DINP, LOGL_ERROR, "Failed to allocate counter.\n");
 		return NULL;
 	}
 
 
-	link->ni = MTP_NI_NATION_NET;
-	INIT_LLIST_HEAD(&link->links);
+	set->ni = MTP_NI_NATION_NET;
+	INIT_LLIST_HEAD(&set->links);
 
-	link->nr = bsc->num_linksets++;
-	link->sccp_opc = link->isup_opc = -1;
-	link->pcap_fd = bsc->pcap_fd;
-	link->bsc = bsc;
+	set->nr = bsc->num_linksets++;
+	set->sccp_opc = set->isup_opc = -1;
+	set->pcap_fd = bsc->pcap_fd;
+	set->bsc = bsc;
 
 	/* timeout code */
-	link->timeout_t18 = 15;
-	link->timeout_t20 = 16;
+	set->timeout_t18 = 15;
+	set->timeout_t20 = 16;
 
-	link->T18.cb = linkset_t18_cb;
-	link->T18.data = link;
-	link->T20.cb = linkset_t20_cb;
-	link->T20.data = link;
+	set->T18.cb = linkset_t18_cb;
+	set->T18.data = set;
+	set->T20.cb = linkset_t20_cb;
+	set->T20.data = set;
 
-	llist_add_tail(&link->entry, &bsc->linksets);
+	llist_add_tail(&set->entry, &bsc->linksets);
 
-	return link;
+	return set;
 }
 
 struct mtp_link_set *mtp_link_set_num(struct bsc_data *bsc, int num)

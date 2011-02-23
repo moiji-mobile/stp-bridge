@@ -46,9 +46,9 @@
 #include <assert.h>
 #include <unistd.h>
 
-static void send_reset_ack(struct mtp_link_set *link, int sls);
-static void handle_local_sccp(struct mtp_link_set *link, struct msgb *inp, struct sccp_parse_result *res, int sls);
-static void send_local_rlsd(struct mtp_link_set *link, struct sccp_parse_result *res);
+static void send_reset_ack(struct mtp_link_set *set, int sls);
+static void handle_local_sccp(struct mtp_link_set *set, struct msgb *inp, struct sccp_parse_result *res, int sls);
+static void send_local_rlsd(struct mtp_link_set *set, struct sccp_parse_result *res);
 static void update_con_state(struct ss7_application *ss7, int rc, struct sccp_parse_result *result, struct msgb *msg, int from_msc, int sls);
 
 /*
@@ -122,7 +122,7 @@ void app_forward_sccp(struct ss7_application *app, struct msgb *_msg, int sls)
 /*
  * handle local message in close down mode
  */
-static void handle_local_sccp(struct mtp_link_set *link, struct msgb *inpt, struct sccp_parse_result *result, int sls)
+static void handle_local_sccp(struct mtp_link_set *set, struct msgb *inpt, struct sccp_parse_result *result, int sls)
 {
 	/* Handle msg with a reject */
 	if (inpt->l2h[0] == SCCP_MSG_TYPE_CR) {
@@ -133,7 +133,7 @@ static void handle_local_sccp(struct mtp_link_set *link, struct msgb *inpt, stru
 		cr = (struct sccp_connection_request *) inpt->l2h;
 		msg = create_sccp_refuse(&cr->source_local_reference);
 		if (msg) {
-			mtp_link_set_submit_sccp_data(link, sls, msg->l2h, msgb_l2len(msg));
+			mtp_link_set_submit_sccp_data(set, sls, msg->l2h, msgb_l2len(msg));
 			msgb_free(msg);
 		}
 		return;
@@ -147,13 +147,13 @@ static void handle_local_sccp(struct mtp_link_set *link, struct msgb *inpt, stru
 
 			form1 = (struct sccp_data_form1 *) inpt->l2h;
 
-			llist_for_each_entry(con, &link->app->sccp_connections, entry) {
+			llist_for_each_entry(con, &set->app->sccp_connections, entry) {
 				if (memcmp(&form1->destination_local_reference,
 					   &con->dst_ref, sizeof(con->dst_ref)) == 0) {
 					LOGP(DINP, LOGL_DEBUG, "Sending a release request now.\n");
 					msg = create_sccp_rlsd(&con->dst_ref, &con->src_ref);
 					if (msg) {
-						mtp_link_set_submit_sccp_data(link, con->sls, msg->l2h, msgb_l2len(msg));
+						mtp_link_set_submit_sccp_data(set, con->sls, msg->l2h, msgb_l2len(msg));
 						msgb_free(msg);
 					}
 					return;
@@ -165,16 +165,16 @@ static void handle_local_sccp(struct mtp_link_set *link, struct msgb *inpt, stru
 	} else if (inpt->l2h[0] == SCCP_MSG_TYPE_UDT && result->data_len >= 3) {
 		if (inpt->l3h[0] == 0 && inpt->l3h[2] == BSS_MAP_MSG_RESET_ACKNOWLEDGE) {
 			LOGP(DINP, LOGL_NOTICE, "Reset ACK. Connecting to the MSC again.\n");
-			app_resources_released(link->app);
+			app_resources_released(set->app);
 			return;
 		}
 	}
 
 
 	/* Update the state, maybe the connection was released? */
-	update_con_state(link->app, 0, result, inpt, 0, sls);
-	if (llist_empty(&link->app->sccp_connections))
-		app_resources_released(link->app);
+	update_con_state(set->app, 0, result, inpt, 0, sls);
+	if (llist_empty(&set->app->sccp_connections))
+		app_resources_released(set->app);
 	return;
 }
 
@@ -502,20 +502,20 @@ static void send_local_rlsd_for_con(void *data)
 	msgb_free(rlsd);
 }
 
-static void send_local_rlsd(struct mtp_link_set *link, struct sccp_parse_result *res)
+static void send_local_rlsd(struct mtp_link_set *set, struct sccp_parse_result *res)
 {
 	struct active_sccp_con *con;
 
 	LOGP(DINP, LOGL_DEBUG, "Received GSM Clear Complete. Sending RLSD locally.\n");
 
-	con = find_con_by_dest_ref(link->app, res->destination_local_reference);
+	con = find_con_by_dest_ref(set->app, res->destination_local_reference);
 	if (!con)
 		return;
 	con->rls_tries = 0;
 	send_local_rlsd_for_con(con);
 }
 
-static void send_reset_ack(struct mtp_link_set *link, int sls)
+static void send_reset_ack(struct mtp_link_set *set, int sls)
 {
 	static const uint8_t reset_ack[] = {
 		0x09, 0x00, 0x03, 0x05, 0x7, 0x02, 0x42, 0xfe,
@@ -523,7 +523,7 @@ static void send_reset_ack(struct mtp_link_set *link, int sls)
 		0x00, 0x01, 0x31
 	};
 
-	mtp_link_set_submit_sccp_data(link, sls, reset_ack, sizeof(reset_ack));
+	mtp_link_set_submit_sccp_data(set, sls, reset_ack, sizeof(reset_ack));
 }
 
 void msc_dispatch_sccp(struct msc_connection *msc, struct msgb *msg)

@@ -141,11 +141,11 @@ struct mtp_link {
 };
 
 
-void mtp_link_set_stop(struct mtp_link_set *link);
-void mtp_link_set_reset(struct mtp_link_set *link);
+void mtp_link_set_stop(struct mtp_link_set *set);
+void mtp_link_set_reset(struct mtp_link_set *set);
 int mtp_link_set_data(struct mtp_link *link, struct msgb *msg);
-int mtp_link_set_submit_sccp_data(struct mtp_link_set *link, int sls, const uint8_t *data, unsigned int length);
-int mtp_link_set_submit_isup_data(struct mtp_link_set *link, int sls, const uint8_t *data, unsigned int length);
+int mtp_link_set_submit_sccp_data(struct mtp_link_set *set, int sls, const uint8_t *data, unsigned int length);
+int mtp_link_set_submit_isup_data(struct mtp_link_set *set, int sls, const uint8_t *data, unsigned int length);
 
 void mtp_link_set_init_slc(struct mtp_link_set *set);
 
@@ -155,8 +155,8 @@ void mtp_link_unblock(struct mtp_link *link);
 
 /* to be implemented for MSU sending */
 void mtp_link_submit(struct mtp_link *link, struct msgb *msg);
-void mtp_link_set_forward_sccp(struct mtp_link_set *link, struct msgb *msg, int sls);
-void mtp_link_set_forward_isup(struct mtp_link_set *link, struct msgb *msg, int sls);
+void mtp_link_set_forward_sccp(struct mtp_link_set *set, struct msgb *msg, int sls);
+void mtp_link_set_forward_isup(struct mtp_link_set *set, struct msgb *msg, int sls);
 void mtp_link_restart(struct mtp_link *link);
 int mtp_link_set_send(struct mtp_link_set *set, struct msgb *msg);
 
@@ -171,7 +171,7 @@ int mtp_link_slta(struct mtp_link *link, uint16_t l3_len, struct mtp_level_3_mng
 void mtp_link_failure(struct mtp_link *fail);
 
 /* internal routines */
-struct msgb *mtp_msg_alloc(struct mtp_link_set *link);
+struct msgb *mtp_msg_alloc(struct mtp_link_set *set);
 
 /* link management */
 struct mtp_link_set *mtp_link_set_alloc(struct bsc_data *bsc);
