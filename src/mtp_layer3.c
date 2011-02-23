@@ -330,8 +330,8 @@ static int mtp_link_sign_msg(struct mtp_link_set *link, struct mtp_level_3_hdr *
 			/* TODO: routing should be done on a higher level */
 			bsc_del_timer(&link->T18);
 			bsc_del_timer(&link->T20);
-			linkset_t18_cb(&link->T18);
-			linkset_t20_cb(&link->T20);
+			linkset_t18_cb(link);
+			linkset_t20_cb(link);
 			link->sccp_up = 1;
 			return 0;
 			break;
