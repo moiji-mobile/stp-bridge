@@ -189,6 +189,9 @@ void mtp_link_set_stop(struct mtp_link_set *link)
 	llist_for_each_entry(lnk, &link->links, entry)
 		mtp_link_stop_link_test(lnk);
 
+	bsc_del_timer(&link->T18);
+	bsc_del_timer(&link->T20);
+
 	link->sccp_up = 0;
 	link->running = 0;
 	link->linkset_up = 0;
@@ -204,7 +207,8 @@ void mtp_link_set_reset(struct mtp_link_set *link)
 		mtp_link_start_link_test(lnk);
 }
 
-static int send_tfp(struct mtp_link *link, int apoc)
+/* unused right now but we want to use it again */
+int send_tfp(struct mtp_link *link, int apoc)
 {
 	struct msgb *msg;
 	msg = mtp_tfp_alloc(link, apoc);
@@ -243,31 +247,63 @@ static int linkset_up(struct mtp_link *link)
 	if (set->linkset_up)
 		return 0;
 
-	if (send_tfp(link, 0) != 0)
-		return -1;
-	if (send_tfp(link, set->opc) != 0)
-		return -1;
+	set->linkset_up = 1;
+	bsc_schedule_timer(&set->T18, set->timeout_t18, 0);
+	bsc_schedule_timer(&set->T20, set->timeout_t20, 0);
+
+	/* More the functionality of a SSP here... */
 	if (set->sccp_opc != set->opc &&
-	    send_tfp(link, set->sccp_opc) != 0)
-		return -1;
+	    send_tfa(link, set->sccp_opc) != 0) {
+		LOGP(DINP, LOGL_ERROR,
+		     "Failed to send TFA for OPC %d on linkset %d.\n", set->sccp_opc, set->nr);
+	}
+
 	if (set->isup_opc != set->opc &&
-	    send_tfp(link, set->isup_opc) != 0)
-		return -1;
+	    send_tfa(link, set->isup_opc) != 0) {
+		LOGP(DINP, LOGL_ERROR,
+		     "Failed to send TFA for OPC %d on linkset %d.\n", set->sccp_opc, set->nr);
+	}
+
+	return 0;
+}
+
+static void linkset_t18_cb(void *_set)
+{
+	struct mtp_link_set *set = _set;
+	struct mtp_link *link = set->slc[0];
+
+	if (!link) {
+		LOGP(DINP, LOGL_ERROR,
+		     "Linkset restart but no link available on linkset %d\n", set->nr);
+		bsc_del_timer(&set->T20);
+		set->linkset_up = 0;
+		return;
+	}
+
+	/* TODO: now send out routing states */
+	LOGP(DINP, LOGL_NOTICE, "The linkset %d has collected routing data.\n", set->nr);
+}
+
+static void linkset_t20_cb(void *_set)
+{
+	struct mtp_link_set *set = _set;
+	struct mtp_link *link = set->slc[0];
+
+	if (!link) {
+		LOGP(DINP, LOGL_ERROR,
+		     "Linkset restart but no link available on linkset %d\n", set->nr);
+		bsc_del_timer(&set->T20);
+		set->linkset_up = 0;
+		return;
+	}
 
 	/* Send the TRA for all PCs */
 	if (send_tra(link, set->opc) != 0)
-		return -1;
-	if (set->sccp_opc != set->opc &&
-	    send_tfa(link, set->sccp_opc) != 0)
-		return -1;
-	if (set->isup_opc != set->opc &&
-	    send_tfa(link, set->isup_opc) != 0)
-		return -1;
+		return;
 
-	set->linkset_up = 1;
 	LOGP(DINP, LOGL_NOTICE,
 	     "The linkset %d/%s is considered running.\n", set->nr, set->name);
-	return 0;
+	return;
 }
 
 static int mtp_link_sign_msg(struct mtp_link_set *link, struct mtp_level_3_hdr *hdr, int l3_len)
@@ -289,9 +325,14 @@ static int mtp_link_sign_msg(struct mtp_link_set *link, struct mtp_level_3_hdr *
 	case MTP_TRF_RESTR_MSG_GRP:
 		switch (cmn->h1) {
 		case MTP_RESTR_MSG_ALLWED:
-			LOGP(DINP, LOGL_INFO, "Received Restart Allowed. SST could be next on %d/%s.\n", link->nr, link->name);
+			LOGP(DINP, LOGL_INFO,
+			     "Received TRA on linkset %d/%s.\n", link->nr, link->name);
+			/* TODO: routing should be done on a higher level */
+			bsc_del_timer(&link->T18);
+			bsc_del_timer(&link->T20);
+			linkset_t18_cb(&link->T18);
+			linkset_t20_cb(&link->T20);
 			link->sccp_up = 1;
-			LOGP(DINP, LOGL_INFO, "SCCP traffic allowed on %d/%s.\n", link->nr, link->name);
 			return 0;
 			break;
 		}
@@ -612,6 +653,16 @@ struct mtp_link_set *mtp_link_set_alloc(struct bsc_data *bsc)
 	link->sccp_opc = link->isup_opc = -1;
 	link->pcap_fd = bsc->pcap_fd;
 	link->bsc = bsc;
+
+	/* timeout code */
+	link->timeout_t18 = 10;
+	link->timeout_t20 = 11;
+
+	link->T18.cb = linkset_t18_cb;
+	link->T18.data = link;
+	link->T20.cb = linkset_t20_cb;
+	link->T20.data = link;
+
 	llist_add_tail(&link->entry, &bsc->linksets);
 
 	return link;
