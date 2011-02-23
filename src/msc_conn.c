@@ -48,13 +48,6 @@ static void msc_send(struct msc_connection *bsc, struct msgb *msg, int proto);
 static void msc_schedule_reconnect(struct msc_connection *bsc);
 static void mgcp_forward(struct msc_connection *fw, const uint8_t *data, unsigned int length);
 
-int send_or_queue_bsc_msg(struct mtp_link_set *link, int sls, struct msgb *msg)
-{
-	if (mtp_link_set_submit_sccp_data(link, sls, msg->l2h, msgb_l2len(msg)) != 0)
-		LOGP(DMSC, LOGL_ERROR, "Could not forward SCCP message.\n");
-	return 0;
-}
-
 void msc_close_connection(struct msc_connection *fw)
 {
 	struct bsc_fd *bfd = &fw->msc_connection.bfd;
