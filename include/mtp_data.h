@@ -83,6 +83,12 @@ struct mtp_link_set {
 	/* statistics */
 	struct rate_ctr_group *ctrg;
 
+	/* statistics for routing */
+	int timeout_t18;
+	int timeout_t20;
+	struct timer_list T18;
+	struct timer_list T20;
+
 	/* custom data */
 	struct bsc_data *bsc;
 	struct ss7_application *app;

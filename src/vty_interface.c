@@ -202,6 +202,10 @@ static void write_linkset(struct vty *vty, struct mtp_link_set *set)
 	vty_out(vty, "  mtp3 ni %d%s", set->ni, VTY_NEWLINE);
 	vty_out(vty, "  mtp3 spare %d%s", set->spare, VTY_NEWLINE);
 	vty_out(vty, "  mtp3 sltm-once %d%s", set->sltm_once, VTY_NEWLINE);
+	vty_out(vty, "  mtp3 timeout t18 %d%s",
+		set->timeout_t18, VTY_NEWLINE);
+	vty_out(vty, "  mtp3 timeout t20 %d%s",
+		set->timeout_t20, VTY_NEWLINE);
 
 	for (i = 0; i < ARRAY_SIZE(set->supported_ssn); ++i) {
 		if (!set->supported_ssn[i])
@@ -422,6 +426,24 @@ DEFUN(cfg_linkset_sltm_once, cfg_linkset_sltm_once_cmd,
 	struct mtp_link_set *set = vty->index;
 	set->sltm_once = !!atoi(argv[0]);
 
+	return CMD_SUCCESS;
+}
+
+DEFUN(cfg_linkset_t18, cfg_linkset_t18_cmd,
+      "mtp3 timeout t18 <0-1000>",
+      "MTP Level3\n" "Timeouts\n" "T18 link restart timeout\n" "Seconds\n")
+{
+	struct mtp_link_set *set = vty->index;
+	set->timeout_t18 = atoi(argv[0]);
+	return CMD_SUCCESS;
+}
+
+DEFUN(cfg_linkset_t20, cfg_linkset_t20_cmd,
+      "mtp3 timeout t20 <0-1000>",
+      "MTP Level3\n" "Timeouts\n" "T20 link restart timeout\n" "Seconds\n")
+{
+	struct mtp_link_set *set = vty->index;
+	set->timeout_t20 = atoi(argv[0]);
 	return CMD_SUCCESS;
 }
 
@@ -876,6 +898,8 @@ void cell_vty_init(void)
 	install_element(LINKSETS_NODE, &cfg_linkset_mtp3_ssn_cmd);
 	install_element(LINKSETS_NODE, &cfg_linkset_no_mtp3_ssn_cmd);
 	install_element(LINKSETS_NODE, &cfg_linkset_sltm_once_cmd);
+	install_element(LINKSETS_NODE, &cfg_linkset_t18_cmd);
+	install_element(LINKSETS_NODE, &cfg_linkset_t20_cmd);
 
 	install_element(LINKSETS_NODE, &cfg_linkset_link_cmd);
 	install_node(&link_node, dummy_write);
