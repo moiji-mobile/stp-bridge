@@ -552,6 +552,7 @@ static int m2ua_conn_read(struct bsc_fd *fd)
 			  (struct sockaddr *) &addr, &len, &info, NULL);
 	if (rc <= 0) {
 		LOGP(DINP, LOGL_ERROR, "Failed to read.\n");
+		msgb_free(msg);
 		m2ua_conn_destroy(fd->data);
 		return -1;
 	}
