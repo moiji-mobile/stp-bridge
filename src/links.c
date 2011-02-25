@@ -131,7 +131,7 @@ int link_init(struct bsc_data *bsc, struct mtp_link_set *set)
 		blnk = mtp_link_alloc(set);
 		lnk = mtp_udp_link_init(blnk);
 
-		lnk->link_index = 1;
+		lnk->link_index = i;
 
 		/* now connect to the transport */
 		if (snmp_mtp_peer_name(lnk->session, bsc->udp_ip) != 0)
