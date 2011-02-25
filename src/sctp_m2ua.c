@@ -632,7 +632,7 @@ static int sctp_trans_accept(struct bsc_fd *fd, unsigned int what)
 	struct sctp_m2ua_conn *conn;
 	struct sockaddr_in addr;
 	socklen_t len;
-	int s;
+	int s, ret;
 
 	len = sizeof(addr);
 	s = accept(fd->fd, (struct sockaddr *) &addr, &len);
@@ -644,6 +644,15 @@ static int sctp_trans_accept(struct bsc_fd *fd, unsigned int what)
 	trans = fd->data;
 	if (!trans->started) {
 		LOGP(DINP, LOGL_NOTICE, "The link is not started.\n");
+		close(s);
+		return -1;
+	}
+
+	memset(&events, 0, sizeof(events));
+	events.sctp_data_io_event = 1;
+	ret = setsockopt(s, SOL_SCTP, SCTP_EVENTS, &events, sizeof(events));
+	if (ret != 0) {
+		LOGP(DINP, LOGL_ERROR, "Failed to enable SCTP Events. Closing socket.\n");
 		close(s);
 		return -1;
 	}
@@ -671,10 +680,6 @@ static int sctp_trans_accept(struct bsc_fd *fd, unsigned int what)
 		talloc_free(conn);
 		return -1;
 	}
-
-	memset(&events, 0, sizeof(events));
-	events.sctp_data_io_event = 1;
-	setsockopt(s, SOL_SCTP, SCTP_EVENTS, &events, sizeof(events));
 
 	llist_add_tail(&conn->entry, &trans->conns);
 	return 0;
