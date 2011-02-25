@@ -30,6 +30,8 @@
 #include <string.h>
 #include <unistd.h>
 
+#define SCTP_PPID_M2UA 2
+
 static struct mtp_m2ua_link *find_m2ua_link(struct sctp_m2ua_transport *trans, int link_index)
 {
 	struct mtp_m2ua_link *link;
@@ -554,6 +556,12 @@ static int m2ua_conn_read(struct bsc_fd *fd)
 		return -1;
 	}
 
+	if (ntohl(info.sinfo_ppid) != SCTP_PPID_M2UA) {
+		LOGP(DINP, LOGL_ERROR, "Only M2UA is allowed on this socket.\n");
+		msgb_free(msg);
+		return -1;
+	}
+
 	msgb_put(msg, rc);
 	LOGP(DINP, LOGL_DEBUG, "Read %d on stream: %d ssn: %d assoc: %d\n",
 		rc, info.sinfo_stream, info.sinfo_ssn, info.sinfo_assoc_id);
@@ -600,7 +608,7 @@ static int sctp_m2ua_write(struct mtp_link *link, struct msgb *msg)
 	memset(&info, 0, sizeof(info));
 	info.sinfo_stream = 1;
 	info.sinfo_assoc_id = 1;
-	info.sinfo_ppid = htonl(2);
+	info.sinfo_ppid = htonl(SCTP_PPID_M2UA);
 
 	m2ua_conn_send(mlink->conn, m2ua, &info);
 	m2ua_msg_free(m2ua);
