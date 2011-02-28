@@ -668,7 +668,7 @@ static struct mgcp_ss7 *mgcp_ss7_init(struct mgcp_config *cfg)
 
 	if (mgcp_endpoints_allocate(conf->cfg) != 0) {
 		LOGP(DMGCP, LOGL_ERROR, "Failed to allocate endpoints: %d\n",
-		     cfg->number_endpoints);
+		     cfg->number_endpoints - 1);
 		talloc_free(conf);
 		return NULL;
 	}
@@ -687,7 +687,7 @@ static struct mgcp_ss7 *mgcp_ss7_init(struct mgcp_config *cfg)
 		return NULL;
 	}
 
-	for (i = 0; i < conf->cfg->number_endpoints; ++i) {
+	for (i = 1; i < conf->cfg->number_endpoints; ++i) {
 		struct mgcp_endpoint *endp;
 		int rtp_port;
 
@@ -742,7 +742,7 @@ void mgcp_ss7_reset(struct mgcp_ss7 *mgcp)
 	LOGP(DMGCP, LOGL_INFO, "Resetting all endpoints.\n");
 
 	/* free UniPorted and MGCP data */
-	for (i = 0; i < mgcp->cfg->number_endpoints; ++i) {
+	for (i = 1; i < mgcp->cfg->number_endpoints; ++i) {
 		mgcp_ss7_endp_free(mgcp, i);
 		mgcp_free_endp(&mgcp->cfg->endpoints[i]);
 	}
@@ -839,7 +839,7 @@ int main(int argc, char **argv)
 		return rc;
 
 	printf("Creating MGCP MGW with endpoints: %d ip: %s mgw: %s rtp-base: %d payload: %d\n",
-		g_cfg->number_endpoints, g_cfg->local_ip, g_cfg->bts_ip,
+		g_cfg->number_endpoints - 1, g_cfg->local_ip, g_cfg->bts_ip,
 		g_cfg->rtp_base_port, g_cfg->audio_payload);
 
 	mgcp = mgcp_ss7_init(g_cfg);
