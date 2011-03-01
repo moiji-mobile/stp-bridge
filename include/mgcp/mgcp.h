@@ -122,7 +122,7 @@ struct mgcp_trunk_config {
 
 	/* Special MGW handling */
 	int target_trunk_start;
-	int trunk_base;
+	int voice_base;
 	int endp_offset;
 	int vad_enabled;
 

@@ -68,6 +68,25 @@ static void mgcp_ss7_do_exec(struct mgcp_ss7 *mgcp, uint8_t type, struct mgcp_en
 /* Contains a mapping from UniPorte to the MGCP side of things */
 static struct mgcp_endpoint *s_endpoints[240];
 
+static int select_voice_port(struct mgcp_endpoint *endp)
+{
+	int mgw_port;
+	int timeslot, multiplex;
+	
+	mgcp_endpoint_to_timeslot(ENDPOINT_NUMBER(endp), &multiplex, &timeslot);
+	if (timeslot == 0x0 || timeslot == 0x1F) {
+		LOGP(DMGCP, LOGL_ERROR, "0x0 and 0x1F are reserved for signalling.\n");
+		return -1;
+	}
+
+	mgw_port = endp->tcfg->voice_base + 30 * multiplex;
+
+	mgw_port = mgw_port + timeslot - endp->tcfg->endp_offset;
+	fprintf(stderr, "TEST: Going to use MGW: %d for MUL: %d TS: %d\n",
+		mgw_port, multiplex, timeslot);
+	return mgw_port;
+}
+
 static void check_exit(int status)
 {
 	if (exit_on_failure && status == 21) {
@@ -326,13 +345,13 @@ static void update_mute_status(int mgw_port, int conn_mode)
 
 static void allocate_endp(struct mgcp_ss7 *ss7, struct mgcp_endpoint *endp)
 {
-	int mgw_port, timeslot, multiplex;
+	int mgw_port;
 	unsigned long mgw_address, loc_address;
 
-	mgcp_endpoint_to_timeslot(ENDPOINT_NUMBER(endp), &multiplex, &timeslot);
-	mgw_port = timeslot - endp->tcfg->endp_offset;
-	fprintf(stderr, "TEST: Going to use MGW: %d for MUL: %d TS: %d\n",
-		mgw_port, multiplex, timeslot);
+	/* now find the voice processor we want to use */
+	mgw_port = select_voice_port(endp);
+	if (mgw_port < 0)
+		return;
 
 	endp->audio_port = MtnSaAllocate(mgw_port);
 	if (endp->audio_port == UINT_MAX) {
