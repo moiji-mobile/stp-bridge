@@ -687,6 +687,12 @@ static struct mgcp_ss7 *mgcp_ss7_init(struct mgcp_config *cfg)
 		return NULL;
 	}
 
+	if (cfg->configure_trunks && mgcp_snmp_init() != 0) {
+		LOGP(DMGCP, LOGL_ERROR, "Failed to initialize SNMP.\n");
+		talloc_free(conf);
+		return NULL;
+	}
+
 	/* Now do the init of the trunks */
 	dsp_resource = 0;
 	for (i = 1; i < cfg->trunk.number_endpoints; ++i) {
@@ -696,6 +702,20 @@ static struct mgcp_ss7 *mgcp_ss7_init(struct mgcp_config *cfg)
 			continue;
 
 		dsp_resource += 1;
+
+		if (cfg->configure_trunks) {
+			int res;
+
+			res = mgcp_snmp_connect(dsp_resource,
+						cfg->trunk.target_trunk_start + multiplex,
+						timeslot);
+
+			if (res != 0) {
+				LOGP(DMGCP, LOGL_ERROR, "Failed to configure virtual trunk.\n");
+				talloc_free(conf);
+				return NULL;
+			}
+		}
 	}
 
 	llist_for_each_entry(trunk, &cfg->trunks, entry) {
@@ -708,6 +728,21 @@ static struct mgcp_ss7 *mgcp_ss7_init(struct mgcp_config *cfg)
 				continue;
 
 			dsp_resource += 1;
+
+			if (cfg->configure_trunks) {
+				int res;
+
+				res = mgcp_snmp_connect(dsp_resource,
+							trunk->trunk_nr + multiplex,
+							timeslot);
+
+				if (res != 0) {
+					LOGP(DMGCP, LOGL_ERROR,
+					     "Failed to configure virtual trunk.\n");
+					talloc_free(conf);
+					return NULL;
+				}
+			}
 		}
 	}
 
