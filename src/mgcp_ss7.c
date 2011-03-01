@@ -663,6 +663,9 @@ static int realloc_cb(struct mgcp_trunk_config *tcfg, int endp_no)
 
 static struct mgcp_ss7 *mgcp_ss7_init(struct mgcp_config *cfg)
 {
+	struct mgcp_trunk_config *trunk;
+	int dsp_resource, i;
+
 	struct mgcp_ss7 *conf = talloc_zero(NULL, struct mgcp_ss7);
 	if (!conf)
 		return NULL;
@@ -685,6 +688,28 @@ static struct mgcp_ss7 *mgcp_ss7_init(struct mgcp_config *cfg)
 	}
 
 	/* Now do the init of the trunks */
+	dsp_resource = 0;
+	for (i = 1; i < cfg->trunk.number_endpoints; ++i) {
+		int multiplex, timeslot;
+		mgcp_endpoint_to_timeslot(i, &multiplex, &timeslot);
+		if (timeslot == 0x0 || timeslot == 0x1F)
+			continue;
+
+		dsp_resource += 1;
+	}
+
+	llist_for_each_entry(trunk, &cfg->trunks, entry) {
+		trunk->voice_base = dsp_resource;
+
+		for (i = 1; i < trunk->number_endpoints; ++i) {
+			int multiplex, timeslot;
+			mgcp_endpoint_to_timeslot(i, &multiplex, &timeslot);
+			if (timeslot == 0x0 || timeslot == 0x1F)
+				continue;
+
+			dsp_resource += 1;
+		}
+	}
 
 	conf->cmd_queue = thread_notifier_alloc();
 	if (!conf->cmd_queue) {
