@@ -50,7 +50,7 @@ static void add_pdu_var(netsnmp_pdu *pdu, const char *mib_name,
 		return;
 	}
 
-	if (snmp_add_var(pdu, oid_name, name_length, '=', value)) {
+	if (snmp_add_var(pdu, oid_name, name_length, 'i', value)) {
 		snmp_perror(buf);
 		return;
 	}
