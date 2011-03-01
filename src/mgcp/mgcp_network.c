@@ -2,13 +2,13 @@
 /* The protocol implementation */
 
 /*
- * (C) 2009-2010 by Holger Hans Peter Freyther <zecke@selfish.org>
- * (C) 2009-2010 by On-Waves
+ * (C) 2009-2011 by Holger Hans Peter Freyther <zecke@selfish.org>
+ * (C) 2009-2011 by On-Waves
  * All Rights Reserved
  *
- * This program is free software: you can redistribute it and/or modify
+ * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
@@ -24,22 +24,27 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <endian.h>
 #include <errno.h>
 
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
+#include <osmocore/msgb.h>
+#include <osmocore/select.h>
+
 #include <mgcp/mgcp.h>
 #include <mgcp/mgcp_internal.h>
 
-#include <cellmgr_debug.h>
-
-#include <osmocore/msgb.h>
-#include <osmocore/talloc.h>
-#include <osmocore/select.h>
-
 #warning "Make use of the rtp proxy code"
+
+/* attempt to determine byte order */
+#include <sys/types.h>
+#include <sys/param.h>
+#include <limits.h>
+
+#ifndef __BYTE_ORDER
+#error "__BYTE_ORDER should be defined by someone"
+#endif
 
 /* according to rtp_proxy.c RFC 3550 */
 struct rtp_hdr {
@@ -91,11 +96,12 @@ int mgcp_send_dummy(struct mgcp_endpoint *endp)
 {
 	static char buf[] = { DUMMY_LOAD };
 
-	return udp_send(endp->local_rtp.fd, &endp->remote,
-			endp->net_rtp, buf, 1);
+	return udp_send(endp->net_end.rtp.fd, &endp->net_end.addr,
+			endp->net_end.rtp_port, buf, 1);
 }
 
-static void patch_and_count(struct mgcp_rtp_state *state, int payload, char *data, int len)
+static void patch_and_count(struct mgcp_endpoint *endp, struct mgcp_rtp_state *state,
+			    int payload, struct sockaddr_in *addr, char *data, int len)
 {
 	uint16_t seq;
 	uint32_t timestamp;
@@ -117,9 +123,11 @@ static void patch_and_count(struct mgcp_rtp_state *state, int payload, char *dat
 		state->ssrc = rtp_hdr->ssrc;
 		state->seq_offset = (state->seq_no + 1) - seq;
 		state->timestamp_offset = state->last_timestamp - timestamp;
-		state->patch = 1;
-		LOGP(DMGCP, LOGL_NOTICE, "The SSRC changed... SSRC: %u offset: %d\n",
-			state->ssrc, state->seq_offset);
+		state->patch = endp->allow_patch;
+		LOGP(DMGCP, LOGL_NOTICE,
+			"The SSRC changed on 0x%x SSRC: %u offset: %d from %s:%d in %d\n",
+			ENDPOINT_NUMBER(endp), state->ssrc, state->seq_offset,
+			inet_ntoa(addr->sin_addr), ntohs(addr->sin_port), endp->conn_mode);
 	}
 
 	/* apply the offset and store it back to the packet */
@@ -146,87 +154,50 @@ static void patch_and_count(struct mgcp_rtp_state *state, int payload, char *dat
 }
 
 /*
- * There is data coming. We will have to figure out if it
- * came from the BTS or the MediaGateway of the MSC. On top
- * of that we need to figure out if it was RTP or RTCP.
- *
- * Currently we do not communicate with the BSC so we have
- * no idea where the BTS is listening for RTP and need to
- * do the classic routing trick. Wait for the first packet
- * from the BTS and then go ahead.
+ * The below code is for dispatching. We have a dedicated port for
+ * the data coming from the net and one to discover the BTS.
  */
-static int rtp_data_cb(struct bsc_fd *fd, unsigned int what)
+static int forward_data(int fd, struct mgcp_rtp_tap *tap, const char *buf, int len)
 {
-	char buf[4096];
-	struct sockaddr_in addr;
-	socklen_t slen = sizeof(addr);
-	struct mgcp_endpoint *endp;
-	struct mgcp_config *cfg;
-	int rc, dest, proto;
-
-	endp = (struct mgcp_endpoint *) fd->data;
-	cfg = endp->cfg;
-
-	rc = recvfrom(fd->fd, &buf, sizeof(buf), 0,
-			    (struct sockaddr *) &addr, &slen);
-	if (rc < 0) {
-		LOGP(DMGCP, LOGL_ERROR, "Failed to receive message on: 0x%x errno: %d/%s\n",
-			ENDPOINT_NUMBER(endp), errno, strerror(errno));
-		return -1;
-	}
-
-	/* do not forward aynthing... maybe there is a packet from the bts */
-	if (endp->ci == CI_UNUSED)
-		return -1;
-
-	/*
-	 * Figure out where to forward it to. This code assumes that we
-	 * have received the Connection Modify and know who is a legitimate
-	 * partner. According to the spec we could attempt to forward even
-	 * after the Create Connection but we will not as we are not really
-	 * able to tell if this is legitimate.
-	 */
-	#warning "Slight spec violation. With connection mode recvonly we should attempt to forward."
-	dest = memcmp(&addr.sin_addr, &endp->remote, sizeof(addr.sin_addr)) == 0 &&
-		    (endp->net_rtp == addr.sin_port || endp->net_rtcp == addr.sin_port)
-			? DEST_BTS : DEST_NETWORK;
-	proto = fd == &endp->local_rtp ? PROTO_RTP : PROTO_RTCP;
-
-	/* We have no idea who called us, maybe it is the BTS. */
-	if (dest == DEST_NETWORK && (endp->bts_rtp == 0 || cfg->forward_ip)) {
-		/* it was the BTS... */
-		if (!cfg->bts_ip
-		    || memcmp(&addr.sin_addr, &cfg->bts_in, sizeof(cfg->bts_in)) == 0
-		    || memcmp(&addr.sin_addr, &endp->bts, sizeof(endp->bts)) == 0) {
-			if (fd == &endp->local_rtp) {
-				endp->bts_rtp = addr.sin_port;
-			} else {
-				endp->bts_rtcp = addr.sin_port;
-			}
-
-			endp->bts = addr.sin_addr;
-			LOGP(DMGCP, LOGL_NOTICE, "Found BTS for endpoint: 0x%x on port: %d/%d of %s\n",
-				ENDPOINT_NUMBER(endp), ntohs(endp->bts_rtp), ntohs(endp->bts_rtcp),
-				inet_ntoa(addr.sin_addr));
-
-		}
-	}
-
-	/* throw away the dummy message */
-	if (rc == 1 && buf[0] == DUMMY_LOAD) {
-		LOGP(DMGCP, LOGL_NOTICE, "Filtered dummy on 0x%x\n",
-			ENDPOINT_NUMBER(endp));
+	if (!tap->enabled)
 		return 0;
-	}
 
-	/* do this before the loop handling */
-	if (dest == DEST_NETWORK)
-		++endp->in_bts;
-	else
-		++endp->in_remote;
+	return sendto(fd, buf, len, 0,
+		      (struct sockaddr *)&tap->forward, sizeof(tap->forward));
+}
 
+static int send_transcoder(struct mgcp_rtp_end *end, struct mgcp_config *cfg,
+			   int is_rtp, const char *buf, int len)
+{
+	int rc;
+	int port;
+	struct sockaddr_in addr;
+
+	port = is_rtp ? end->rtp_port : end->rtcp_port;
+
+	addr.sin_family = AF_INET;
+	addr.sin_addr = cfg->transcoder_in;
+	addr.sin_port = port;
+
+	rc = sendto(is_rtp ?
+		end->rtp.fd :
+		end->rtcp.fd, buf, len, 0,
+		(struct sockaddr *) &addr, sizeof(addr));
+
+	if (rc != len)
+		LOGP(DMGCP, LOGL_ERROR,
+			"Failed to send data to the transcoder: %s\n",
+			strerror(errno));
+
+	return rc;
+}
+
+static int send_to(struct mgcp_endpoint *endp, int dest, int is_rtp,
+		   struct sockaddr_in *addr, char *buf, int rc)
+{
+	struct mgcp_trunk_config *tcfg = endp->tcfg;
 	/* For loop toggle the destination and then dispatch. */
-	if (cfg->audio_loop)
+	if (tcfg->audio_loop)
 		dest = !dest;
 
 	/* Loop based on the conn_mode, maybe undoing the above */
@@ -234,20 +205,237 @@ static int rtp_data_cb(struct bsc_fd *fd, unsigned int what)
 		dest = !dest;
 
 	if (dest == DEST_NETWORK) {
-		if (proto == PROTO_RTP)
-			patch_and_count(&endp->bts_state,
-					endp->net_payload_type, buf, rc);
-		return udp_send(fd->fd, &endp->remote,
-			     proto == PROTO_RTP ? endp->net_rtp : endp->net_rtcp,
-			     buf, rc);
+		if (is_rtp) {
+			patch_and_count(endp, &endp->bts_state,
+					endp->net_end.payload_type,
+					addr, buf, rc);
+			forward_data(endp->net_end.rtp.fd,
+				     &endp->taps[MGCP_TAP_NET_OUT], buf, rc);
+			return udp_send(endp->net_end.rtp.fd, &endp->net_end.addr,
+					endp->net_end.rtp_port, buf, rc);
+		} else {
+			return udp_send(endp->net_end.rtcp.fd, &endp->net_end.addr,
+					endp->net_end.rtcp_port, buf, rc);
+		}
 	} else {
-		if (proto == PROTO_RTP)
-			patch_and_count(&endp->net_state,
-					endp->bts_payload_type, buf, rc);
-		return udp_send(fd->fd, &endp->bts,
-			     proto == PROTO_RTP ? endp->bts_rtp : endp->bts_rtcp,
-			     buf, rc);
+		if (is_rtp) {
+			patch_and_count(endp, &endp->net_state,
+					endp->bts_end.payload_type,
+					addr, buf, rc);
+			forward_data(endp->bts_end.rtp.fd,
+				     &endp->taps[MGCP_TAP_BTS_OUT], buf, rc);
+			return udp_send(endp->bts_end.rtp.fd, &endp->bts_end.addr,
+					endp->bts_end.rtp_port, buf, rc);
+		} else {
+			return udp_send(endp->bts_end.rtcp.fd, &endp->bts_end.addr,
+					endp->bts_end.rtcp_port, buf, rc);
+		}
 	}
+}
+
+static int recevice_from(struct mgcp_endpoint *endp, int fd, struct sockaddr_in *addr,
+			 char *buf, int bufsize)
+{
+	int rc;
+	socklen_t slen = sizeof(*addr);
+
+	rc = recvfrom(fd, buf, bufsize, 0,
+			    (struct sockaddr *) addr, &slen);
+	if (rc < 0) {
+		LOGP(DMGCP, LOGL_ERROR, "Failed to receive message on: 0x%x errno: %d/%s\n",
+			ENDPOINT_NUMBER(endp), errno, strerror(errno));
+		return -1;
+	}
+
+	/* do not forward aynthing... maybe there is a packet from the bts */
+	if (!endp->allocated)
+		return -1;
+
+	#warning "Slight spec violation. With connection mode recvonly we should attempt to forward."
+
+	return rc;
+}
+
+static int rtp_data_net(struct bsc_fd *fd, unsigned int what)
+{
+	char buf[4096];
+	struct sockaddr_in addr;
+	struct mgcp_endpoint *endp;
+	int rc, proto;
+
+	endp = (struct mgcp_endpoint *) fd->data;
+
+	rc = recevice_from(endp, fd->fd, &addr, buf, sizeof(buf));
+	if (rc <= 0)
+		return -1;
+
+	if (memcmp(&addr.sin_addr, &endp->net_end.addr, sizeof(addr.sin_addr)) != 0) {
+		LOGP(DMGCP, LOGL_ERROR,
+			"Data from wrong address %s on 0x%x\n",
+			inet_ntoa(addr.sin_addr), ENDPOINT_NUMBER(endp));
+		return -1;
+	}
+
+	if (endp->net_end.rtp_port != addr.sin_port &&
+	    endp->net_end.rtcp_port != addr.sin_port) {
+		LOGP(DMGCP, LOGL_ERROR,
+			"Data from wrong source port %d on 0x%x\n",
+			ntohs(addr.sin_port), ENDPOINT_NUMBER(endp));
+		return -1;
+	}
+
+	/* throw away the dummy message */
+	if (rc == 1 && buf[0] == DUMMY_LOAD) {
+		LOGP(DMGCP, LOGL_NOTICE, "Filtered dummy from network on 0x%x\n",
+			ENDPOINT_NUMBER(endp));
+		return 0;
+	}
+
+	proto = fd == &endp->net_end.rtp ? PROTO_RTP : PROTO_RTCP;
+	endp->net_end.packets += 1;
+
+	forward_data(fd->fd, &endp->taps[MGCP_TAP_NET_IN], buf, rc);
+	if (endp->is_transcoded)
+		return send_transcoder(&endp->trans_net, endp->cfg, proto == PROTO_RTP, &buf[0], rc);
+	else
+		return send_to(endp, DEST_BTS, proto == PROTO_RTP, &addr, &buf[0], rc);
+}
+
+static void discover_bts(struct mgcp_endpoint *endp, int proto, struct sockaddr_in *addr)
+{
+	struct mgcp_config *cfg = endp->cfg;
+
+	if (proto == PROTO_RTP && endp->bts_end.rtp_port == 0) {
+		if (!cfg->bts_ip ||
+		    memcmp(&addr->sin_addr,
+			   &cfg->bts_in, sizeof(cfg->bts_in)) == 0 ||
+		    memcmp(&addr->sin_addr,
+			   &endp->bts_end.addr, sizeof(endp->bts_end.addr)) == 0) {
+
+			endp->bts_end.rtp_port = addr->sin_port;
+			endp->bts_end.addr = addr->sin_addr;
+
+			LOGP(DMGCP, LOGL_NOTICE,
+				"Found BTS for endpoint: 0x%x on port: %d/%d of %s\n",
+				ENDPOINT_NUMBER(endp), ntohs(endp->bts_end.rtp_port),
+				ntohs(endp->bts_end.rtcp_port), inet_ntoa(addr->sin_addr));
+		}
+	} else if (proto == PROTO_RTCP && endp->bts_end.rtcp_port == 0) {
+		if (memcmp(&endp->bts_end.addr, &addr->sin_addr,
+				sizeof(endp->bts_end.addr)) == 0) {
+			endp->bts_end.rtcp_port = addr->sin_port;
+		}
+	}
+}
+
+static int rtp_data_bts(struct bsc_fd *fd, unsigned int what)
+{
+	char buf[4096];
+	struct sockaddr_in addr;
+	struct mgcp_endpoint *endp;
+	struct mgcp_config *cfg;
+	int rc, proto;
+
+	endp = (struct mgcp_endpoint *) fd->data;
+	cfg = endp->cfg;
+
+	rc = recevice_from(endp, fd->fd, &addr, buf, sizeof(buf));
+	if (rc <= 0)
+		return -1;
+
+	proto = fd == &endp->bts_end.rtp ? PROTO_RTP : PROTO_RTCP;
+
+	/* We have no idea who called us, maybe it is the BTS. */
+	/* it was the BTS... */
+	discover_bts(endp, proto, &addr);
+
+	if (memcmp(&endp->bts_end.addr, &addr.sin_addr, sizeof(addr.sin_addr)) != 0) {
+		LOGP(DMGCP, LOGL_ERROR,
+			"Data from wrong bts %s on 0x%x\n",
+			inet_ntoa(addr.sin_addr), ENDPOINT_NUMBER(endp));
+		return -1;
+	}
+
+	if (endp->bts_end.rtp_port != addr.sin_port &&
+	    endp->bts_end.rtcp_port != addr.sin_port) {
+		LOGP(DMGCP, LOGL_ERROR,
+			"Data from wrong bts source port %d on 0x%x\n",
+			ntohs(addr.sin_port), ENDPOINT_NUMBER(endp));
+		return -1;
+	}
+
+	/* throw away the dummy message */
+	if (rc == 1 && buf[0] == DUMMY_LOAD) {
+		LOGP(DMGCP, LOGL_NOTICE, "Filtered dummy from bts on 0x%x\n",
+			ENDPOINT_NUMBER(endp));
+		return 0;
+	}
+
+	/* do this before the loop handling */
+	endp->bts_end.packets += 1;
+
+	forward_data(fd->fd, &endp->taps[MGCP_TAP_BTS_IN], buf, rc);
+	if (endp->is_transcoded)
+		return send_transcoder(&endp->trans_bts, endp->cfg, proto == PROTO_RTP, &buf[0], rc);
+	else
+		return send_to(endp, DEST_NETWORK, proto == PROTO_RTP, &addr, &buf[0], rc);
+}
+
+static int rtp_data_transcoder(struct mgcp_rtp_end *end, struct mgcp_endpoint *_endp,
+			      int dest, struct bsc_fd *fd)
+{
+	char buf[4096];
+	struct sockaddr_in addr;
+	struct mgcp_config *cfg;
+	int rc, proto;
+
+	cfg = _endp->cfg;
+	rc = recevice_from(_endp, fd->fd, &addr, buf, sizeof(buf));
+	if (rc <= 0)
+		return -1;
+
+	proto = fd == &end->rtp ? PROTO_RTP : PROTO_RTCP;
+
+	if (memcmp(&addr.sin_addr, &cfg->transcoder_in, sizeof(addr.sin_addr)) != 0) {
+		LOGP(DMGCP, LOGL_ERROR,
+			"Data not coming from transcoder dest: %d %s on 0x%x\n",
+			dest, inet_ntoa(addr.sin_addr), ENDPOINT_NUMBER(_endp));
+		return -1;
+	}
+
+	if (end->rtp_port != addr.sin_port &&
+	    end->rtcp_port != addr.sin_port) {
+		LOGP(DMGCP, LOGL_ERROR,
+			"Data from wrong transcoder dest %d source port %d on 0x%x\n",
+			dest, ntohs(addr.sin_port), ENDPOINT_NUMBER(_endp));
+		return -1;
+	}
+
+	/* throw away the dummy message */
+	if (rc == 1 && buf[0] == DUMMY_LOAD) {
+		LOGP(DMGCP, LOGL_NOTICE, "Filtered dummy from transcoder dest %d on 0x%x\n",
+			dest, ENDPOINT_NUMBER(_endp));
+		return 0;
+	}
+
+	end->packets += 1;
+	return send_to(_endp, dest, proto == PROTO_RTP, &addr, &buf[0], rc);
+}
+
+static int rtp_data_trans_net(struct bsc_fd *fd, unsigned int what)
+{
+	struct mgcp_endpoint *endp;
+	endp = (struct mgcp_endpoint *) fd->data;
+
+	return rtp_data_transcoder(&endp->trans_net, endp, DEST_NETWORK, fd);
+}
+
+static int rtp_data_trans_bts(struct bsc_fd *fd, unsigned int what)
+{
+	struct mgcp_endpoint *endp;
+	endp = (struct mgcp_endpoint *) fd->data;
+
+	return rtp_data_transcoder(&endp->trans_bts, endp, DEST_BTS, fd);
 }
 
 static int create_bind(const char *source_addr, struct bsc_fd *fd, int port)
@@ -268,6 +456,8 @@ static int create_bind(const char *source_addr, struct bsc_fd *fd, int port)
 	inet_aton(source_addr, &addr.sin_addr);
 
 	if (bind(fd->fd, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
+		close(fd->fd);
+		fd->fd = -1;
 		return -1;
 	}
 
@@ -282,59 +472,107 @@ static int set_ip_tos(int fd, int tos)
 	return ret != 0;
 }
 
-static int bind_rtp(struct mgcp_endpoint *endp)
+static int bind_rtp(struct mgcp_config *cfg, struct mgcp_rtp_end *rtp_end, int endpno)
 {
-	struct mgcp_config *cfg = endp->cfg;
-
-	if (create_bind(cfg->source_addr, &endp->local_rtp, endp->rtp_port) != 0) {
+	if (create_bind(cfg->source_addr, &rtp_end->rtp, rtp_end->local_port) != 0) {
 		LOGP(DMGCP, LOGL_ERROR, "Failed to create RTP port: %s:%d on 0x%x\n",
-		       cfg->source_addr, endp->rtp_port, ENDPOINT_NUMBER(endp));
+		       cfg->source_addr, rtp_end->local_port, endpno);
 		goto cleanup0;
 	}
 
-	if (create_bind(cfg->source_addr, &endp->local_rtcp, endp->rtp_port + 1) != 0) {
+	if (create_bind(cfg->source_addr, &rtp_end->rtcp, rtp_end->local_port + 1) != 0) {
 		LOGP(DMGCP, LOGL_ERROR, "Failed to create RTCP port: %s:%d on 0x%x\n",
-		       cfg->source_addr, endp->rtp_port + 1, ENDPOINT_NUMBER(endp));
+		       cfg->source_addr, rtp_end->local_port + 1, endpno);
 		goto cleanup1;
 	}
 
-	set_ip_tos(endp->local_rtp.fd, cfg->endp_dscp);
-	set_ip_tos(endp->local_rtcp.fd, cfg->endp_dscp);
+	set_ip_tos(rtp_end->rtp.fd, cfg->endp_dscp);
+	set_ip_tos(rtp_end->rtcp.fd, cfg->endp_dscp);
 
-	endp->local_rtp.cb = rtp_data_cb;
-	endp->local_rtp.data = endp;
-	endp->local_rtp.when = BSC_FD_READ;
-	if (bsc_register_fd(&endp->local_rtp) != 0) {
+	rtp_end->rtp.when = BSC_FD_READ;
+	if (bsc_register_fd(&rtp_end->rtp) != 0) {
 		LOGP(DMGCP, LOGL_ERROR, "Failed to register RTP port %d on 0x%x\n",
-			endp->rtp_port, ENDPOINT_NUMBER(endp));
+			rtp_end->local_port, endpno);
 		goto cleanup2;
 	}
 
-	endp->local_rtcp.cb = rtp_data_cb;
-	endp->local_rtcp.data = endp;
-	endp->local_rtcp.when = BSC_FD_READ;
-	if (bsc_register_fd(&endp->local_rtcp) != 0) {
+	rtp_end->rtcp.when = BSC_FD_READ;
+	if (bsc_register_fd(&rtp_end->rtcp) != 0) {
 		LOGP(DMGCP, LOGL_ERROR, "Failed to register RTCP port %d on 0x%x\n",
-			endp->rtp_port + 1, ENDPOINT_NUMBER(endp));
+			rtp_end->local_port + 1, endpno);
 		goto cleanup3;
 	}
 
 	return 0;
 
 cleanup3:
-	bsc_unregister_fd(&endp->local_rtp);
+	bsc_unregister_fd(&rtp_end->rtp);
 cleanup2:
-	close(endp->local_rtcp.fd);
-	endp->local_rtcp.fd = -1;
+	close(rtp_end->rtcp.fd);
+	rtp_end->rtcp.fd = -1;
 cleanup1:
-	close(endp->local_rtp.fd);
-	endp->local_rtp.fd = -1;
+	close(rtp_end->rtp.fd);
+	rtp_end->rtp.fd = -1;
 cleanup0:
 	return -1;
 }
 
-int mgcp_bind_rtp_port(struct mgcp_endpoint *endp, int rtp_port)
+static int int_bind(const char *port,
+		    struct mgcp_rtp_end *end, int (*cb)(struct bsc_fd *, unsigned),
+		    struct mgcp_endpoint *_endp, int rtp_port)
 {
-	endp->rtp_port = rtp_port;
-	return bind_rtp(endp);
+	if (end->rtp.fd != -1 || end->rtcp.fd != -1) {
+		LOGP(DMGCP, LOGL_ERROR, "Previous %s was still bound on %d\n",
+			port, ENDPOINT_NUMBER(_endp));
+		mgcp_free_rtp_port(end);
+	}
+
+	end->local_port = rtp_port;
+	end->rtp.cb = cb;
+	end->rtp.data = _endp;
+	end->rtcp.data = _endp;
+	end->rtcp.cb = cb;
+	return bind_rtp(_endp->cfg, end, ENDPOINT_NUMBER(_endp));
+}
+
+
+int mgcp_bind_bts_rtp_port(struct mgcp_endpoint *endp, int rtp_port)
+{
+	return int_bind("bts-port", &endp->bts_end,
+			rtp_data_bts, endp, rtp_port);
+}
+
+int mgcp_bind_net_rtp_port(struct mgcp_endpoint *endp, int rtp_port)
+{
+	return int_bind("net-port", &endp->net_end,
+			rtp_data_net, endp, rtp_port);
+}
+
+int mgcp_bind_trans_net_rtp_port(struct mgcp_endpoint *endp, int rtp_port)
+{
+	return int_bind("trans-net", &endp->trans_net,
+			rtp_data_trans_net, endp, rtp_port);
+}
+
+int mgcp_bind_trans_bts_rtp_port(struct mgcp_endpoint *endp, int rtp_port)
+{
+	return int_bind("trans-bts", &endp->trans_bts,
+			rtp_data_trans_bts, endp, rtp_port);
+}
+
+int mgcp_free_rtp_port(struct mgcp_rtp_end *end)
+{
+	if (end->rtp.fd != -1) {
+		close(end->rtp.fd);
+		end->rtp.fd = -1;
+		bsc_unregister_fd(&end->rtp);
+	}
+
+	if (end->rtcp.fd != -1) {
+		close(end->rtcp.fd);
+		end->rtcp.fd = -1;
+		bsc_unregister_fd(&end->rtcp);
+	}
+
+	return 0;
 }

@@ -1,13 +1,13 @@
 /* MGCP Private Data */
 
 /*
- * (C) 2009-2010 by Holger Hans Peter Freyther <zecke@selfish.org>
- * (C) 2009-2010 by On-Waves
+ * (C) 2009-2011 by Holger Hans Peter Freyther <zecke@selfish.org>
+ * (C) 2009-2011 by On-Waves
  * All Rights Reserved
  *
- * This program is free software: you can redistribute it and/or modify
+ * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
+ * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
@@ -35,6 +35,11 @@ enum mgcp_connection_mode {
 	MGCP_CONN_LOOPBACK  = 4,
 };
 
+enum mgcp_trunk_type {
+	MGCP_TRUNK_VIRTUAL,
+	MGCP_TRUNK_E1,
+};
+
 struct mgcp_rtp_state {
 	int initialized;
 	int patch;
@@ -48,47 +53,82 @@ struct mgcp_rtp_state {
 	int32_t  timestamp_offset;
 };
 
+struct mgcp_rtp_end {
+	/* statistics */
+	unsigned int packets;
+	struct in_addr addr;
+
+	/* in network byte order */
+	int rtp_port, rtcp_port;
+
+	int payload_type;
+
+	/*
+	 * Each end has a socket...
+	 */
+	struct bsc_fd rtp;
+	struct bsc_fd rtcp;
+
+	int local_port;
+	int local_alloc;
+};
+
+enum {
+	MGCP_TAP_BTS_IN,
+	MGCP_TAP_BTS_OUT,
+	MGCP_TAP_NET_IN,
+	MGCP_TAP_NET_OUT,
+
+	/* last element */
+	MGCP_TAP_COUNT
+};
+
+struct mgcp_rtp_tap {
+	int enabled;
+	struct sockaddr_in forward;
+};
+
 struct mgcp_endpoint {
+	int allocated;
 	uint32_t ci;
 	char *callid;
 	char *local_options;
 	int conn_mode;
 	int orig_mode;
 
-	int bts_payload_type;
-	int net_payload_type;
-
-	/* the local rtp port we are binding to */
-	int rtp_port;
-
-	/*
-	 * RTP mangling:
-	 *  - we get RTP and RTCP to us and need to forward to the BTS
-	 *  - we get RTP and RTCP from the BTS and forward to the network
-	 */
-	struct bsc_fd local_rtp;
-	struct bsc_fd local_rtcp;
-
-	struct in_addr remote;
-	struct in_addr bts;
-
-	/* in network byte order */
-	int net_rtp, net_rtcp;
-	int bts_rtp, bts_rtcp;
-
 	/* backpointer */
 	struct mgcp_config *cfg;
+	struct mgcp_trunk_config *tcfg;
 
-	/* statistics */
-	unsigned int in_bts;
-	unsigned int in_remote;
+	/* port status for bts/net */
+	struct mgcp_rtp_end bts_end;
+	struct mgcp_rtp_end net_end;
+
+	/*
+	 * For transcoding we will send from the local_port
+	 * of trans_bts and it will arrive at trans_net from
+	 * where we will forward it to the network.
+	 */
+	struct mgcp_rtp_end trans_bts;
+	struct mgcp_rtp_end trans_net;
+	int is_transcoded;
 
 	/* sequence bits */
 	struct mgcp_rtp_state net_state;
 	struct mgcp_rtp_state bts_state;
+
+	/* SSRC/seq/ts patching for loop */
+	int allow_patch;
+
+	/* tap for the endpoint */
+	struct mgcp_rtp_tap taps[MGCP_TAP_COUNT];
+
+	/* Special MGW handling */
+	unsigned int audio_port;
+	int block_processing;
 };
 
-#define ENDPOINT_NUMBER(endp) abs(endp - endp->cfg->endpoints)
+#define ENDPOINT_NUMBER(endp) abs(endp - endp->tcfg->endpoints)
 
 struct mgcp_msg_ptr {
 	unsigned int start;
@@ -99,5 +139,20 @@ int mgcp_analyze_header(struct mgcp_config *cfg, struct msgb *msg,
 			struct mgcp_msg_ptr *ptr, int size,
 			const char **transaction_id, struct mgcp_endpoint **endp);
 int mgcp_send_dummy(struct mgcp_endpoint *endp);
+int mgcp_bind_bts_rtp_port(struct mgcp_endpoint *endp, int rtp_port);
+int mgcp_bind_net_rtp_port(struct mgcp_endpoint *endp, int rtp_port);
+int mgcp_bind_trans_bts_rtp_port(struct mgcp_endpoint *enp, int rtp_port);
+int mgcp_bind_trans_net_rtp_port(struct mgcp_endpoint *enp, int rtp_port);
+int mgcp_free_rtp_port(struct mgcp_rtp_end *end);
+
+/* For transcoding we need to manage an in and an output that are connected */
+static inline int endp_back_channel(int endpoint)
+{
+	return endpoint + 60;
+}
+
+struct mgcp_trunk_config *mgcp_trunk_alloc(struct mgcp_config *cfg, int index);
+struct mgcp_trunk_config *mgcp_trunk_num(struct mgcp_config *cfg, int index);
+
 
 #endif

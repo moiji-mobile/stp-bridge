@@ -29,7 +29,6 @@
 #include <osmocore/talloc.h>
 #include <osmocore/timer.h>
 
-#include <osmocom/vty/command.h>
 #include <osmocom/vty/vty.h>
 #include <osmocom/vty/telnet_interface.h>
 
@@ -57,35 +56,17 @@ static struct log_target *stderr_target;
 static char *config_file = "mgcp_mgw.cfg";
 static int exit_on_failure = 0;
 
-static int s_endp_offset = 1;
 
-#define TO_MGW_PORT(no) (no-s_endp_offset)
-#define FROM_MGW_PORT(no) (no+s_endp_offset)
+extern struct mgcp_config *g_cfg;
 
-static struct mgcp_ss7 *s_ss7;
-static struct mgcp_config *g_cfg;
-static int s_vad_enabled = 1;
+static void mgcp_ss7_endp_free(struct mgcp_endpoint *endp);
 
-/* gain settings */
-int s_digital_inp_gain = 31;
-int s_digital_out_gain = 31;
-int s_upstr_agc_enbl = 0;
-int s_upstr_adp_rate =  100;
-int s_upstr_max_gain = 46;
-int s_upstr_target_lvl = 20;
-int s_dwnstr_agc_enbl = 0;
-int s_dwnstr_adp_rate = 100;
-int s_dwnstr_max_gain = 46;
-int s_dwnstr_target_lvl = 20;
 
-struct mgcp_ss7_endpoint {
-	unsigned int port;
-	int block;
-};
+#ifndef NO_UNIPORTE
+static void mgcp_ss7_do_exec(struct mgcp_ss7 *mgcp, uint8_t type, struct mgcp_endpoint *, uint32_t param);
 
-static void mgcp_ss7_endp_free(struct mgcp_ss7* ss7, int endp);
-static void mgcp_ss7_do_exec(struct mgcp_ss7 *mgcp, uint8_t type, uint32_t port, uint32_t param);
-static void mgcp_mgw_vty_init();
+/* Contains a mapping from UniPorte to the MGCP side of things */
+static struct mgcp_endpoint *s_endpoints[240];
 
 static void check_exit(int status)
 {
@@ -95,7 +76,7 @@ static void check_exit(int status)
 	}
 }
 
-#ifndef NO_UNIPORTE
+
 static void Force_Poll( int milliseconds )
 {
   int timeout = 0;
@@ -163,9 +144,9 @@ static int uniporte_events(unsigned long port, EventTypeT event,
   char text[128];
   ManObjectInfoPtr info;
   DataReceiveInfoPtr dataInfo;
+  struct mgcp_endpoint *endp;
   int i;
   ToneDetectionPtr tones;
-
 
   /*  Don't print output when we receive data or complete
    * sending data.  That would be too verbose.
@@ -181,10 +162,20 @@ static int uniporte_events(unsigned long port, EventTypeT event,
       puts(text);
 
       /* update the mgcp state */
-      int mgcp_endp = FROM_MGW_PORT(port);
-      if (s_ss7->mgw_end[mgcp_endp].block != 1)
+      if (port >= ARRAY_SIZE(s_endpoints)) {
+         fprintf(stderr, "The port is bigger than we can manage.\n");
+         return 0;
+      }
+
+      endp = s_endpoints[port];
+      if (!endp) {
+         fprintf(stderr, "Unexpected event on port %d\n", port);
+         return 0;
+      }
+
+      if (endp->block_processing != 1)
          fprintf(stderr, "State change on a non blocked port. ERROR.\n");
-      s_ss7->mgw_end[mgcp_endp].block = 0;
+      endp->block_processing = 0;
     }
   }
   else if ( event == Event_MANAGED_OBJECT_SET_COMPLETE ) {
@@ -267,8 +258,6 @@ static void* start_uniporte(void *_ss7) {
 	struct mgcp_ss7_cmd *cmd, *tmp;
 	struct mgcp_ss7 *ss7 = _ss7;
 
-	s_ss7 = ss7;
-
 	if (initialize_uniporte(ss7) != 0) {
 		fprintf(stderr, "Failed to create Uniporte.\n");
 		exit(-1);
@@ -282,10 +271,10 @@ static void* start_uniporte(void *_ss7) {
 start_over:
 		/* handle items that are currently blocked */
 		llist_for_each_entry_safe(cmd, tmp, &blocked, entry) {
-			if (ss7->mgw_end[cmd->port].block)
+			if (cmd->endp->block_processing)
 				continue;
 
-			mgcp_ss7_do_exec(ss7, cmd->type, cmd->port, cmd->param);
+			mgcp_ss7_do_exec(ss7, cmd->type, cmd->endp, cmd->param);
 			llist_del(&cmd->entry);
 			free(cmd);
 
@@ -295,13 +284,13 @@ start_over:
 		}
 
 		llist_for_each_entry_safe(cmd, tmp, ss7->cmd_queue->main_head, entry) {
-			if (ss7->mgw_end[cmd->port].block) {
+			if (cmd->endp->block_processing) {
 				llist_del(&cmd->entry);
 				llist_add_tail(&cmd->entry, &blocked);
 				continue;
 			}
 
-			mgcp_ss7_do_exec(ss7, cmd->type, cmd->port, cmd->param);
+			mgcp_ss7_do_exec(ss7, cmd->type, cmd->endp, cmd->param);
 			llist_del(&cmd->entry);
 			free(cmd);
 
@@ -315,11 +304,9 @@ start_over:
 
 	return 0;
 }
-#endif
 
 static void update_mute_status(int mgw_port, int conn_mode)
 {
-#ifndef NO_UNIPORTE
 	if (conn_mode == MGCP_CONN_NONE) {
 		MtnSaSetManObject(mgw_port, ChannelType_PORT, ManObj_C_VOICE_UPSTREAM_MUTE, 1, 0);
 		MtnSaSetManObject(mgw_port, ChannelType_PORT, ManObj_C_VOICE_DOWNSTREAM_MUTE, 1, 0);
@@ -335,137 +322,145 @@ static void update_mute_status(int mgw_port, int conn_mode)
 	} else {
 		LOGP(DMGCP, LOGL_ERROR, "Unhandled conn mode: %d\n", conn_mode);
 	}
-#endif
 }
 
-#ifndef NO_UNIPORTE
-static void allocate_endp(struct mgcp_ss7 *ss7, int endp_no)
+static void allocate_endp(struct mgcp_ss7 *ss7, struct mgcp_endpoint *endp)
 {
-	int mgw_port;
+	int mgw_port, timeslot, multiplex;
 	unsigned long mgw_address, loc_address;
-	struct mgcp_ss7_endpoint *mgw_endp = &ss7->mgw_end[endp_no];
-	struct mgcp_endpoint *mg_endp = &ss7->cfg->endpoints[endp_no];
 
-	mgw_port = TO_MGW_PORT(endp_no);
-	mgw_endp->port = MtnSaAllocate(mgw_port);
-	if (mgw_endp->port == UINT_MAX) {
-		fprintf(stderr, "Failed to allocate the port: %d\n", endp_no);
+	mgcp_endpoint_to_timeslot(ENDPOINT_NUMBER(endp), &multiplex, &timeslot);
+	mgw_port = timeslot - endp->tcfg->endp_offset;
+	fprintf(stderr, "TEST: Going to use MGW: %d for MUL: %d TS: %d\n",
+		mgw_port, multiplex, timeslot);
+
+	endp->audio_port = MtnSaAllocate(mgw_port);
+	if (endp->audio_port == UINT_MAX) {
+		fprintf(stderr, "Failed to allocate the port: %d\n", ENDPOINT_NUMBER(endp));
 		return;
 	}
 
+	if (mgw_port != endp->audio_port) {
+		fprintf(stderr, "Oh... a lot of assumptions are now broken  %d %d %s:%d\n",
+			mgw_port, endp->audio_port, __func__, __LINE__);
+	}
+
+	s_endpoints[endp->audio_port] = endp;
+
 	/* Gain settings, apply before switching the port to voice */
 	MtnSaSetManObject(mgw_port, ChannelType_PORT,
-			  ManObj_C_VOICE_INPUT_DIGITAL_GAIN, s_digital_inp_gain, 0);
+			  ManObj_C_VOICE_INPUT_DIGITAL_GAIN, endp->tcfg->digital_inp_gain, 0);
 	MtnSaSetManObject(mgw_port, ChannelType_PORT,
-			  ManObj_C_VOICE_OUTPUT_DIGITAL_GAIN, s_digital_out_gain, 0);
+			  ManObj_C_VOICE_OUTPUT_DIGITAL_GAIN, endp->tcfg->digital_out_gain, 0);
 	MtnSaSetManObject(mgw_port, ChannelType_PORT,
-			  ManObj_G_US_AGC_ENABLE, s_upstr_agc_enbl, 0);
+			  ManObj_G_US_AGC_ENABLE, endp->tcfg->upstr_agc_enbl, 0);
 	MtnSaSetManObject(mgw_port, ChannelType_PORT,
-			  ManObj_G_DS_AGC_ENABLE, s_dwnstr_agc_enbl, 0);
+			  ManObj_G_DS_AGC_ENABLE, endp->tcfg->dwnstr_agc_enbl, 0);
 	MtnSaSetManObject(mgw_port, ChannelType_PORT,
-			  ManObj_G_US_ADAPTATION_RATE, s_upstr_adp_rate, 0);
+			  ManObj_G_US_ADAPTATION_RATE, endp->tcfg->upstr_adp_rate, 0);
 	MtnSaSetManObject(mgw_port, ChannelType_PORT,
-			  ManObj_G_DS_ADAPTATION_RATE, s_dwnstr_adp_rate, 0);
+			  ManObj_G_DS_ADAPTATION_RATE, endp->tcfg->dwnstr_adp_rate, 0);
 	MtnSaSetManObject(mgw_port, ChannelType_PORT,
-			  ManObj_G_US_MAX_APPLIED_GAIN, s_upstr_max_gain, 0);
+			  ManObj_G_US_MAX_APPLIED_GAIN, endp->tcfg->upstr_max_gain, 0);
 	MtnSaSetManObject(mgw_port, ChannelType_PORT,
-			  ManObj_G_DS_MAX_APPLIED_GAIN, s_dwnstr_max_gain, 0);
+			  ManObj_G_DS_MAX_APPLIED_GAIN, endp->tcfg->dwnstr_max_gain, 0);
 	MtnSaSetManObject(mgw_port, ChannelType_PORT,
-			  ManObj_C_US_TARGET_LEVEL, s_upstr_target_lvl, 0);
+			  ManObj_C_US_TARGET_LEVEL, endp->tcfg->upstr_target_lvl, 0);
 	MtnSaSetManObject(mgw_port, ChannelType_PORT,
-			  ManObj_C_US_TARGET_LEVEL, s_dwnstr_target_lvl, 0);
+			  ManObj_C_US_TARGET_LEVEL, endp->tcfg->dwnstr_target_lvl, 0);
 
 	/* Select AMR 5.9, Payload 98, no CRC, hardcoded */
 	MtnSaApplyProfile(mgw_port, ProfileType_VOICE, 0);
 	MtnSaSetManObject(mgw_port, ChannelType_PORT,
 			  ManObj_G_DATA_PATH, DataPathT_ETHERNET, 0 );
 	MtnSaSetManObject(mgw_port, ChannelType_PORT,
-			  ManObj_C_VOICE_RTP_TELEPHONE_EVENT_PT_TX, ss7->cfg->audio_payload, 0);
+			  ManObj_C_VOICE_RTP_TELEPHONE_EVENT_PT_TX,
+			  endp->tcfg->audio_payload, 0);
 	MtnSaSetManObject(mgw_port, ChannelType_PORT,
-			  ManObj_G_RTP_AMR_PAYLOAD_TYPE, ss7->cfg->audio_payload, 0);
+			  ManObj_G_RTP_AMR_PAYLOAD_TYPE,
+			  endp->tcfg->audio_payload, 0);
 	MtnSaSetManObject(mgw_port, ChannelType_PORT,
-			  ManObj_G_RTP_AMR_PAYLOAD_FORMAT, RtpAmrPayloadFormat_OCTET_ALIGNED, 0);
+			  ManObj_G_RTP_AMR_PAYLOAD_FORMAT,
+			  RtpAmrPayloadFormat_OCTET_ALIGNED, 0);
 	MtnSaSetManObject(mgw_port, ChannelType_PORT,
 			  ManObj_G_VOICE_ENCODING, Voice_Encoding_AMR_5_90, 0);
 	MtnSaSetManObject(mgw_port, ChannelType_PORT,
-			  ManObj_C_VOICE_VAD_CNG, s_vad_enabled, 0);
+			  ManObj_C_VOICE_VAD_CNG, endp->tcfg->vad_enabled, 0);
 
-	update_mute_status(mgw_port, mg_endp->conn_mode);
+	update_mute_status(mgw_port, endp->conn_mode);
 
 	/* set the addresses */
 	SysEthGetHostAddress(ss7->cfg->bts_ip, &mgw_address);
 	SysEthGetHostAddress(ss7->cfg->local_ip, &loc_address);
 	MtnSaSetVoIpAddresses(mgw_port,
-			      mgw_address, mg_endp->rtp_port,
-			      loc_address, mg_endp->rtp_port);
+			      mgw_address, endp->bts_end.local_port,
+			      loc_address, endp->bts_end.local_port);
 	MtnSaConnect(mgw_port, mgw_port);
-	mgw_endp->block = 1;
+	endp->block_processing = 1;
 }
-#endif
 
-static void mgcp_ss7_do_exec(struct mgcp_ss7 *mgcp, uint8_t type, uint32_t port, uint32_t param)
+static void mgcp_ss7_do_exec(struct mgcp_ss7 *mgcp, uint8_t type,
+			     struct mgcp_endpoint *mgw_endp, uint32_t param)
 {
-#ifndef NO_UNIPORTE
-	struct mgcp_ss7_endpoint *mgw_endp = &mgcp->mgw_end[port];
 	int rc;
 
 	switch (type) {
 	case MGCP_SS7_MUTE_STATUS:
-		if (mgw_endp->port != UINT_MAX)
-			update_mute_status(TO_MGW_PORT(port), param);
+		if (mgw_endp->audio_port != UINT_MAX)
+			update_mute_status(mgw_endp->audio_port, param);
 		break;
 	case MGCP_SS7_DELETE:
-		if (mgw_endp->port != UINT_MAX) {
-			rc = MtnSaDisconnect(mgw_endp->port);
+		if (mgw_endp->audio_port != UINT_MAX) {
+			rc = MtnSaDisconnect(mgw_endp->audio_port);
 			if (rc != 0)
-				fprintf(stderr, "Failed to disconnect port: %u\n", mgw_endp->port);
-			rc = MtnSaDeallocate(mgw_endp->port);
+				fprintf(stderr, "Failed to disconnect port: %u\n", mgw_endp->audio_port);
+			rc = MtnSaDeallocate(mgw_endp->audio_port);
 			if (rc != 0)
-				fprintf(stderr, "Failed to deallocate port: %u\n", mgw_endp->port);
-			mgw_endp->port = UINT_MAX;
-			mgw_endp->block = 1;
+				fprintf(stderr, "Failed to deallocate port: %u\n", mgw_endp->audio_port);
+
+			mgw_endp->audio_port = UINT_MAX;
+			mgw_endp->block_processing = 1;
 		}
 		break;
 	case MGCP_SS7_ALLOCATE:
-		allocate_endp(mgcp, port);
-		break;
-	case MGCP_SS7_SHUTDOWN:
-		MtnSaShutdown();
+		allocate_endp(mgcp, mgw_endp);
 		break;
 	}
-#endif
 }
+#endif
 
-void mgcp_ss7_exec(struct mgcp_ss7 *mgcp, uint8_t type, uint32_t port, uint32_t param)
+void mgcp_ss7_exec(struct mgcp_endpoint *endp, int type, uint32_t param)
 {
+	struct mgcp_ss7 *mgcp;
+
 	struct mgcp_ss7_cmd *cmd = malloc(sizeof(*cmd));
+	if (!cmd) {
+		LOGP(DMGCP, LOGL_ERROR, "Failed to send a command.\n");
+		return;
+	}
+
 	memset(cmd, 0, sizeof(*cmd));
 	cmd->type = type;
-	cmd->port = port;
+	cmd->endp = endp;
 	cmd->param = param;
 
+	mgcp = endp->tcfg->cfg->data;
 	thread_safe_add(mgcp->cmd_queue, &cmd->entry);
 }
 
-static int ss7_allocate_endpoint(struct mgcp_ss7 *ss7, int endp_no, struct mgcp_ss7_endpoint *endp)
+static int ss7_allocate_endpoint(struct mgcp_ss7 *ss7, struct mgcp_endpoint *mg_endp)
 {
-	struct mgcp_endpoint *mg_endp;
+	mg_endp->bts_end.rtp_port = htons(mg_endp->bts_end.local_port);
+	mg_endp->bts_end.rtcp_port = htons(mg_endp->bts_end.local_port + 1);
+	mg_endp->bts_end.addr = ss7->cfg->bts_in;
 
-	mg_endp = &ss7->cfg->endpoints[endp_no];
-	mg_endp->bts_rtp = htons(mg_endp->rtp_port);
-	mg_endp->bts_rtcp = htons(mg_endp->rtp_port + 1);
-	mg_endp->bts = ss7->cfg->bts_in;
-
-	mgcp_ss7_exec(ss7, MGCP_SS7_ALLOCATE, endp_no, 0);
+	mgcp_ss7_exec(mg_endp, MGCP_SS7_ALLOCATE, 0);
 	return MGCP_POLICY_CONT;
 }
 
-static int ss7_modify_endpoint(struct mgcp_ss7 *ss7, int endp_no, struct mgcp_ss7_endpoint *endp)
+static int ss7_modify_endpoint(struct mgcp_ss7 *ss7, struct mgcp_endpoint *mg_endp)
 {
- 	struct mgcp_endpoint *mg_endp;
-
- 	mg_endp = &ss7->cfg->endpoints[endp_no];
-	mgcp_ss7_exec(ss7, MGCP_SS7_MUTE_STATUS, endp_no, mg_endp->conn_mode);
+	mgcp_ss7_exec(mg_endp, MGCP_SS7_MUTE_STATUS, mg_endp->conn_mode);
 
 	/*
 	 * Just assume that we have the data now.
@@ -476,32 +471,41 @@ static int ss7_modify_endpoint(struct mgcp_ss7 *ss7, int endp_no, struct mgcp_ss
 	return MGCP_POLICY_CONT;
 }
 
-static int ss7_delete_endpoint(struct mgcp_ss7 *ss7, int endp_no, struct mgcp_ss7_endpoint *endp)
+static int ss7_delete_endpoint(struct mgcp_ss7 *ss7, struct mgcp_endpoint *endp)
 {
-	mgcp_ss7_endp_free(ss7, endp_no);
+	mgcp_ss7_endp_free(endp);
 	return MGCP_POLICY_CONT;
 }
 
-static int mgcp_ss7_policy(struct mgcp_config *cfg, int endp_no, int state, const char *trans)
+static int mgcp_ss7_policy(struct mgcp_trunk_config *tcfg, int endp_no, int state, const char *trans)
 {
 	int rc;
+	int multiplex, timeslot;
 	struct mgcp_ss7 *ss7;
-	struct mgcp_ss7_endpoint *endp;
+	struct mgcp_endpoint *endp;
 
-	ss7 = (struct mgcp_ss7 *) cfg->data;
-	endp = &ss7->mgw_end[endp_no];
+	mgcp_endpoint_to_timeslot(endp_no, &multiplex, &timeslot);
+
+	/* these endpoints are blocked */
+	if (timeslot == 0 || timeslot >= 0x1F) {
+		LOGP(DMGCP, LOGL_NOTICE, "Rejecting non voice timeslots %d\n", timeslot);
+		return MGCP_POLICY_REJECT;
+	}
+
+	endp = &tcfg->endpoints[endp_no];
+	ss7 = (struct mgcp_ss7 *) tcfg->cfg->data;
 
 	/* TODO: Make it async and wait for the port to be connected */
 	rc = MGCP_POLICY_REJECT;
 	switch (state) {
 	case MGCP_ENDP_CRCX:
-		rc = ss7_allocate_endpoint(ss7, endp_no, endp);
+		rc = ss7_allocate_endpoint(ss7, endp);
 		break;
 	case MGCP_ENDP_MDCX:
-		rc = ss7_modify_endpoint(ss7, endp_no, endp);
+		rc = ss7_modify_endpoint(ss7, endp);
 		break;
 	case MGCP_ENDP_DLCX:
-		rc = ss7_delete_endpoint(ss7, endp_no, endp);
+		rc = ss7_delete_endpoint(ss7, endp);
 		break;
 	}
 	
@@ -620,9 +624,9 @@ static int create_socket(struct mgcp_ss7 *cfg)
 	return 0;
 }
 
-static void mgcp_ss7_endp_free(struct mgcp_ss7 *ss7, int endp)
+static void mgcp_ss7_endp_free(struct mgcp_endpoint *endp)
 {
-	mgcp_ss7_exec(ss7, MGCP_SS7_DELETE, endp, 0);
+	mgcp_ss7_exec(endp, MGCP_SS7_DELETE, 0);
 }
 
 static int reset_cb(struct mgcp_config *cfg)
@@ -631,25 +635,15 @@ static int reset_cb(struct mgcp_config *cfg)
 	return 0;
 }
 
-static int realloc_cb(struct mgcp_config *cfg, int endp)
+static int realloc_cb(struct mgcp_trunk_config *tcfg, int endp_no)
 {
-	mgcp_ss7_endp_free((struct mgcp_ss7 *) cfg->data, endp);
+	struct mgcp_endpoint *endp = &tcfg->endpoints[endp_no];
+	mgcp_ss7_endp_free(endp);
 	return 0;
-}
-
-static void mgcp_ss7_set_default(struct mgcp_config *cfg)
-{
-	/* do not attempt to allocate call ids */
-	cfg->early_bind = 1;
-
-	talloc_free(cfg->audio_name);
-	cfg->audio_payload = 126;
-	cfg->audio_name = talloc_strdup(cfg, "AMR/8000");
 }
 
 static struct mgcp_ss7 *mgcp_ss7_init(struct mgcp_config *cfg)
 {
-	int i;
 	struct mgcp_ss7 *conf = talloc_zero(NULL, struct mgcp_ss7);
 	if (!conf)
 		return NULL;
@@ -665,44 +659,13 @@ static struct mgcp_ss7 *mgcp_ss7_init(struct mgcp_config *cfg)
 	conf->cfg->realloc_cb = realloc_cb;
 	conf->cfg->data = conf;
 
-
-	if (mgcp_endpoints_allocate(conf->cfg) != 0) {
-		LOGP(DMGCP, LOGL_ERROR, "Failed to allocate endpoints: %d\n",
-		     cfg->number_endpoints - 1);
-		talloc_free(conf);
-		return NULL;
-	}
-
 	if (create_socket(conf) != 0) {
 		LOGP(DMGCP, LOGL_ERROR, "Failed to create socket.\n");
 		talloc_free(conf);
 		return NULL;
 	}
 
-	conf->mgw_end = _talloc_zero_array(conf, sizeof(struct mgcp_ss7_endpoint),
-					   conf->cfg->number_endpoints, "mgw endpoints");
-	if (!conf->mgw_end) {
-		LOGP(DMGCP, LOGL_ERROR, "Failed to allocate MGW endpoint array.\n");
-		talloc_free(conf);
-		return NULL;
-	}
-
-	for (i = 1; i < conf->cfg->number_endpoints; ++i) {
-		struct mgcp_endpoint *endp;
-		int rtp_port;
-
-		/* initialize the MGW part */
-		conf->mgw_end[i].port = UINT_MAX;
-
-		/* allocate the ports */
-		endp = &conf->cfg->endpoints[i];
-		rtp_port = rtp_calculate_port(ENDPOINT_NUMBER(endp), conf->cfg->rtp_base_port);
-		if (mgcp_bind_rtp_port(endp, rtp_port) != 0) {
-			LOGP(DMGCP, LOGL_ERROR, "Failed to bind: %d\n", rtp_port);
-			mgcp_ss7_free(conf);
-			return NULL;
-		}
-	}
+	/* Now do the init of the trunks */
 
 	conf->cmd_queue = thread_notifier_alloc();
 	if (!conf->cmd_queue) {
@@ -719,33 +682,30 @@ static struct mgcp_ss7 *mgcp_ss7_init(struct mgcp_config *cfg)
 	return conf;
 }
 
-void mgcp_ss7_free(struct mgcp_ss7 *mgcp)
+static void free_trunk(struct mgcp_trunk_config *trunk)
 {
-	/* close everything */
-	mgcp_ss7_reset(mgcp);
-
-	mgcp_ss7_exec(mgcp, MGCP_SS7_SHUTDOWN, 0, 0);
-
-	close(mgcp->mgcp_fd.bfd.fd);
-	bsc_unregister_fd(&mgcp->mgcp_fd.bfd);
-	bsc_del_timer(&mgcp->poll_timer);
-	talloc_free(mgcp);
+	int i;
+	for (i = 1; i < trunk->number_endpoints; ++i) {
+		struct mgcp_endpoint *endp = &trunk->endpoints[i];
+		mgcp_ss7_endp_free(endp);
+		mgcp_free_endp(endp);
+	}
 }
 
 void mgcp_ss7_reset(struct mgcp_ss7 *mgcp)
 {
-	int i;
+	struct mgcp_trunk_config *trunk;
 
 	if (!mgcp)
 		return;
 
 	LOGP(DMGCP, LOGL_INFO, "Resetting all endpoints.\n");
 
-	/* free UniPorted and MGCP data */
-	for (i = 1; i < mgcp->cfg->number_endpoints; ++i) {
-		mgcp_ss7_endp_free(mgcp, i);
-		mgcp_free_endp(&mgcp->cfg->endpoints[i]);
-	}
+	/* free UniPorte and MGCP data */
+	free_trunk(&mgcp->cfg->trunk);
+
+	llist_for_each_entry(trunk, &mgcp->cfg->trunks, entry)
+		free_trunk(trunk);
 }
 
 static void print_help()
@@ -827,10 +787,9 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
-	mgcp_ss7_set_default(g_cfg);
-	mgcp_vty_set_config(g_cfg);
-	if (vty_read_config_file(config_file, NULL) < 0) {
-		fprintf(stderr, "Failed to parse the config file: '%s'\n", config_file);
+	if (mgcp_parse_config(config_file, g_cfg) != 0) {
+		LOGP(DMGCP, LOGL_ERROR,
+		     "Failed to parse the config file: '%s'\n", config_file);
 		return -1;
 	}
 
@@ -838,9 +797,8 @@ int main(int argc, char **argv)
 	if (rc < 0)
 		return rc;
 
-	printf("Creating MGCP MGW with endpoints: %d ip: %s mgw: %s rtp-base: %d payload: %d\n",
-		g_cfg->number_endpoints - 1, g_cfg->local_ip, g_cfg->bts_ip,
-		g_cfg->rtp_base_port, g_cfg->audio_payload);
+	printf("Creating MGCP MGW ip: %s mgw: %s\n",
+	       g_cfg->local_ip, g_cfg->bts_ip);
 
 	mgcp = mgcp_ss7_init(g_cfg);
 	if (!mgcp) {
@@ -853,171 +811,3 @@ int main(int argc, char **argv)
 	return 0;
 }
 
-static struct vty_app_info vty_info = {
-	.name 		= "mgcp_ss7",
-	.version	= "0.0.1",
-	.go_parent_cb	= NULL,
-};
-
-void logging_vty_add_cmds(void);
-
-DEFUN(cfg_mgcp_vad, cfg_mgcp_vad_cmd,
-      "vad (enabled|disabled)",
-      "Enable the Voice Activity Detection\n"
-      "Enable\n" "Disable\n")
-{
-	if (argv[0][0] == 'e')
-		s_vad_enabled = 1;
-	else
-		s_vad_enabled = 0;
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_mgcp_realloc, cfg_mgcp_realloc_cmd,
-      "force-realloc (0|1)",
-      "Force the reallocation of an endpoint\n"
-      "Disable\n" "Enable\n")
-{
-	g_cfg->force_realloc = atoi(argv[0]);
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_mgcp_inp_dig_gain, cfg_mgcp_inp_dig_gain_cmd,
-      "input-digital-gain <0-62>",
-      "Static Digital Input Gain\n"
-      "Gain value")
-{
-	s_digital_inp_gain = atoi(argv[0]);
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_mgcp_out_dig_gain, cfg_mgcp_out_dig_gain_cmd,
-      "outut-digital-gain <0-62>",
-      "Static Digital Output Gain\n"
-      "Gain value")
-{
-	s_digital_out_gain = atoi(argv[0]);
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_mgcp_upstr_agc, cfg_mgcp_upstr_agc_cmd,
-      "upstream-automatic-gain (0|1)",
-      "Enable automatic gain control on upstream\n"
-      "Disable\n" "Enabled\n")
-{
-	s_upstr_agc_enbl = argv[0][0] == '1';
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_mgc_upstr_adp, cfg_mgcp_upstr_adp_cmd,
-      "upstream-adaptiton-rate <1-128>",
-      "Set the adaption rate in (dB/sec) * 10\n"
-      "Range\n")
-{
-	s_upstr_adp_rate = atoi(argv[0]);
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_mgcp_upstr_max_gain, cfg_mgcp_upstr_max_gain_cmd,
-      "upstream-max-applied-gain <0-49>",
-      "Maximum applied gain from -31db to 18db\n"
-      "Gain level\n")
-{
-	s_upstr_max_gain = atoi(argv[0]);
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_mgcp_upstr_target, cfg_mgcp_upstr_target_cmd,
-      "upstream-target-level <6-37>",
-      "Set the desired level in db\n"
-      "Desired lievel\n")
-{
-	s_upstr_target_lvl = atoi(argv[0]);
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_mgcp_dwnstr_agc, cfg_mgcp_dwnstr_agc_cmd,
-      "downstream-automatic-gain (0|1)",
-      "Enable automatic gain control on downstream\n"
-      "Disable\n" "Enabled\n")
-{
-	s_dwnstr_agc_enbl = argv[0][0] == '1';
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_mgc_dwnstr_adp, cfg_mgcp_dwnstr_adp_cmd,
-      "downstream-adaptation-rate <1-128>",
-      "Set the adaption rate in (dB/sec) * 10\n"
-      "Range\n")
-{
-	s_dwnstr_adp_rate = atoi(argv[0]);
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_mgcp_dwnstr_max_gain, cfg_mgcp_dwnstr_max_gain_cmd,
-      "downstream-max-applied-gain <0-49>",
-      "Maximum applied gain from -31db to 18db\n"
-      "Gain level\n")
-{
-	s_dwnstr_max_gain = atoi(argv[0]);
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_mgcp_dwnstr_target, cfg_mgcp_dwnstr_target_cmd,
-      "downstream-target-level <6-37>",
-      "Set the desired level in db\n"
-      "Desired lievel\n")
-{
-	s_dwnstr_target_lvl = atoi(argv[0]);
-	return CMD_SUCCESS;
-}
-
-DEFUN(endpoint_offset, endpoint_offset_cmd,
-      "endpoint-offset <-60-60>",
-      "Offset to the CIC map\n" "Value to set\n")
-{
-	s_endp_offset = atoi(argv[0]);
-	return CMD_SUCCESS;
-}
-
-void mgcp_write_extra(struct vty *vty)
-{
-	vty_out(vty, "  force-realloc %d%s", g_cfg->force_realloc, VTY_NEWLINE);
-	vty_out(vty, "  vad %s%s", s_vad_enabled ? "enabled" : "disabled", VTY_NEWLINE);
-	vty_out(vty, "  input-digital-gain %d%s", s_digital_inp_gain, VTY_NEWLINE);
-	vty_out(vty, "  output-digital-gain %d%s", s_digital_out_gain, VTY_NEWLINE);
-	vty_out(vty, "  upstream-automatic-gain %d%s", s_upstr_agc_enbl, VTY_NEWLINE);
-	vty_out(vty, "  upstream-adaptation-rate %d%s", s_upstr_adp_rate, VTY_NEWLINE);
-	vty_out(vty, "  upstream-max-applied-gain %d%s", s_upstr_max_gain, VTY_NEWLINE);
-	vty_out(vty, "  upstream-target-level %d%s", s_upstr_target_lvl, VTY_NEWLINE);
-	vty_out(vty, "  downstream-automatic-gain %d%s", s_dwnstr_agc_enbl, VTY_NEWLINE);
-	vty_out(vty, "  downstream-adaptation-rate %d%s", s_dwnstr_adp_rate, VTY_NEWLINE);
-	vty_out(vty, "  downstream-max-applied-gain %d%s", s_dwnstr_max_gain, VTY_NEWLINE);
-	vty_out(vty, "  downstream-target-level %d%s", s_dwnstr_target_lvl, VTY_NEWLINE);
-	vty_out(vty, "  endpoint-offset %d%s", s_endp_offset, VTY_NEWLINE);
-}
-
-static void mgcp_mgw_vty_init(void)
-{
-	cmd_init(1);
-	vty_init(&vty_info);
-	logging_vty_add_cmds();
-	mgcp_vty_init();
-
-	install_element(MGCP_NODE, &cfg_mgcp_vad_cmd);
-	install_element(MGCP_NODE, &cfg_mgcp_realloc_cmd);
-	install_element(MGCP_NODE, &cfg_mgcp_inp_dig_gain_cmd);
-	install_element(MGCP_NODE, &cfg_mgcp_out_dig_gain_cmd);
-	install_element(MGCP_NODE, &cfg_mgcp_upstr_agc_cmd);
-	install_element(MGCP_NODE, &cfg_mgcp_upstr_adp_cmd);
-	install_element(MGCP_NODE, &cfg_mgcp_upstr_max_gain_cmd);
-	install_element(MGCP_NODE, &cfg_mgcp_upstr_target_cmd);
-	install_element(MGCP_NODE, &cfg_mgcp_dwnstr_agc_cmd);
-	install_element(MGCP_NODE, &cfg_mgcp_dwnstr_adp_cmd);
-	install_element(MGCP_NODE, &cfg_mgcp_dwnstr_max_gain_cmd);
-	install_element(MGCP_NODE, &cfg_mgcp_dwnstr_target_cmd);
-	install_element(MGCP_NODE, &endpoint_offset_cmd);
-}
-
-
-const char *openbsc_copyright = "";
