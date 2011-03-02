@@ -282,6 +282,7 @@ static void linkset_t18_cb(void *_set)
 
 	/* TODO: now send out routing states */
 	LOGP(DINP, LOGL_NOTICE, "The linkset %d has collected routing data.\n", set->nr);
+	set->sccp_up = 1;
 }
 
 static void linkset_t20_cb(void *_set)
@@ -336,7 +337,6 @@ static int mtp_link_sign_msg(struct mtp_link_set *set, struct mtp_level_3_hdr *h
 			bsc_del_timer(&set->T20);
 			linkset_t18_cb(set);
 			linkset_t20_cb(set);
-			set->sccp_up = 1;
 			return 0;
 			break;
 		}
