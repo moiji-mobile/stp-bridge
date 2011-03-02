@@ -611,7 +611,7 @@ static int sctp_m2ua_write(struct mtp_link *link, struct msgb *msg)
 	m2ua->hdr.msg_class = M2UA_CLS_MAUP;
 	m2ua->hdr.msg_type = M2UA_MAUP_DATA;
 
-	interface = htonl(0);
+	interface = htonl(mlink->link_index);
 	m2ua_msg_add_data(m2ua, MUA_TAG_IDENT_INT, 4, (uint8_t *) &interface);
 	m2ua_msg_add_data(m2ua, M2UA_TAG_DATA, msg->len, msg->data);
 
