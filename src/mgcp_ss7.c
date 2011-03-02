@@ -74,8 +74,8 @@ static int select_voice_port(struct mgcp_endpoint *endp)
 	int timeslot, multiplex;
 	
 	mgcp_endpoint_to_timeslot(ENDPOINT_NUMBER(endp), &multiplex, &timeslot);
-	if (timeslot == 0x0 || timeslot == 0x1F) {
-		LOGP(DMGCP, LOGL_ERROR, "0x0 and 0x1F are reserved for signalling.\n");
+	if (endp->blocked) {
+		LOGP(DMGCP, LOGL_ERROR, "Timeslot 0x%x is blocked.\n", timeslot);
 		return -1;
 	}
 
