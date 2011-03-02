@@ -91,7 +91,15 @@ void mtp_linkset_down(struct mtp_link_set *set)
 	set->available = 0;
 	mtp_link_set_stop(set);
 
-	if (set->app && set->app->type != APP_STP) {
+	if (!set->app)
+		return;
+
+	if (set->app->type == APP_STP) {
+		if (set->app->route_src.set == set)
+			set->app->route_src.up = 0;
+		else
+			set->app->route_dst.up = 0;
+	} else {
 		app_clear_connections(set->app);
 
 		/* If we have an A link send a reset to the MSC */
@@ -105,10 +113,17 @@ void mtp_linkset_up(struct mtp_link_set *set)
 	set->available = 1;
 
 	/* we have not gone through link down */
-	if (set->app && set->app->type != APP_STP &&
-	    set->app->route_dst.msc->msc_link_down) {
-		app_clear_connections(set->app);
-		app_resources_released(set->app);
+	if (set->app) {
+		if (set->app->type == APP_STP) {
+			if (set->app->route_src.set == set)
+				set->app->route_src.up = 1;
+			else
+				set->app->route_dst.up = 1;
+		} else if (set->app->type != APP_STP &&
+			   set->app->route_dst.msc->msc_link_down) {
+			app_clear_connections(set->app);
+			app_resources_released(set->app);
+		}
 	}
 
 	mtp_link_set_reset(set);

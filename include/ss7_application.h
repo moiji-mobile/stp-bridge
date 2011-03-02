@@ -45,6 +45,8 @@ struct ss7_application_route {
 	int type;
 	int nr;
 
+	int up;
+
 	/* maybe they were resolved */
 	struct mtp_link_set *set;
 	struct msc_connection *msc;
