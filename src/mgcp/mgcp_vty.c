@@ -38,8 +38,7 @@ extern void mgcp_write_extra(struct vty *vty, struct mgcp_config *cfg);
 extern void mgcp_write_trunk_extra(struct vty *vty, struct mgcp_trunk_config *cfg);
 
 
-DEFUN(ournode_exit, ournode_exit_cmd,
-      "exit", "Exit\n")
+enum node_type mgcp_go_parent(struct vty *vty)
 {
 	switch (vty->node) {
 	case TRUNK_NODE:
@@ -50,6 +49,13 @@ DEFUN(ournode_exit, ournode_exit_cmd,
 		break;
 	}
 
+	return vty->node;
+}
+
+DEFUN(ournode_exit, ournode_exit_cmd,
+      "exit", "Exit\n")
+{
+	mgcp_go_parent(vty);
 	return CMD_SUCCESS;
 }
 

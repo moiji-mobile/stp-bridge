@@ -28,10 +28,11 @@
 
 extern struct mgcp_config *g_cfg;
 
+enum node_type mgcp_go_parent(struct vty *vty);
 static struct vty_app_info vty_info = {
 	.name 		= "mgcp_ss7",
 	.version	= "0.0.1",
-	.go_parent_cb	= NULL,
+	.go_parent_cb	= mgcp_go_parent,
 };
 
 void logging_vty_add_cmds(void);
