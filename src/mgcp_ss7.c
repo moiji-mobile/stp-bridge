@@ -698,8 +698,10 @@ static struct mgcp_ss7 *mgcp_ss7_init(struct mgcp_config *cfg)
 	for (i = 1; i < cfg->trunk.number_endpoints; ++i) {
 		int multiplex, timeslot;
 		mgcp_endpoint_to_timeslot(i, &multiplex, &timeslot);
-		if (timeslot == 0x0 || timeslot == 0x1F)
+		if (timeslot == 0x0 || timeslot == 0x1F) {
+			cfg->trunk.endpoints[i].blocked = 1;
 			continue;
+		}
 
 		dsp_resource += 1;
 
@@ -724,8 +726,10 @@ static struct mgcp_ss7 *mgcp_ss7_init(struct mgcp_config *cfg)
 		for (i = 1; i < trunk->number_endpoints; ++i) {
 			int multiplex, timeslot;
 			mgcp_endpoint_to_timeslot(i, &multiplex, &timeslot);
-			if (timeslot == 0x0 || timeslot == 0x1F)
+			if (timeslot == 0x0 || timeslot == 0x1) {
+				trunk->endpoints[i].blocked = 1;
 				continue;
+			}
 
 			dsp_resource += 1;
 

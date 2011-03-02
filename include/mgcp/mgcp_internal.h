@@ -124,6 +124,7 @@ struct mgcp_endpoint {
 	struct mgcp_rtp_tap taps[MGCP_TAP_COUNT];
 
 	/* Special MGW handling */
+	int blocked;
 	unsigned int audio_port;
 	int block_processing;
 };
