@@ -122,7 +122,7 @@ int mgcp_snmp_connect(int port, int trunk, int timeslot)
 	/* This connects the TX side to the given trunk/timeslot */
 	add_pdu_var(pdu, HSCOMM "hscmconnNewDataSourceType.hscmconnStreamTrunk",
 		    trunk, timeslot, "hscmconnStreamPtmc");
-	add_pdu_var(pdu, HSCOMM "hscmconnNewDataSourceTypeInstance.hscmconnStreamPtmc",
+	add_pdu_var(pdu, HSCOMM "hscmconnNewDataSourceTypeInstance.hscmconnStreamTrunk",
 		    trunk, timeslot, "1");
 	add_pdu_var(pdu, HSCOMM "hscmconnNewDataSourceTimeslot.hscmconnStreamTrunk",
 		    trunk, timeslot, tx_port);
