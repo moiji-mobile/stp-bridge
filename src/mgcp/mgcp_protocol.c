@@ -310,19 +310,29 @@ static struct mgcp_endpoint *find_e1_endpoint(struct mgcp_config *cfg,
 
 static struct mgcp_endpoint *find_endpoint(struct mgcp_config *cfg, const char *mgcp)
 {
+	struct mgcp_endpoint *endp = NULL;
 	char *endptr = NULL;
 	unsigned int gw = INT_MAX;
 
 	if (strncmp(mgcp, "ds/e1", 5) == 0) {
-		return find_e1_endpoint(cfg, mgcp);
+		endp = find_e1_endpoint(cfg, mgcp);
 	} else {
 		gw = strtoul(mgcp, &endptr, 16);
 		if (gw > 0 && gw < cfg->trunk.number_endpoints && strcmp(endptr, "@mgw") == 0)
-			return &cfg->trunk.endpoints[gw];
+			endp = &cfg->trunk.endpoints[gw];
 	}
 
-	LOGP(DMGCP, LOGL_ERROR, "Not able to find endpoint: '%s'\n", mgcp);
-	return NULL;
+	if (!endp) {
+		LOGP(DMGCP, LOGL_ERROR, "Not able to find endpoint: '%s'\n", mgcp);
+		return NULL;
+	}
+
+	if (endp->blocked) {
+		LOGP(DMGCP, LOGL_NOTICE, "The endpoint '%s' is blocked.\n", mgcp);
+		return NULL;
+	}
+
+	return endp;
 }
 
 int mgcp_analyze_header(struct mgcp_config *cfg, struct msgb *msg,
