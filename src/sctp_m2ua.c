@@ -392,7 +392,7 @@ static int m2ua_handle_rel_req(struct mtp_m2ua_link *link,
 
 	link->established = 0;
 	link->active = 0;
-	LOGP(DINP, LOGL_NOTICE, "M2UA/Link is released.\n");
+	LOGP(DINP, LOGL_NOTICE, "M2UA/Link link-index %d is released.\n", link->link_index);
 	link_down(link->base);
 	m2ua_msg_free(conf);
 	return 0;
