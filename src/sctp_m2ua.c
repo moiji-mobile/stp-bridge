@@ -284,11 +284,20 @@ static int m2ua_handle_state_req(struct mtp_m2ua_link *link,
 	uint32_t index;
 	int req;
 
+	/* fixup for a broken MSC */
 	if (link->conn != conn) {
-		LOGP(DINP, LOGL_ERROR,
-		     "Someone forgot the ASP Activate on link-index %d\n",
-		     link->link_index);
-		return -1;
+		if (!link->conn) {
+			LOGP(DINP, LOGL_NOTICE,
+			     "No ASP Activate but no connection is on link-index %d.\n",
+			     link->link_index);
+			link->conn = conn;
+			link->asp_active = 1;
+		} else {
+			LOGP(DINP, LOGL_ERROR,
+			     "Someone forgot the ASP Activate on link-index %d\n",
+			     link->link_index);
+			return -1;
+		}
 	}
 
 	state = m2ua_msg_find_tag(m2ua, M2UA_TAG_STATE_REQ);
