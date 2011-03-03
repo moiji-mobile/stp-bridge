@@ -218,7 +218,8 @@ int mtp_link_set_isup(struct mtp_link_set *set, struct msgb *msg, int sls)
 			rc = send_cgu(set, sls, hdr->cic, 28);
 		break;
 	case ISUP_MSG_CGUA:
-		LOGP(DISUP, LOGL_NOTICE, "CIC %d is now unblocked.\n", hdr->cic);
+		LOGP(DISUP, LOGL_NOTICE, "CIC %d is now unblocked on linkset %d/%s.\n",
+		     hdr->cic, set->nr, set->name);
 		break;
 	case ISUP_MSG_RSC:
 		rc = handle_simple_resp(set, sls, hdr->cic, ISUP_MSG_RLC);
