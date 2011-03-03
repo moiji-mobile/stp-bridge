@@ -26,6 +26,7 @@
 #include <cellmgr_debug.h>
 #include <msc_connection.h>
 #include <sctp_m2ua.h>
+#include <counter.h>
 
 #include <osmocore/talloc.h>
 
@@ -380,4 +381,20 @@ void ss7_application_pass_isup(struct ss7_application *app, int pass)
 		app->route_src.set->pass_all_isup = pass;
 	if (app->route_dst.set)
 		app->route_dst.set->pass_all_isup = pass;
+}
+
+void mtp_link_submit(struct mtp_link *link, struct msgb *msg)
+{
+	if (link->set->app && link->set->app->type == APP_STP) {
+		if (!link->set->app->route_src.up || !link->set->app->route_dst.up) {
+			LOGP(DINP, LOGL_NOTICE, "Not sending data as application is down %d/%s.\n",
+			     link->set->app->nr, link->set->app->name);
+			msgb_free(msg);
+			return;
+		}
+	}
+
+	rate_ctr_inc(&link->ctrg->ctr[MTP_LNK_OUT]);
+	rate_ctr_inc(&link->set->ctrg->ctr[MTP_LSET_TOTA_OUT_MSG]);
+	link->write(link, msg);
 }

@@ -23,7 +23,6 @@
 #include <bsc_data.h>
 #include <cellmgr_debug.h>
 #include <isup_types.h>
-#include <ss7_application.h>
 #include <counter.h>
 
 #include <osmocore/talloc.h>
@@ -35,23 +34,6 @@
 #include <string.h>
 
 static int mtp_int_submit(struct mtp_link_set *set, int pc, int sls, int type, const uint8_t *data, unsigned int length);
-
-void mtp_link_submit(struct mtp_link *link, struct msgb *msg)
-{
-	if (link->set->app && link->set->app->type == APP_STP) {
-		if (!link->set->app->route_src.up || !link->set->app->route_dst.up) {
-			LOGP(DINP, LOGL_NOTICE, "Not sending data as application is down %d/%s.\n",
-			     link->set->app->nr, link->set->app->name);
-			msgb_free(msg);
-			return;
-		}
-	}
-
-	rate_ctr_inc(&link->ctrg->ctr[MTP_LNK_OUT]);
-	rate_ctr_inc(&link->set->ctrg->ctr[MTP_LSET_TOTA_OUT_MSG]);
-	link->write(link, msg);
-}
-
 
 struct msgb *mtp_msg_alloc(struct mtp_link_set *set)
 {
