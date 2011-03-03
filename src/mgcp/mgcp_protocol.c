@@ -871,7 +871,6 @@ static struct msgb *handle_noti_req(struct mgcp_config *cfg, struct msgb *msg)
 
 static void trunk_init(struct mgcp_trunk_config *trunk)
 {
-	trunk->trunk_type = MGCP_TRUNK_VIRTUAL;
 	trunk->audio_name = talloc_strdup(trunk->cfg, "AMR/8000");
 	trunk->audio_payload = 126;
 
@@ -912,6 +911,7 @@ struct mgcp_config *mgcp_config_alloc(void)
 	/* default trunk handling */
 	cfg->trunk.cfg = cfg;
 	cfg->trunk.trunk_nr = 0;
+	cfg->trunk.trunk_type = MGCP_TRUNK_VIRTUAL;
 	trunk_init(&cfg->trunk);
 
 	INIT_LLIST_HEAD(&cfg->trunks);
