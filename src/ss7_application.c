@@ -398,3 +398,16 @@ void mtp_link_submit(struct mtp_link *link, struct msgb *msg)
 	rate_ctr_inc(&link->set->ctrg->ctr[MTP_LSET_TOTA_OUT_MSG]);
 	link->write(link, msg);
 }
+
+int mtp_link_set_data(struct mtp_link *link, struct msgb *msg)
+{
+	if (link->set->app && link->set->app->type == APP_STP) {
+		if (!link->set->app->route_src.up || !link->set->app->route_dst.up) {
+			LOGP(DINP, LOGL_NOTICE, "Not handling data as application is down %d/%s.\n",
+			     link->set->app->nr, link->set->app->name);
+			return -1;
+		}
+	}
+
+	return mtp_link_handle_data(link, msg);
+}

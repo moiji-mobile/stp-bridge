@@ -144,6 +144,7 @@ struct mtp_link {
 void mtp_link_set_stop(struct mtp_link_set *set);
 void mtp_link_set_reset(struct mtp_link_set *set);
 int mtp_link_set_data(struct mtp_link *link, struct msgb *msg);
+int mtp_link_handle_data(struct mtp_link *link, struct msgb *msg);
 int mtp_link_set_submit_sccp_data(struct mtp_link_set *set, int sls, const uint8_t *data, unsigned int length);
 int mtp_link_set_submit_isup_data(struct mtp_link_set *set, int sls, const uint8_t *data, unsigned int length);
 

@@ -465,7 +465,7 @@ static int mtp_link_sccp_data(struct mtp_link_set *set, struct mtp_level_3_hdr *
 	return 0;
 }
 
-int mtp_link_set_data(struct mtp_link *link, struct msgb *msg)
+int mtp_link_handle_data(struct mtp_link *link, struct msgb *msg)
 {
 	int rc = -1;
 	struct mtp_level_3_hdr *hdr;
