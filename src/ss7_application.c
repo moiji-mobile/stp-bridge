@@ -377,6 +377,8 @@ int ss7_application_start(struct ss7_application *app)
 
 void ss7_application_pass_isup(struct ss7_application *app, int pass)
 {
+	app->isup_pass = pass;
+
 	if (app->route_src.set)
 		app->route_src.set->pass_all_isup = pass;
 	if (app->route_dst.set)
