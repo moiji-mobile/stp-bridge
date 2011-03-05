@@ -177,6 +177,34 @@ static int send_cgu(struct mtp_link_set *set, int sls, int cic, int range)
 	return 0;
 }
 
+static int handle_cgu(struct mtp_link_set *set, int sls, int cic,
+		      uint8_t *data, uint16_t size)
+{
+	uint8_t *out;
+	struct isup_msg_hdr *hdr;
+	struct msgb *resp;
+
+	resp = msgb_alloc_headroom(4096, 128, "ISUP CGUA MSG");
+	if (!resp) {
+		LOGP(DISUP, LOGL_ERROR, "Allocation of CGUA message failed.\n");
+		return -1;
+	}
+
+	resp->l2h = msgb_put(resp, sizeof(*hdr));
+
+	/* write the ISUP header */
+	hdr = (struct isup_msg_hdr *) resp->l2h;
+	hdr->cic = cic;
+	hdr->msg_type = ISUP_MSG_CGUA;
+
+	out = msgb_put(resp, size);
+	memcpy(out, data, size);
+
+	mtp_link_set_submit_isup_data(set, sls, resp->l2h, msgb_l2len(resp));
+	msgb_free(resp);
+	return 0;
+}
+
 static int handle_simple_resp(struct mtp_link_set *set, int sls, int cic, int msg_type)
 {
 	struct msgb *resp;
@@ -216,6 +244,9 @@ int mtp_link_set_isup(struct mtp_link_set *set, struct msgb *msg, int sls)
 		rc = handle_circuit_reset_cgb(set, sls, hdr->cic, hdr->data, payload_size);
 		if (rc == 0)
 			rc = send_cgu(set, sls, hdr->cic, 28);
+		break;
+	case ISUP_MSG_CGU:
+		rc = handle_cgu(set, sls, hdr->cic, hdr->data, payload_size);
 		break;
 	case ISUP_MSG_CGUA:
 		LOGP(DISUP, LOGL_NOTICE, "CIC %d is now unblocked on linkset %d/%s.\n",
