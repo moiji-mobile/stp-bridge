@@ -499,20 +499,19 @@ static int ss7_delete_endpoint(struct mgcp_ss7 *ss7, struct mgcp_endpoint *endp)
 static int mgcp_ss7_policy(struct mgcp_trunk_config *tcfg, int endp_no, int state, const char *trans)
 {
 	int rc;
-	int multiplex, timeslot;
 	struct mgcp_ss7 *ss7;
 	struct mgcp_endpoint *endp;
 
-	mgcp_endpoint_to_timeslot(endp_no, &multiplex, &timeslot);
 
-	/* these endpoints are blocked */
-	if (timeslot == 0 || timeslot >= 0x1F) {
-		LOGP(DMGCP, LOGL_NOTICE, "Rejecting non voice timeslots %d\n", timeslot);
-		return MGCP_POLICY_REJECT;
-	}
 
 	endp = &tcfg->endpoints[endp_no];
 	ss7 = (struct mgcp_ss7 *) tcfg->cfg->data;
+
+	/* these endpoints are blocked */
+	if (endp->blocked) {
+		LOGP(DMGCP, LOGL_NOTICE, "Rejecting non voice timeslots 0x%x\n", endp_no);
+		return MGCP_POLICY_REJECT;
+	}
 
 	/* TODO: Make it async and wait for the port to be connected */
 	rc = MGCP_POLICY_REJECT;
