@@ -39,7 +39,7 @@ void logging_vty_add_cmds(void);
 
 DEFUN(cfg_mgcp_configure, cfg_mgcp_configure_cmd,
       "configure-trunks (0|1)",
-      "Reconfigure the Trunk Configuration\n" "Reconfigure\n" "Keep\n")
+      "Reconfigure the Trunk Configuration\n" "Keep\n" "Reconfigure\n")
 {
 	g_cfg->configure_trunks = atoi(argv[0]);
 	return CMD_SUCCESS;
