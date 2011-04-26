@@ -404,6 +404,10 @@ static void allocate_endp(struct mgcp_ss7 *ss7, struct mgcp_endpoint *endp)
 	MtnSaSetManObject(mgw_port, ChannelType_PORT,
 			  ManObj_G_VOICE_ENCODING, Voice_Encoding_AMR_5_90, 0);
 	MtnSaSetManObject(mgw_port, ChannelType_PORT,
+			  ManObj_C_AMR_MODE_CHANGE, 2, 0);
+	MtnSaSetManObject(mgw_port, ChannelType_PORT,
+			  ManObj_C_AMR_MODE_REQUEST, 2, 0);
+	MtnSaSetManObject(mgw_port, ChannelType_PORT,
 			  ManObj_C_VOICE_VAD_CNG, endp->tcfg->vad_enabled, 0);
 
 	update_mute_status(mgw_port, endp->conn_mode);
