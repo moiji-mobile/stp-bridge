@@ -28,7 +28,7 @@
 #include <mtp_pcap.h>
 #include <snmp_mtp.h>
 
-#include <osmocore/talloc.h>
+#include <osmocom/core/talloc.h>
 
 extern struct bsc_data *bsc;
 
@@ -179,6 +179,6 @@ int mtp_handle_pcap(struct mtp_link *link, int dir, const uint8_t *data, int len
 		mtp_pcap_write_msu(link->set->pcap_fd, data, len);
 
 	/* This might be too expensive? */
-	LOGP(DPCAP, LOGL_NOTICE, "Packet: %s\n", hexdump(data, len));
+	LOGP(DPCAP, LOGL_NOTICE, "Packet: %s\n", osmo_hexdump(data, len));
 	return 0;
 }

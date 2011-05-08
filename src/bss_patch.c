@@ -24,8 +24,9 @@
 
 #include <string.h>
 
-#include <osmocore/gsm0808.h>
-#include <osmocore/protocol/gsm_08_08.h>
+#include <osmocom/gsm/gsm0808.h>
+#include <osmocom/gsm/protocol/gsm_08_08.h>
+#include <osmocom/gsm/tlv.h>
 
 #include <osmocom/sccp/sccp.h>
 

@@ -1,5 +1,6 @@
 INCLUDES = $(all_includes) -I$(top_srcdir)/include
 AM_CFLAGS=-Wall $(LIBOSMOCORE_CFLAGS) $(LIBOSMOSCCP_CFLAGS) $(LIBOSMOVTY_CFLAGS) \
+		$(LIBOSMOGSM_CFLAGS) \
 		$(NEXUSWARE_C7_CFLAGS) $(NEXUSWARE_UNIPORTE_CFLAGS) $(UNIPORTE)
 
 sbin_PROGRAMS = cellmgr_ng osmo_stp mgcp_mgw
@@ -14,7 +15,8 @@ cellmgr_ng_SOURCES = main.c mtp_layer3.c thread.c input/ipaccess.c pcap.c \
 		     msc_conn.c link_udp.c snmp_mtp.c debug.c isup.c \
 		     mtp_link.c counter.c sccp_state.c bsc.c ss7_application.c \
 		     vty_interface_legacy.c vty_interface_cmds.c
-cellmgr_ng_LDADD = $(LIBOSMOCORE_LIBS) $(LIBOSMOSCCP_LIBS) $(LIBOSMOVTY_LIBS) $(NEXUSWARE_C7_LIBS) \
+cellmgr_ng_LDADD = $(LIBOSMOCORE_LIBS) $(LIBOSMOGSM_LIBS) $(LIBOSMOVTY_LIBS) \
+		   $(LIBOSMOSCCP_LIBS) $(NEXUSWARE_C7_LIBS) \
 		   -lpthread -lnetsnmp -lcrypto
 
 osmo_stp_SOURCES = main_stp.c mtp_layer3.c thread.c pcap.c link_udp.c snmp_mtp.c \
@@ -22,5 +24,6 @@ osmo_stp_SOURCES = main_stp.c mtp_layer3.c thread.c pcap.c link_udp.c snmp_mtp.c
 		   bss_patch.c bssap_sccp.c bsc_sccp.c bsc_ussd.c input/ipaccess.c \
 		   mtp_link.c counter.c bsc.c ss7_application.c \
 		   vty_interface.c vty_interface_cmds.c
-osmo_stp_LDADD = $(LIBOSMOCORE_LIBS) $(LIBOSMOSCCP_LIBS) $(LIBOSMOVTY_LIBS) $(NEXUSWARE_C7_LIBS) \
+osmo_stp_LDADD = $(LIBOSMOCORE_LIBS) $(LIBOSMOGSM_LIBS) $(LIBOSMOVTY_LIBS) \
+		 $(LIBOSMOSCCP_LIBS) $(NEXUSWARE_C7_LIBS) \
 		   -lpthread -lnetsnmp -lcrypto -lm2ua -lsctp

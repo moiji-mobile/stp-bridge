@@ -20,7 +20,7 @@
 
 #include <cellmgr_debug.h>
 
-#include <osmocore/utils.h>
+#include <osmocom/core/utils.h>
 
 /* default categories */
 static const struct log_info_cat default_categories[] = {

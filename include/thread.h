@@ -20,8 +20,8 @@
 #ifndef thread_h
 #define thread_h
 
-#include <osmocore/linuxlist.h>
-#include <osmocore/select.h>
+#include <osmocom/core/linuxlist.h>
+#include <osmocom/core/select.h>
 
 #include <pthread.h>
 
@@ -29,7 +29,7 @@
  * routines for dealing with threads
  */
 struct thread_notifier {
-	struct bsc_fd bfd;
+	struct osmo_fd bfd;
 
 	int no_write;
 	int fd[2];

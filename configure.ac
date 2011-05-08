@@ -22,6 +22,7 @@ AC_CHECK_HEADERS([net-snmp/net-snmp-config.h])
 
 dnl Checks for typedefs, structures and compiler characteristics
 PKG_CHECK_MODULES([LIBOSMOCORE], [libosmocore])
+PKG_CHECK_MODULES([LIBOSMOGSM], [libosmogsm])
 PKG_CHECK_MODULES([LIBOSMOSCCP], [libosmo-sccp])
 PKG_CHECK_MODULES([LIBOSMOVTY], [libosmovty])
 #PKG_CHECK_MODULES([NEXUSWARE_C7], [nexusware-c7])

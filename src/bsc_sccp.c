@@ -26,7 +26,7 @@
 #include <ss7_application.h>
 #include <ss7_application.h>
 
-#include <osmocore/talloc.h>
+#include <osmocom/core/talloc.h>
 
 #include <string.h>
 
@@ -97,7 +97,7 @@ unsigned int sls_for_src_ref(struct ss7_application *fw, struct sccp_source_refe
 void free_con(struct active_sccp_con *con)
 {
 	llist_del(&con->entry);
-	bsc_del_timer(&con->rlc_timeout);
+	osmo_timer_del(&con->rlc_timeout);
 	talloc_free(con);
 }
 

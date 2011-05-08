@@ -26,7 +26,7 @@
 #include <snmp_mtp.h>
 #include <cellmgr_debug.h>
 
-#include <osmocore/talloc.h>
+#include <osmocom/core/talloc.h>
 
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -47,7 +47,7 @@ static struct mtp_udp_link *find_link(struct mtp_udp_data *data, uint16_t link_i
 }
 
 
-static int udp_write_cb(struct bsc_fd *fd, struct msgb *msg)
+static int udp_write_cb(struct osmo_fd *fd, struct msgb *msg)
 {
 	struct mtp_udp_data *data;
 	struct mtp_udp_link *link;
@@ -60,7 +60,7 @@ static int udp_write_cb(struct bsc_fd *fd, struct msgb *msg)
 		return -1;
 	}
 
-	LOGP(DINP, LOGL_DEBUG, "Sending MSU: %s\n", hexdump(msg->data, msg->len));
+	LOGP(DINP, LOGL_DEBUG, "Sending MSU: %s\n", osmo_hexdump(msg->data, msg->len));
 	mtp_handle_pcap(link->base, NET_OUT, msg->l2h, msgb_l2len(msg));
 
 	/* the assumption is we have connected the socket to the remote */
@@ -74,7 +74,7 @@ static int udp_write_cb(struct bsc_fd *fd, struct msgb *msg)
 	return 0;
 }
 
-static int udp_read_cb(struct bsc_fd *fd)
+static int udp_read_cb(struct osmo_fd *fd)
 {
 	struct mtp_udp_data *data;
 	struct mtp_udp_link *ulnk;
@@ -160,7 +160,7 @@ static int udp_read_cb(struct bsc_fd *fd)
 
 	LOGP(DINP, LOGL_DEBUG, "MSU data on link %d/%s of %d/%s data %s.\n",
 	     link->nr, link->name, link->set->nr, link->set->name,
-	     hexdump(msg->data, msg->len));
+	     osmo_hexdump(msg->data, msg->len));
 	mtp_handle_pcap(link, NET_IN, msg->l2h, msgb_l2len(msg));
 	mtp_link_set_data(link, msg);
 
@@ -213,7 +213,7 @@ static int udp_link_write(struct mtp_link *link, struct msgb *msg)
 
 	msg->cb[0] = ulnk->link_index;
 
-	if (write_queue_enqueue(&ulnk->data->write_queue, msg) != 0) {
+	if (osmo_wqueue_enqueue(&ulnk->data->write_queue, msg) != 0) {
 		LOGP(DINP, LOGL_ERROR, "Failed to enqueue msg on link %d/%s of %d/%s.\n",
 		     link->nr, link->name, link->set->nr, link->set->name);
 		msgb_free(msg);
@@ -244,13 +244,13 @@ static void snmp_poll(void *_data)
 {
 	struct mtp_udp_data *data = _data;
 	snmp_mtp_poll();
-	bsc_schedule_timer(&data->snmp_poll, 0, 5000);
+	osmo_timer_schedule(&data->snmp_poll, 0, 5000);
 }
 
 int link_global_init(struct mtp_udp_data *data)
 {
 	INIT_LLIST_HEAD(&data->links);
-	write_queue_init(&data->write_queue, 100);
+	osmo_wqueue_init(&data->write_queue, 100);
 
 	/* socket creation */
 	data->write_queue.bfd.data = data;
@@ -288,7 +288,7 @@ int link_global_bind(struct mtp_udp_data *data, int src_port)
 	}
 
 	/* now connect the socket to the remote */
-	if (bsc_register_fd(&data->write_queue.bfd) != 0) {
+	if (osmo_fd_register(&data->write_queue.bfd) != 0) {
 		LOGP(DINP, LOGL_ERROR, "Failed to register BFD.\n");
 		close(fd);
 		return -1;
@@ -334,7 +334,7 @@ void snmp_mtp_callback(struct snmp_mtp_session *session,
 		if (!link->blocked) {
 			link->link_activate.cb = do_start;
 			link->link_activate.data = ulink;
-			bsc_schedule_timer(&link->link_activate, ulink->reset_timeout, 0);
+			osmo_timer_schedule(&link->link_activate, ulink->reset_timeout, 0);
 			LOGP(DINP, LOGL_NOTICE,
 			     "Will bring up link %d/%s of linkset %d/%s in %d seconds.\n",
 			     link->nr, link->name,

@@ -20,9 +20,9 @@
 #ifndef mtp_data_h
 #define mtp_data_h
 
-#include <osmocore/msgb.h>
-#include <osmocore/timer.h>
-#include <osmocore/utils.h>
+#include <osmocom/core/msgb.h>
+#include <osmocom/core/timer.h>
+#include <osmocom/core/utils.h>
 
 struct bsc_data;
 struct mtp_link;
@@ -86,8 +86,8 @@ struct mtp_link_set {
 	/* statistics for routing */
 	int timeout_t18;
 	int timeout_t20;
-	struct timer_list T18;
-	struct timer_list T20;
+	struct osmo_timer_list T18;
+	struct osmo_timer_list T20;
 
 	/* custom data */
 	struct bsc_data *bsc;
@@ -110,7 +110,7 @@ struct mtp_link {
 
 	int available;
 
-	struct timer_list link_activate;
+	struct osmo_timer_list link_activate;
 
 	/* link test routine */
 	uint8_t test_ptrn[14];
@@ -122,8 +122,8 @@ struct mtp_link {
 	int was_up;
 
 	int slta_misses;
-	struct timer_list t1_timer;
-	struct timer_list t2_timer;
+	struct osmo_timer_list t1_timer;
+	struct osmo_timer_list t2_timer;
 
 	/* statistics */
 	struct rate_ctr_group *ctrg;

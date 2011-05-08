@@ -22,8 +22,8 @@
 #ifndef mgcp_ss7_h
 #define mgcp_ss7_h
 
-#include <osmocore/timer.h>
-#include <osmocore/write_queue.h>
+#include <osmocom/core/timer.h>
+#include <osmocom/core/write_queue.h>
 
 #include <osmocom/vty/command.h>
 
@@ -31,11 +31,11 @@
 
 struct mgcp_ss7 {
 	struct mgcp_config *cfg;
-	struct write_queue mgcp_fd;
+	struct osmo_wqueue mgcp_fd;
 	struct msgb *mgcp_msg;
 
 	/* timer */
-	struct timer_list poll_timer;
+	struct osmo_timer_list poll_timer;
 
 	/* thread handling */
 	struct thread_notifier *cmd_queue;

@@ -32,7 +32,7 @@
 
 #include <osmocom/m2ua/m2ua_msg.h>
 
-#include <osmocore/talloc.h>
+#include <osmocom/core/talloc.h>
 
 #include <osmocom/sccp/sccp.h>
 
@@ -82,7 +82,7 @@ static struct mtp_link_set *find_link_set(struct bsc_data *bsc,
 	return NULL;
 }
 
-static int inject_read_cb(struct bsc_fd *fd, unsigned int what)
+static int inject_read_cb(struct osmo_fd *fd, unsigned int what)
 {
 	struct msgb *msg;
 	struct m2ua_msg_part *data, *link;
@@ -184,7 +184,7 @@ static int inject_init(struct bsc_data *bsc)
 	bsc->inject_fd.cb = inject_read_cb;
 	bsc->inject_fd.data = bsc;
 
-	if (bsc_register_fd(&bsc->inject_fd) != 0) {
+	if (osmo_fd_register(&bsc->inject_fd) != 0) {
 		LOGP(DINP, LOGL_ERROR, "Failed to register.\n");
 		close(fd);
 		return -1;
@@ -270,7 +270,7 @@ int main(int argc, char **argv)
 	}
 
         while (1) {
-		bsc_select_main(0);
+		osmo_select_main(0);
         }
 
 	return 0;

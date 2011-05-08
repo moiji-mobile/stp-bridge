@@ -22,7 +22,7 @@
 
 #include <counter.h>
 
-#include <osmocore/utils.h>
+#include <osmocom/core/utils.h>
 
 static const struct rate_ctr_desc mtp_lset_cfg_description[] = {
 	[MTP_LSET_TOTA_IN_MSG]	= { "total.in",       "Total messages in  "},

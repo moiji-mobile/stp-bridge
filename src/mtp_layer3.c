@@ -25,7 +25,7 @@
 #include <isup_types.h>
 #include <counter.h>
 
-#include <osmocore/talloc.h>
+#include <osmocom/core/talloc.h>
 
 #include <osmocom/sccp/sccp.h>
 
@@ -181,8 +181,8 @@ void mtp_link_set_stop(struct mtp_link_set *set)
 	llist_for_each_entry(lnk, &set->links, entry)
 		mtp_link_stop_link_test(lnk);
 
-	bsc_del_timer(&set->T18);
-	bsc_del_timer(&set->T20);
+	osmo_timer_del(&set->T18);
+	osmo_timer_del(&set->T20);
 
 	set->sccp_up = 0;
 	set->running = 0;
@@ -240,8 +240,8 @@ static int linkset_up(struct mtp_link *link)
 		return 0;
 
 	set->linkset_up = 1;
-	bsc_schedule_timer(&set->T18, set->timeout_t18, 0);
-	bsc_schedule_timer(&set->T20, set->timeout_t20, 0);
+	osmo_timer_schedule(&set->T18, set->timeout_t18, 0);
+	osmo_timer_schedule(&set->T20, set->timeout_t20, 0);
 
 	/* More the functionality of a SSP here... */
 	if (set->sccp_opc != set->opc &&
@@ -267,7 +267,7 @@ static void linkset_t18_cb(void *_set)
 	if (!link) {
 		LOGP(DINP, LOGL_ERROR,
 		     "Linkset restart but no link available on linkset %d\n", set->nr);
-		bsc_del_timer(&set->T20);
+		osmo_timer_del(&set->T20);
 		set->linkset_up = 0;
 		return;
 	}
@@ -285,7 +285,7 @@ static void linkset_t20_cb(void *_set)
 	if (!link) {
 		LOGP(DINP, LOGL_ERROR,
 		     "Linkset restart but no link available on linkset %d\n", set->nr);
-		bsc_del_timer(&set->T20);
+		osmo_timer_del(&set->T20);
 		set->linkset_up = 0;
 		return;
 	}
@@ -325,8 +325,8 @@ static int mtp_link_sign_msg(struct mtp_link_set *set, struct mtp_level_3_hdr *h
 			 * arrive after we expired the timer but we are friendly here and
 			 * respond with a TFA and TRA...
 			 */
-			bsc_del_timer(&set->T18);
-			bsc_del_timer(&set->T20);
+			osmo_timer_del(&set->T18);
+			osmo_timer_del(&set->T20);
 			linkset_t18_cb(set);
 			linkset_t20_cb(set);
 			return 0;
@@ -352,7 +352,7 @@ static int mtp_link_sign_msg(struct mtp_link_set *set, struct mtp_level_3_hdr *h
 	}
 
 	LOGP(DINP, LOGL_ERROR, "Unknown message:%d/%d %s on %d/%s.\n",
-	     cmn->h0, cmn->h1, hexdump(&hdr->data[0], l3_len),
+	     cmn->h0, cmn->h1, osmo_hexdump(&hdr->data[0], l3_len),
 	     set->nr, set->name);
 	return -1;
 }

@@ -24,7 +24,7 @@
 #include <cellmgr_debug.h>
 #include <counter.h>
 
-#include <osmocore/talloc.h>
+#include <osmocom/core/talloc.h>
 
 #include <string.h>
 
@@ -83,12 +83,12 @@ static void mtp_sltm_t1_timeout(void *_link)
 		     link->nr, link->name, link->set->nr, link->set->name);
 		++link->slta_misses;
 		mtp_send_sltm(link);
-		bsc_schedule_timer(&link->t1_timer, MTP_T1);
+		osmo_timer_schedule(&link->t1_timer, MTP_T1);
 	} else {
 		LOGP(DINP, LOGL_ERROR,
 		     "Two missing SLTAs on link %d/%s of %d/%s.\n",
 		     link->nr, link->name, link->set->nr, link->set->name);
-		bsc_del_timer(&link->t2_timer);
+		osmo_timer_del(&link->t2_timer);
 		mtp_link_failure(link);
 	}
 }
@@ -107,19 +107,19 @@ static void mtp_sltm_t2_timeout(void *_link)
 	link->slta_misses = 0;
 	mtp_send_sltm(link);
 
-	bsc_schedule_timer(&link->t1_timer, MTP_T1);
+	osmo_timer_schedule(&link->t1_timer, MTP_T1);
 
 	if (link->set->sltm_once && link->was_up)
 		LOGP(DINP, LOGL_INFO, "Not sending SLTM again on link %d/%s of %d/%s.\n",
 		     link->nr, link->name, link->set->nr, link->set->name);
 	else
-		bsc_schedule_timer(&link->t2_timer, MTP_T2);
+		osmo_timer_schedule(&link->t2_timer, MTP_T2);
 }
 
 void mtp_link_stop_link_test(struct mtp_link *link)
 {
-	bsc_del_timer(&link->t1_timer);
-	bsc_del_timer(&link->t2_timer);
+	osmo_timer_del(&link->t1_timer);
+	osmo_timer_del(&link->t2_timer);
 
 	link->sltm_pending = 0;
 }
@@ -154,7 +154,7 @@ int mtp_link_slta(struct mtp_link *link, uint16_t l3_len,
 	}
 
 	/* we had a matching slta */
-	bsc_del_timer(&link->t1_timer);
+	osmo_timer_del(&link->t1_timer);
 	link->sltm_pending = 0;
 	link->was_up = 1;
 

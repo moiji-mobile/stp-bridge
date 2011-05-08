@@ -30,7 +30,7 @@
 #include <bsc_sccp.h>
 #include <ss7_application.h>
 
-#include <osmocore/talloc.h>
+#include <osmocom/core/talloc.h>
 
 #include <osmocom/vty/vty.h>
 #include <osmocom/vty/telnet_interface.h>
@@ -128,7 +128,7 @@ int main(int argc, char **argv)
 	ss7_application_start(app);
 
         while (1) {
-		bsc_select_main(0);
+		osmo_select_main(0);
         }
 
 	return 0;

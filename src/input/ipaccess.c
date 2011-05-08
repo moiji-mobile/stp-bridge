@@ -31,9 +31,9 @@
 #include <sys/ioctl.h>
 #include <arpa/inet.h>
 
-#include <osmocore/select.h>
-#include <osmocore/msgb.h>
-#include <osmocore/talloc.h>
+#include <osmocom/core/select.h>
+#include <osmocom/core/msgb.h>
+#include <osmocom/core/talloc.h>
 #include <ipaccess.h>
 
 
@@ -89,7 +89,7 @@ int ipaccess_send_id_req(int fd)
 
 /* base handling of the ip.access protocol */
 int ipaccess_rcvmsg_base(struct msgb *msg,
-			 struct bsc_fd *bfd)
+			 struct osmo_fd *bfd)
 {
 	uint8_t msg_type = *(msg->l2h);
 	int ret = 0;
@@ -111,7 +111,7 @@ int ipaccess_rcvmsg_base(struct msgb *msg,
  * read one ipa message from the socket
  * return NULL in case of error
  */
-struct msgb *ipaccess_read_msg(struct bsc_fd *bfd, int *error)
+struct msgb *ipaccess_read_msg(struct osmo_fd *bfd, int *error)
 {
 	struct msgb *msg = msgb_alloc(TS1_ALLOC_SIZE, "Abis/IP");
 	struct ipaccess_head *hh;

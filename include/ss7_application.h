@@ -21,8 +21,8 @@
 #ifndef SS7_APPLICATION_H
 #define SS7_APPLICATION_H
 
-#include <osmocore/linuxlist.h>
-#include <osmocore/timer.h>
+#include <osmocom/core/linuxlist.h>
+#include <osmocom/core/timer.h>
 
 struct bsc_data;
 struct msc_connection;
@@ -73,7 +73,7 @@ struct ss7_application {
 
 	/* handling for the NAT/State handling */
 	struct llist_head sccp_connections;
-	struct timer_list reset_timeout;
+	struct osmo_timer_list reset_timeout;
 	struct mtp_link_set *target_link;
 	int forward_only;
 	int reset_count;

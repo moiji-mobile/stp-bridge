@@ -30,7 +30,7 @@
 #include <bsc_ussd.h>
 #include <ss7_application.h>
 
-#include <osmocore/talloc.h>
+#include <osmocom/core/talloc.h>
 
 #include <osmocom/vty/vty.h>
 #include <osmocom/vty/telnet_interface.h>
@@ -191,7 +191,7 @@ void app_clear_connections(struct ss7_application *app)
 
 void app_resources_released(struct ss7_application *app)
 {
-	bsc_del_timer(&app->reset_timeout);
+	osmo_timer_del(&app->reset_timeout);
 }
 
 static void bsc_reset_timeout(void *_app)
@@ -212,14 +212,14 @@ static void bsc_reset_timeout(void *_app)
 
 	msg = create_reset();
 	if (!msg) {
-		bsc_schedule_timer(&app->reset_timeout, 10, 0);
+		osmo_timer_schedule(&app->reset_timeout, 10, 0);
 		return;
 	}
 
 	++app->reset_count;
 	mtp_link_set_submit_sccp_data(set, -1, msg->l2h, msgb_l2len(msg));
 	msgb_free(msg);
-	bsc_schedule_timer(&app->reset_timeout, 20, 0);
+	osmo_timer_schedule(&app->reset_timeout, 20, 0);
 }
 
 /*
@@ -259,7 +259,7 @@ void release_bsc_resources(struct msc_connection *fw)
 
 	app = fw->app;
 	set = app->route_src.set;
-	bsc_del_timer(&app->reset_timeout);
+	osmo_timer_del(&app->reset_timeout);
 
 	/* 2. clear the MGCP endpoints */
 	msc_mgcp_reset(fw);
@@ -287,7 +287,7 @@ void release_bsc_resources(struct msc_connection *fw)
 		app->reset_timeout.cb = bsc_reset_timeout;
 		app->reset_timeout.data = app;
 		app->reset_count = 0;
-		bsc_schedule_timer(&app->reset_timeout, 10, 0);
+		osmo_timer_schedule(&app->reset_timeout, 10, 0);
 	}
 }
 
@@ -481,7 +481,7 @@ static void send_local_rlsd_for_con(void *data)
 	/* try again in three seconds */
 	con->rlc_timeout.data = con;
 	con->rlc_timeout.cb = send_local_rlsd_for_con;
-	bsc_schedule_timer(&con->rlc_timeout, 3, 0);
+	osmo_timer_schedule(&con->rlc_timeout, 3, 0);
 
 	/* we send this to the BSC so we need to switch src and dest */
 	rlsd = create_sccp_rlsd(&con->dst_ref, &con->src_ref);

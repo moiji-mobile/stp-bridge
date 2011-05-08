@@ -25,9 +25,9 @@
 
 #include <cellmgr_debug.h>
 
-#include <osmocore/select.h>
-#include <osmocore/talloc.h>
-#include <osmocore/timer.h>
+#include <osmocom/core/select.h>
+#include <osmocom/core/talloc.h>
+#include <osmocom/core/timer.h>
 
 #include <osmocom/vty/vty.h>
 #include <osmocom/vty/telnet_interface.h>
@@ -534,19 +534,19 @@ static int mgcp_ss7_policy(struct mgcp_trunk_config *tcfg, int endp_no, int stat
 	return rc;
 }
 
-static void enqueue_msg(struct write_queue *queue, struct sockaddr_in *addr, struct msgb *msg)
+static void enqueue_msg(struct osmo_wqueue *queue, struct sockaddr_in *addr, struct msgb *msg)
 {
 	struct sockaddr_in *data;
 
 	data = (struct sockaddr_in *) msgb_push(msg, sizeof(*data));
 	*data = *addr;
-	if (write_queue_enqueue(queue, msg) != 0) {
+	if (osmo_wqueue_enqueue(queue, msg) != 0) {
 		LOGP(DMGCP, LOGL_ERROR, "Failed to queue the message.\n");
 		msgb_free(msg);
 	}
 }
 
-static int write_call_agent(struct bsc_fd *bfd, struct msgb *msg)
+static int write_call_agent(struct osmo_fd *bfd, struct msgb *msg)
 {
 	int rc;
 	struct sockaddr_in *addr;
@@ -562,16 +562,16 @@ static int write_call_agent(struct bsc_fd *bfd, struct msgb *msg)
 }
 
 
-static int read_call_agent(struct bsc_fd *fd)
+static int read_call_agent(struct osmo_fd *fd)
 {
 	struct sockaddr_in addr;
 	socklen_t slen = sizeof(addr);
 	struct msgb *resp;
 	struct mgcp_ss7 *cfg;
-	struct write_queue *queue;
+	struct osmo_wqueue *queue;
 
 	cfg = (struct mgcp_ss7 *) fd->data;
-	queue = container_of(fd, struct write_queue, bfd);
+	queue = container_of(fd, struct osmo_wqueue, bfd);
 
 	/* read one less so we can use it as a \0 */
 	int rc = recvfrom(fd->fd, cfg->mgcp_msg->data, cfg->mgcp_msg->data_len - 1, 0,
@@ -600,7 +600,7 @@ static int create_socket(struct mgcp_ss7 *cfg)
 {
 	int on;
 	struct sockaddr_in addr;
-	struct bsc_fd *bfd;
+	struct osmo_fd *bfd;
 
 	bfd = &cfg->mgcp_fd.bfd;
 
@@ -637,7 +637,7 @@ static int create_socket(struct mgcp_ss7 *cfg)
 	talloc_steal(cfg, cfg->mgcp_msg);
 
 
-	if (bsc_register_fd(bfd) != 0) {
+	if (osmo_fd_register(bfd) != 0) {
 		DEBUGP(DMGCP, "Failed to register the fd\n");
 		close(bfd->fd);
 		return -1;
@@ -673,7 +673,7 @@ static struct mgcp_ss7 *mgcp_ss7_init(struct mgcp_config *cfg)
 	if (!conf)
 		return NULL;
 
-	write_queue_init(&conf->mgcp_fd, 30);
+	osmo_wqueue_init(&conf->mgcp_fd, 30);
 	conf->cfg = cfg;
 
 	/* take over the ownership */
@@ -892,7 +892,7 @@ int main(int argc, char **argv)
 		exit(-1);
 	}
         while (1) {
-		bsc_select_main(0);
+		osmo_select_main(0);
         }
 	return 0;
 }

@@ -24,9 +24,10 @@
 #include <msc_connection.h>
 #include <ss7_application.h>
 #include <ss7_vty.h>
+#include <cellmgr_debug.h>
 
-#include <osmocore/talloc.h>
-#include <osmocore/gsm48.h>
+#include <osmocom/core/talloc.h>
+#include <osmocom/gsm/gsm48.h>
 
 #include <osmocom/vty/command.h>
 #include <osmocom/vty/logging.h>
@@ -327,7 +328,7 @@ void cell_vty_init(void)
 {
 	cmd_init(1);
 	vty_init(&vty_info);
-	logging_vty_add_cmds();
+	logging_vty_add_cmds(&log_info);
 
 	install_element(CONFIG_NODE, &cfg_cell_cmd);
 	install_node(&cell_node, config_write_cell);
