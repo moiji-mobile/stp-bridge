@@ -28,7 +28,7 @@
 #include <sctp_m2ua.h>
 #include <counter.h>
 
-#include <osmocore/talloc.h>
+#include <osmocom/core/talloc.h>
 
 
 /* the SS7 dispatch... maybe as function pointers in the future */

@@ -24,7 +24,7 @@
 #include <msc_connection.h>
 #include <mtp_pcap.h>
 
-#include <osmocore/talloc.h>
+#include <osmocom/core/talloc.h>
 #include <osmocom/vty/vty.h>
 
 #include <sys/types.h>

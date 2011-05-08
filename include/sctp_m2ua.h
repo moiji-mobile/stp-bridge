@@ -21,7 +21,7 @@
 #include "mtp_data.h"
 
 #include <osmocom/m2ua/m2ua_msg.h>
-#include <osmocore/write_queue.h>
+#include <osmocom/core/write_queue.h>
 
 #include <netinet/in.h>
 #include <netinet/sctp.h>
@@ -36,7 +36,7 @@ struct mtp_link;
 struct sctp_m2ua_transport {
 	int started;
 	struct llist_head conns;
-	struct bsc_fd bsc;
+	struct osmo_fd bsc;
 
 	struct llist_head links;
 };
@@ -69,7 +69,7 @@ struct sctp_m2ua_conn {
 	uint8_t asp_ident[4];
 	int asp_up;
 
-	struct write_queue queue;
+	struct osmo_wqueue queue;
 	struct sctp_m2ua_transport *trans;
 };
 

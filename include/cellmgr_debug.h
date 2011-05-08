@@ -2,7 +2,7 @@
 #define CELLMGR_DEBUG_H
 
 #define DEBUG
-#include <osmocore/logging.h>
+#include <osmocom/core/logging.h>
 
 /* Debuag Areas of the code */
 enum {

@@ -22,8 +22,8 @@
 #include <cellmgr_debug.h>
 #include <mtp_data.h>
 
-#include <osmocore/msgb.h>
-#include <osmocore/tlv.h>
+#include <osmocom/core/msgb.h>
+#include <osmocom/gsm/tlv.h>
 
 static struct msgb *isup_status_alloc(int cic, int msg_type, uint8_t *extra, int range, int val)
 {

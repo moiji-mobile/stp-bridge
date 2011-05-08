@@ -23,10 +23,10 @@
 
 #include <inttypes.h>
 
-#include <osmocore/linuxlist.h>
-#include <osmocore/timer.h>
+#include <osmocom/core/linuxlist.h>
+#include <osmocom/core/timer.h>
 
-#include <osmocore/protocol/gsm_08_08.h>
+#include <osmocom/gsm/protocol/gsm_08_08.h>
 
 #include <osmocom/sccp/sccp.h>
 
@@ -50,7 +50,7 @@ struct active_sccp_con {
 	int released_from_msc;
 
 	/* timeout for waiting for the RLC */
-	struct timer_list rlc_timeout;
+	struct osmo_timer_list rlc_timeout;
 
 	/* how often did we send a RLSD this */
 	unsigned int rls_tries;

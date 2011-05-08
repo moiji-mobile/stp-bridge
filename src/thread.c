@@ -19,7 +19,7 @@
  */
 #include <thread.h>
 
-#include <osmocore/talloc.h>
+#include <osmocom/core/talloc.h>
 
 #include <sys/types.h>
 #include <sys/socket.h>

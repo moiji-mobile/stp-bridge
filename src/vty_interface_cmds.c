@@ -23,11 +23,12 @@
 #include <mtp_pcap.h>
 #include <msc_connection.h>
 
-#include <osmocore/rate_ctr.h>
+#include <osmocom/core/rate_ctr.h>
 
 #include <osmocom/vty/command.h>
 #include <osmocom/vty/logging.h>
 #include <osmocom/vty/vty.h>
+#include <osmocom/vty/misc.h>
 
 #include <sys/types.h>
 #include <sys/stat.h>

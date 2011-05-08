@@ -21,7 +21,7 @@
 #ifndef bss_patch_h
 #define bss_patch_h
 
-#include <osmocore/msgb.h>
+#include <osmocom/core/msgb.h>
 
 #include <osmocom/sccp/sccp.h>
 

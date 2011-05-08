@@ -1,7 +1,7 @@
 #ifndef _IPACCESS_H
 #define _IPACCESS_H
 
-#include <osmocore/linuxlist.h>
+#include <osmocom/core/linuxlist.h>
 
 #define IPA_TCP_PORT_OML	3002
 #define IPA_TCP_PORT_RSL	3003
@@ -42,8 +42,8 @@ enum ipaccess_id_tags {
 /*
  * methods for parsing and sending a message
  */
-int ipaccess_rcvmsg_base(struct msgb *msg, struct bsc_fd *bfd);
-struct msgb *ipaccess_read_msg(struct bsc_fd *bfd, int *error);
+int ipaccess_rcvmsg_base(struct msgb *msg, struct osmo_fd *bfd);
+struct msgb *ipaccess_read_msg(struct osmo_fd *bfd, int *error);
 void ipaccess_prepend_header(struct msgb *msg, int proto);
 int ipaccess_send_id_ack(int fd);
 int ipaccess_send_id_req(int fd);

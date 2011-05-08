@@ -20,9 +20,9 @@
 #ifndef MSC_CONNECTION_H
 #define MSC_CONNECTION_H
 
-#include <osmocore/linuxlist.h>
-#include <osmocore/write_queue.h>
-#include <osmocore/timer.h>
+#include <osmocom/core/linuxlist.h>
+#include <osmocom/core/write_queue.h>
+#include <osmocom/core/timer.h>
 
 #include <osmocom/sccp/sccp.h>
 
@@ -42,22 +42,22 @@ struct msc_connection {
 
 	/* connection management */
 	int msc_link_down;
-	struct write_queue msc_connection;
-	struct timer_list reconnect_timer;
+	struct osmo_wqueue msc_connection;
+	struct osmo_timer_list reconnect_timer;
 	int first_contact;
 
 	/* time to wait for first message from MSC */
-	struct timer_list msc_timeout;
+	struct osmo_timer_list msc_timeout;
 	int msc_time;
 
 	/* timeouts for the msc connection */
 	int ping_time;
 	int pong_time;
-	struct timer_list ping_timeout;
-	struct timer_list pong_timeout;
+	struct osmo_timer_list ping_timeout;
+	struct osmo_timer_list pong_timeout;
 
 	/* mgcp messgaes */
-	struct write_queue mgcp_agent;
+	struct osmo_wqueue mgcp_agent;
 
 	/* application pointer */
 	struct ss7_application *app;

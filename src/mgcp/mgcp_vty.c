@@ -23,7 +23,7 @@
 
 #include <sys/types.h>
 
-#include <osmocore/talloc.h>
+#include <osmocom/core/talloc.h>
 
 #include <mgcp/mgcp.h>
 #include <mgcp/mgcp_internal.h>

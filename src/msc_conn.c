@@ -27,9 +27,10 @@
 #include <mtp_data.h>
 #include <cellmgr_debug.h>
 
-#include <osmocore/talloc.h>
-#include <osmocore/tlv.h>
-#include <osmocore/utils.h>
+#include <osmocom/core/talloc.h>
+#include <osmocom/gsm/tlv.h>
+#include <osmocom/core/utils.h>
+#include <osmocom/core/write_queue.h>
 
 #include <arpa/inet.h>
 #include <sys/socket.h>
@@ -50,16 +51,16 @@ static void mgcp_forward(struct msc_connection *fw, const uint8_t *data, unsigne
 
 void msc_close_connection(struct msc_connection *fw)
 {
-	struct bsc_fd *bfd = &fw->msc_connection.bfd;
+	struct osmo_fd *bfd = &fw->msc_connection.bfd;
 
 	close(bfd->fd);
-	bsc_unregister_fd(bfd);
+	osmo_fd_unregister(bfd);
 	bfd->fd = -1;
 	fw->msc_link_down = 1;
 	release_bsc_resources(fw);
-	bsc_del_timer(&fw->ping_timeout);
-	bsc_del_timer(&fw->pong_timeout);
-	bsc_del_timer(&fw->msc_timeout);
+	osmo_timer_del(&fw->ping_timeout);
+	osmo_timer_del(&fw->pong_timeout);
+	osmo_timer_del(&fw->msc_timeout);
 	msc_schedule_reconnect(fw);
 }
 
@@ -104,16 +105,16 @@ static void msc_ping_timeout(void *_fw_data)
 	send_ping(fw);
 
 	/* send another ping in 20 seconds */
-	bsc_schedule_timer(&fw->ping_timeout, fw->ping_time, 0);
+	osmo_timer_schedule(&fw->ping_timeout, fw->ping_time, 0);
 
 	/* also start a pong timer */
-	bsc_schedule_timer(&fw->pong_timeout, fw->pong_time, 0);
+	osmo_timer_schedule(&fw->pong_timeout, fw->pong_time, 0);
 }
 
 /*
  * callback with IP access data
  */
-static int ipaccess_a_fd_cb(struct bsc_fd *bfd)
+static int ipaccess_a_fd_cb(struct osmo_fd *bfd)
 {
 	int error;
 	struct ipaccess_head *hh;
@@ -133,7 +134,7 @@ static int ipaccess_a_fd_cb(struct bsc_fd *bfd)
 		return -1;
 	}
 
-	LOGP(DMSC, LOGL_DEBUG, "From MSC: %s proto: %d\n", hexdump(msg->data, msg->len), msg->l2h[0]);
+	LOGP(DMSC, LOGL_DEBUG, "From MSC: %s proto: %d\n", osmo_hexdump(msg->data, msg->len), msg->l2h[0]);
 
 	/* handle base message handling */
 	hh = (struct ipaccess_head *) msg->data;
@@ -143,7 +144,7 @@ static int ipaccess_a_fd_cb(struct bsc_fd *bfd)
 	if (hh->proto == IPAC_PROTO_IPACCESS) {
 		if (fw->first_contact) {
 			LOGP(DMSC, LOGL_NOTICE, "Connected to MSC. Sending reset.\n");
-			bsc_del_timer(&fw->msc_timeout);
+			osmo_timer_del(&fw->msc_timeout);
 			fw->first_contact = 0;
 			fw->msc_link_down = 0;
 			msc_send_reset(fw);
@@ -151,7 +152,7 @@ static int ipaccess_a_fd_cb(struct bsc_fd *bfd)
 		if (msg->l2h[0] == IPAC_MSGT_ID_GET && fw->token) {
 			msc_send_id_response(fw);
 		} else if (msg->l2h[0] == IPAC_MSGT_PONG) {
-			bsc_del_timer(&fw->pong_timeout);
+			osmo_timer_del(&fw->pong_timeout);
 		}
 	} else if (hh->proto == IPAC_PROTO_SCCP) {
 		msc_dispatch_sccp(fw, msg);
@@ -165,11 +166,11 @@ static int ipaccess_a_fd_cb(struct bsc_fd *bfd)
 	return 0;
 }
 
-static int ipaccess_write_cb(struct bsc_fd *fd, struct msgb *msg)
+static int ipaccess_write_cb(struct osmo_fd *fd, struct msgb *msg)
 {
 	int rc;
 
-	LOGP(DMSC, LOGL_DEBUG, "Sending to MSC: %s\n", hexdump(msg->data, msg->len));
+	LOGP(DMSC, LOGL_DEBUG, "Sending to MSC: %s\n", osmo_hexdump(msg->data, msg->len));
 	rc = write(fd->fd, msg->data, msg->len);
 	if (rc != msg->len)
 		LOGP(DMSC, LOGL_ERROR, "Could not write to MSC.\n");
@@ -178,7 +179,7 @@ static int ipaccess_write_cb(struct bsc_fd *fd, struct msgb *msg)
 }
 
 /* called in the case of a non blocking connect */
-static int msc_connection_connect(struct bsc_fd *fd, unsigned int what)
+static int msc_connection_connect(struct osmo_fd *fd, unsigned int what)
 {
 	int rc;
 	int val;
@@ -208,7 +209,7 @@ static int msc_connection_connect(struct bsc_fd *fd, unsigned int what)
 
 
 	/* go to full operation */
-	fd->cb = write_queue_bfd_cb;
+	fd->cb = osmo_wqueue_bfd_cb;
 	fd->when = BSC_FD_READ;
 	if (!llist_empty(&fw->msc_connection.msg_queue))
 		fd->when |= BSC_FD_WRITE;
@@ -219,7 +220,7 @@ error:
 	return -1;
 }
 
-static int setnonblocking(struct bsc_fd *fd)
+static int setnonblocking(struct osmo_fd *fd)
 {
 	int flags;
 
@@ -243,7 +244,7 @@ static int setnonblocking(struct bsc_fd *fd)
 	return 0;
 }
 
-static int connect_to_msc(struct bsc_fd *fd, const char *ip, int port, int tos)
+static int connect_to_msc(struct osmo_fd *fd, const char *ip, int port, int tos)
 {
 	struct sockaddr_in sin;
 	int on = 1, ret;
@@ -287,10 +288,10 @@ static int connect_to_msc(struct bsc_fd *fd, const char *ip, int port, int tos)
 		return ret;
 	} else {
 		fd->when = BSC_FD_READ;
-		fd->cb = write_queue_bfd_cb;
+		fd->cb = osmo_wqueue_bfd_cb;
 	}
 
-	ret = bsc_register_fd(fd);
+	ret = osmo_fd_register(fd);
 	if (ret < 0) {
 		perror("Registering the fd failed");
 		close(fd->fd);
@@ -306,24 +307,24 @@ static void msc_reconnect(void *_data)
 	int rc;
 	struct msc_connection *fw = _data;
 
-	bsc_del_timer(&fw->reconnect_timer);
+	osmo_timer_del(&fw->reconnect_timer);
 	fw->first_contact = 1;
 
 	rc = connect_to_msc(&fw->msc_connection.bfd, fw->ip, 5000, fw->dscp);
 	if (rc < 0) {
 		fprintf(stderr, "Opening the MSC connection failed. Trying again\n");
-		bsc_schedule_timer(&fw->reconnect_timer, RECONNECT_TIME);
+		osmo_timer_schedule(&fw->reconnect_timer, RECONNECT_TIME);
 		return;
 	}
 
 	fw->msc_timeout.cb = msc_connect_timeout;
 	fw->msc_timeout.data = fw;
-	bsc_schedule_timer(&fw->msc_timeout, fw->msc_time, 0);
+	osmo_timer_schedule(&fw->msc_timeout, fw->msc_time, 0);
 }
 
 static void msc_schedule_reconnect(struct msc_connection *fw)
 {
-	bsc_schedule_timer(&fw->reconnect_timer, RECONNECT_TIME);
+	osmo_timer_schedule(&fw->reconnect_timer, RECONNECT_TIME);
 }
 
 /*
@@ -339,7 +340,7 @@ void msc_mgcp_reset(struct msc_connection *msc)
 	mgcp_forward(msc, (const uint8_t *) mgcp_reset, strlen(mgcp_reset));
 }
 
-static int mgcp_do_write(struct bsc_fd *fd, struct msgb *msg)
+static int mgcp_do_write(struct osmo_fd *fd, struct msgb *msg)
 {
 	int ret;
 
@@ -352,7 +353,7 @@ static int mgcp_do_write(struct bsc_fd *fd, struct msgb *msg)
 	return ret;
 }
 
-static int mgcp_do_read(struct bsc_fd *fd)
+static int mgcp_do_read(struct osmo_fd *fd)
 {
 	struct msgb *mgcp;
 	int ret;
@@ -396,7 +397,7 @@ static void mgcp_forward(struct msc_connection *fw, const uint8_t *data, unsigne
 
 	msgb_put(mgcp, length);
 	memcpy(mgcp->data, data, mgcp->len);
-	if (write_queue_enqueue(&fw->mgcp_agent, mgcp) != 0) {
+	if (osmo_wqueue_enqueue(&fw->mgcp_agent, mgcp) != 0) {
 		LOGP(DMGCP, LOGL_FATAL, "Could not queue message to MGCP GW.\n");
 		msgb_free(mgcp);
 	}
@@ -438,13 +439,13 @@ static int mgcp_create_port(struct msc_connection *fw)
 		return -1;
 	}
 
-	write_queue_init(&fw->mgcp_agent, 10);
+	osmo_wqueue_init(&fw->mgcp_agent, 10);
 	fw->mgcp_agent.bfd.data = fw;
 	fw->mgcp_agent.bfd.when = BSC_FD_READ;
 	fw->mgcp_agent.read_cb = mgcp_do_read;
 	fw->mgcp_agent.write_cb = mgcp_do_write;
 
-	if (bsc_register_fd(&fw->mgcp_agent.bfd) != 0) {
+	if (osmo_fd_register(&fw->mgcp_agent.bfd) != 0) {
 		LOGP(DMGCP, LOGL_FATAL, "Failed to register BFD\n");
 		close(fw->mgcp_agent.bfd.fd);
 		fw->mgcp_agent.bfd.fd = -1;
@@ -464,7 +465,7 @@ static void msc_send(struct msc_connection *fw, struct msgb *msg, int proto)
 
 	ipaccess_prepend_header(msg, proto);
 
-	if (write_queue_enqueue(&fw->msc_connection, msg) != 0) {
+	if (osmo_wqueue_enqueue(&fw->msc_connection, msg) != 0) {
 		LOGP(DMSC, LOGL_FATAL, "Failed to queue MSG for the MSC.\n");
 		msgb_free(msg);
 		return;
@@ -532,7 +533,7 @@ struct msc_connection *msc_connection_create(struct bsc_data *bsc, int mgcp)
 		return NULL;
 	}
 
-	write_queue_init(&msc->msc_connection, 100);
+	osmo_wqueue_init(&msc->msc_connection, 100);
 	msc->reconnect_timer.cb = msc_reconnect;
 	msc->reconnect_timer.data = msc;
 	msc->msc_connection.read_cb = ipaccess_a_fd_cb;

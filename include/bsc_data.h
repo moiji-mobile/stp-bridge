@@ -24,10 +24,10 @@
 
 #include "mtp_data.h"
 
-#include <osmocore/linuxlist.h>
-#include <osmocore/select.h>
-#include <osmocore/timer.h>
-#include <osmocore/write_queue.h>
+#include <osmocom/core/linuxlist.h>
+#include <osmocom/core/select.h>
+#include <osmocom/core/timer.h>
+#include <osmocom/core/write_queue.h>
 
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -38,8 +38,8 @@ struct msc_connection;
 struct mtp_m2ua_transport;
 
 struct mtp_udp_data {
-	struct write_queue write_queue;
-	struct timer_list snmp_poll;
+	struct osmo_wqueue write_queue;
+	struct osmo_timer_list snmp_poll;
 
 	struct llist_head links;
 };
@@ -83,7 +83,7 @@ struct bsc_data {
 
 	/* inject */
 	int allow_inject;
-	struct bsc_fd inject_fd;
+	struct osmo_fd inject_fd;
 
 	/* m2ua code */
 	struct sctp_m2ua_transport *m2ua_trans;

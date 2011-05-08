@@ -22,7 +22,7 @@
 #include <mtp_data.h>
 #include <mtp_pcap.h>
 
-#include <osmocore/talloc.h>
+#include <osmocom/core/talloc.h>
 
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -56,8 +56,8 @@ static void m2ua_conn_destroy(struct sctp_m2ua_conn *conn)
 	struct mtp_m2ua_link *link;
 
 	close(conn->queue.bfd.fd);
-	bsc_unregister_fd(&conn->queue.bfd);
-	write_queue_clear(&conn->queue);
+	osmo_fd_unregister(&conn->queue.bfd);
+	osmo_wqueue_clear(&conn->queue);
 	llist_del(&conn->entry);
 
 	llist_for_each_entry(link, &conn->trans->links, entry) {
@@ -91,7 +91,7 @@ static int m2ua_conn_send(struct sctp_m2ua_conn *conn,
 	msgb_push(msg, sizeof(*info));
 	memcpy(msg->data, info, sizeof(*info));
 
-	if (write_queue_enqueue(&conn->queue, msg) != 0) {
+	if (osmo_wqueue_enqueue(&conn->queue, msg) != 0) {
 		LOGP(DINP, LOGL_ERROR, "Failed to enqueue.\n");
 		msgb_free(msg);
 		return -1;
@@ -540,7 +540,7 @@ static int m2ua_conn_handle(struct sctp_m2ua_conn *conn,
 	return 0;
 }
 
-static int m2ua_conn_read(struct bsc_fd *fd)
+static int m2ua_conn_read(struct osmo_fd *fd)
 {
 	struct sockaddr_in addr;
 	struct sctp_sndrcvinfo info;
@@ -628,7 +628,7 @@ clean:
 	return 0;
 }
 
-static int m2ua_conn_write(struct bsc_fd *fd, struct msgb *msg)
+static int m2ua_conn_write(struct osmo_fd *fd, struct msgb *msg)
 {
 	int ret;
 	struct sctp_sndrcvinfo info;
@@ -643,7 +643,7 @@ static int m2ua_conn_write(struct bsc_fd *fd, struct msgb *msg)
 	return 0;
 }
 
-static int sctp_trans_accept(struct bsc_fd *fd, unsigned int what)
+static int sctp_trans_accept(struct osmo_fd *fd, unsigned int what)
 {
 	struct sctp_event_subscribe events;
 	struct sctp_m2ua_transport *trans;
@@ -685,14 +685,14 @@ static int sctp_trans_accept(struct bsc_fd *fd, unsigned int what)
 
 	conn->trans = trans;
 
-	write_queue_init(&conn->queue, 10);
+	osmo_wqueue_init(&conn->queue, 10);
 	conn->queue.bfd.fd = s;
 	conn->queue.bfd.data = conn;
 	conn->queue.bfd.when = BSC_FD_READ;
 	conn->queue.read_cb = m2ua_conn_read;
 	conn->queue.write_cb = m2ua_conn_write;
 
-	if (bsc_register_fd(&conn->queue.bfd) != 0) {
+	if (osmo_fd_register(&conn->queue.bfd) != 0) {
 		LOGP(DINP, LOGL_ERROR, "Failed to register.\n");
 		close(s);
 		talloc_free(conn);
@@ -788,7 +788,7 @@ int sctp_m2ua_transport_bind(struct sctp_m2ua_transport *trans,
 	trans->bsc.cb = sctp_trans_accept;
 	trans->bsc.when = BSC_FD_READ;
 
-	if (bsc_register_fd(&trans->bsc) != 0) {
+	if (osmo_fd_register(&trans->bsc) != 0) {
 		LOGP(DINP, LOGL_ERROR, "Failed to register the fd.\n");
 		close(sctp);
 		return -4;

@@ -22,7 +22,7 @@
 #ifndef counter_h
 #define counter_h
 
-#include <osmocore/rate_ctr.h>
+#include <osmocom/core/rate_ctr.h>
 
 enum {
 	MTP_LSET_TOTA_IN_MSG,
