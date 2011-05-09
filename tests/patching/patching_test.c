@@ -2,7 +2,7 @@
 
 #include <cellmgr_debug.h>
 
-#include <osmocore/utils.h>
+#include <osmocom/core/utils.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -221,20 +221,20 @@ static void test_rewrite_msc(void)
 		rc = bss_patch_filter_msg(outp, &result);
 		if (rc < 0) {
 			printf("Patched message doesn't work: %d\n", i);
-			printf("hex: %s\n", hexdump(outp->l2h, msgb_l2len(outp)));
+			printf("hex: %s\n", osmo_hexdump(outp->l2h, msgb_l2len(outp)));
 			abort();
 		}
 
 		if (msgb_l2len(outp) != rewrite_results_to_msc[i].exp_len) {
 			printf("The length's don#t match on %d %u != %u\n",
 				i, msgb_l2len(outp), rewrite_results_to_msc[i].exp_len);
-			printf("hex: %s\n", hexdump(outp->l2h, msgb_l2len(outp)));
+			printf("hex: %s\n", osmo_hexdump(outp->l2h, msgb_l2len(outp)));
 			abort();
 		}
 
 		if (memcmp(outp->l2h, rewrite_results_to_msc[i].expected, rewrite_results_to_msc[i].exp_len) != 0) {
 			printf("Expected results don't match for: %d\n", i);
-			printf("hex: %s\n", hexdump(outp->l2h, msgb_l2len(outp)));
+			printf("hex: %s\n", osmo_hexdump(outp->l2h, msgb_l2len(outp)));
 			abort();
 		}
 
@@ -263,7 +263,7 @@ static void test_rewrite_bsc(void)
 
 		if (memcmp(inp->l2h, rewrite_results_to_bsc[i].expected, msgb_l2len(inp))!= 0) {
 			fprintf(stderr, "Content does not match\n");
-			printf("got: %s\n", hexdump(inp->l2h, msgb_l2len(inp)));
+			printf("got: %s\n", osmo_hexdump(inp->l2h, msgb_l2len(inp)));
 			abort();
 		}
 
