@@ -32,6 +32,7 @@
 
 #include <osmocom/m2ua/m2ua_msg.h>
 
+#include <osmocom/core/application.h>
 #include <osmocom/core/talloc.h>
 
 #include <osmocom/sccp/sccp.h>
@@ -61,8 +62,6 @@
 #undef PACKAGE_TARNAME
 #undef PACKAGE_STRING
 #include <cellmgr_config.h>
-
-static struct log_target *stderr_target;
 
 char *config = "osmo_stp.cfg";
 
@@ -200,18 +199,15 @@ int main(int argc, char **argv)
 
 	thread_init();
 
-	log_init(&log_info);
-	stderr_target = log_target_create_stderr();
-	log_add_target(stderr_target);
+	osmo_init_logging(&log_info);
 
 	/* enable filters */
-	log_set_all_filter(stderr_target, 1);
-	log_set_category_filter(stderr_target, DINP, 1, LOGL_INFO);
-	log_set_category_filter(stderr_target, DSCCP, 1, LOGL_INFO);
-	log_set_category_filter(stderr_target, DMSC, 1, LOGL_INFO);
-	log_set_category_filter(stderr_target, DMGCP, 1, LOGL_INFO);
-	log_set_print_timestamp(stderr_target, 1);
-	log_set_use_color(stderr_target, 0);
+	log_set_category_filter(osmo_stderr_target, DINP, 1, LOGL_INFO);
+	log_set_category_filter(osmo_stderr_target, DSCCP, 1, LOGL_INFO);
+	log_set_category_filter(osmo_stderr_target, DMSC, 1, LOGL_INFO);
+	log_set_category_filter(osmo_stderr_target, DMGCP, 1, LOGL_INFO);
+	log_set_print_timestamp(osmo_stderr_target, 1);
+	log_set_use_color(osmo_stderr_target, 0);
 
 	sccp_set_log_area(DSCCP);
 	m2ua_set_log_area(DM2UA);

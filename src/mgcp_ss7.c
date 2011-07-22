@@ -25,6 +25,7 @@
 
 #include <cellmgr_debug.h>
 
+#include <osmocom/core/application.h>
 #include <osmocom/core/select.h>
 #include <osmocom/core/talloc.h>
 #include <osmocom/core/timer.h>
@@ -52,7 +53,6 @@
 #endif
 #include <getopt.h>
 
-static struct log_target *stderr_target;
 static char *config_file = "mgcp_mgw.cfg";
 static int exit_on_failure = 0;
 
@@ -848,18 +848,14 @@ int main(int argc, char **argv)
 	struct mgcp_ss7 *mgcp;
 	int rc;
 
-	log_init(&log_info);
-	stderr_target = log_target_create_stderr();
-	log_add_target(stderr_target);
+	osmo_init_logging(&log_info);
 
 	/* enable filters */
-	log_set_all_filter(stderr_target, 1);
-	log_set_category_filter(stderr_target, DINP, 1, LOGL_INFO);
-	log_set_category_filter(stderr_target, DSCCP, 1, LOGL_INFO);
-	log_set_category_filter(stderr_target, DMSC, 1, LOGL_INFO);
-	log_set_category_filter(stderr_target, DMGCP, 1, LOGL_INFO);
-	log_set_print_timestamp(stderr_target, 1);
-	log_set_use_color(stderr_target, 0);
+	log_set_category_filter(osmo_stderr_target, DSCCP, 1, LOGL_INFO);
+	log_set_category_filter(osmo_stderr_target, DMSC, 1, LOGL_INFO);
+	log_set_category_filter(osmo_stderr_target, DMGCP, 1, LOGL_INFO);
+	log_set_print_timestamp(osmo_stderr_target, 1);
+	log_set_use_color(osmo_stderr_target, 0);
 
 	handle_options(argc, argv);
 
