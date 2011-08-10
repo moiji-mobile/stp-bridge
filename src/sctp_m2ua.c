@@ -311,22 +311,6 @@ static int m2ua_handle_state_req(struct mtp_m2ua_link *link,
 	uint32_t index;
 	int req;
 
-	/* fixup for a broken MSC */
-	if (link->conn != conn) {
-		if (!link->conn) {
-			LOGP(DINP, LOGL_NOTICE,
-			     "No ASP Activate but no connection is on link-index %d.\n",
-			     link->link_index);
-			link->conn = conn;
-			link->asp_active = 1;
-		} else {
-			LOGP(DINP, LOGL_ERROR,
-			     "Someone forgot the ASP Activate on link-index %d\n",
-			     link->link_index);
-			return -1;
-		}
-	}
-
 	state = m2ua_msg_find_tag(m2ua, M2UA_TAG_STATE_REQ);
 	if (!state || state->len != 4) {
 		LOGP(DINP, LOGL_ERROR, "Mandantory state request not present.\n");
@@ -472,6 +456,15 @@ static int m2ua_handle_maup(struct mtp_m2ua_link *link,
 	if (!link) {
 		LOGP(DINP, LOGL_ERROR, "Link is required.\n");
 		return -1;
+	}
+
+	/* fixup for a broken MSC */
+	if (!link->conn && m2ua->hdr.msg_type == M2UA_MAUP_STATE_REQ) {
+		LOGP(DINP, LOGL_NOTICE,
+		     "No ASP Activate but no connection is on link-index %d.\n",
+		     link->link_index);
+		link->conn = conn;
+		link->asp_active = 1;
 	}
 
 	if (link->conn != conn) {
