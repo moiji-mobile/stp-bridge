@@ -151,6 +151,8 @@ static int m2ua_handle_asp_ack(struct sctp_m2ua_conn *conn,
 			       struct m2ua_msg *m2ua,
 			       struct sctp_sndrcvinfo *info)
 {
+	struct sctp_m2ua_transport *trans = conn->trans;
+	struct sctp_m2ua_conn *tmp;
 	struct m2ua_msg_part *asp_ident;
 	struct m2ua_msg *ack;
 
@@ -180,6 +182,19 @@ static int m2ua_handle_asp_ack(struct sctp_m2ua_conn *conn,
 
 	memcpy(conn->asp_ident, asp_ident->dat, 4);
 	conn->asp_up = 1;
+
+	/* some verification about the ASPs */
+	llist_for_each_entry(tmp, &trans->conns, entry) {
+		if (tmp != conn)
+			continue;
+		if (memcmp(tmp->asp_ident, conn->asp_ident, 4) != 0)
+			continue;
+		LOGP(DINP, LOGL_ERROR,
+		     "Two active SCTP conns with %d.%d.%d.%d on %p, %p\n",
+		     conn->asp_ident[0], conn->asp_ident[1],
+		     conn->asp_ident[2], conn->asp_ident[3],
+		     tmp, conn);
+	}
 
 	m2ua_msg_free(ack);
 	return 0;
