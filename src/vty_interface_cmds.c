@@ -253,13 +253,30 @@ DEFUN(allow_inject, allow_inject_cmd,
 	return CMD_SUCCESS;
 }
 
-DEFUN(show_sctp, show_sctp_cmd,
-      "show sctp-connections",
-      SHOW_STR "Active SCTP connections\n")
+DEFUN(show_sctp_count, show_sctp_count_cmd,
+      "show sctp-connections count",
+      SHOW_STR "Number of SCTP connections\n")
 {
 	int count = sctp_m2ua_conn_count(bsc->m2ua_trans);
 	vty_out(vty, "Active SCTP connections are: %d.%s", count, VTY_NEWLINE);
 	return CMD_SUCCESS;
+}
+
+DEFUN(show_sctp_details, show_sctp_details_cmd,
+      "show sctp-connections details",
+      SHOW_STR "Details of SCTP connections\n")
+{
+	struct sctp_m2ua_conn *conn;
+
+	llist_for_each_entry(conn, &bsc->m2ua_trans->conns, entry) {
+		vty_out(vty,
+			"SCTP Conn ASP UP: %d, ident: %d,%d,%d,%d fd: %d ptr: %p.%s",
+			conn->asp_up, conn->asp_ident[0], conn->asp_ident[1],
+			conn->asp_ident[2], conn->asp_ident[3],
+			conn->queue.bfd.fd, conn, VTY_NEWLINE);
+	}
+
+	return CMD_WARNING;
 }
 
 void cell_vty_init_cmds(void)
@@ -278,5 +295,6 @@ void cell_vty_init_cmds(void)
 	install_element_ve(&show_slc_cmd);
 
 	install_element_ve(&show_msc_cmd);
-	install_element_ve(&show_sctp_cmd);
+	install_element_ve(&show_sctp_count_cmd);
+	install_element_ve(&show_sctp_details_cmd);
 }
