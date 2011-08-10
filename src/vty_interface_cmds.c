@@ -22,6 +22,7 @@
 #include <bsc_data.h>
 #include <mtp_pcap.h>
 #include <msc_connection.h>
+#include <sctp_m2ua.h>
 
 #include <osmocom/core/rate_ctr.h>
 
@@ -252,6 +253,15 @@ DEFUN(allow_inject, allow_inject_cmd,
 	return CMD_SUCCESS;
 }
 
+DEFUN(show_sctp, show_sctp_cmd,
+      "show sctp-connections",
+      SHOW_STR "Active SCTP connections\n")
+{
+	int count = sctp_m2ua_conn_count(bsc->m2ua_trans);
+	vty_out(vty, "Active SCTP connections are: %d.%s", count, VTY_NEWLINE);
+	return CMD_SUCCESS;
+}
+
 void cell_vty_init_cmds(void)
 {
 	/* special commands */
@@ -268,4 +278,5 @@ void cell_vty_init_cmds(void)
 	install_element_ve(&show_slc_cmd);
 
 	install_element_ve(&show_msc_cmd);
+	install_element_ve(&show_sctp_cmd);
 }
