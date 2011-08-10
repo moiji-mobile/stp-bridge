@@ -32,6 +32,18 @@
 
 #define SCTP_PPID_M2UA 2
 
+
+int sctp_m2ua_conn_count(struct sctp_m2ua_transport *trans)
+{
+	int count = 0;
+	struct sctp_m2ua_conn *conn;
+
+	llist_for_each_entry(conn, &trans->conns, entry)
+		count += 1;
+
+	return count;
+}
+
 static struct mtp_m2ua_link *find_m2ua_link(struct sctp_m2ua_transport *trans, int link_index)
 {
 	struct mtp_m2ua_link *link;
@@ -650,7 +662,7 @@ static int sctp_trans_accept(struct bsc_fd *fd, unsigned int what)
 	struct sctp_m2ua_conn *conn;
 	struct sockaddr_in addr;
 	socklen_t len;
-	int s, ret;
+	int s, ret, count;
 
 	len = sizeof(addr);
 	s = accept(fd->fd, (struct sockaddr *) &addr, &len);
@@ -700,6 +712,10 @@ static int sctp_trans_accept(struct bsc_fd *fd, unsigned int what)
 	}
 
 	llist_add_tail(&conn->entry, &trans->conns);
+
+
+	count = sctp_m2ua_conn_count(trans);
+	LOGP(DINP, LOGL_NOTICE, "Now having %d SCTP connection(s).\n", count);
 	return 0;
 }
 

@@ -80,4 +80,6 @@ struct mtp_m2ua_link *mtp_m2ua_link_create(struct sctp_m2ua_transport *transport
 
 struct mtp_m2ua_link *mtp_m2ua_link_init(struct mtp_link *link);
 
+int sctp_m2ua_conn_count(struct sctp_m2ua_transport *tran);
+
 #endif

@@ -134,3 +134,7 @@ int main(int argc, char **argv)
 	return 0;
 }
 
+int sctp_m2ua_conn_count(struct sctp_m2ua_transport *trans)
+{
+	return 0;
+}
