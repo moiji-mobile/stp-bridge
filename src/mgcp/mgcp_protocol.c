@@ -932,7 +932,7 @@ struct mgcp_trunk_config *mgcp_trunk_alloc(struct mgcp_config *cfg, int nr)
 	trunk->trunk_type = MGCP_TRUNK_E1;
 	trunk->trunk_nr = nr;
 	trunk_init(trunk);
-	trunk->number_endpoints = 33;
+	trunk->number_endpoints = 32;
 	llist_add_tail(&trunk->entry, &cfg->trunks);
 	return trunk;
 }
@@ -985,6 +985,8 @@ int mgcp_endpoints_allocate(struct mgcp_trunk_config *tcfg)
 				       tcfg->number_endpoints, "endpoints");
 	if (!tcfg->endpoints)
 		return -1;
+
+	tcfg->endpoints[0].blocked = 1;
 
 	for (i = 0; i < tcfg->number_endpoints; ++i) {
 		tcfg->endpoints[i].ci = CI_UNUSED;
