@@ -122,8 +122,6 @@ struct mgcp_trunk_config {
 
 	/* Special MGW handling */
 	int target_trunk_start;
-	int voice_base;
-	int endp_offset;
 	int vad_enabled;
 
 	int digital_inp_gain;
