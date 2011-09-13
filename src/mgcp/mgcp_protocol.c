@@ -937,6 +937,12 @@ struct mgcp_trunk_config *mgcp_trunk_alloc(struct mgcp_config *cfg, int nr)
 	return trunk;
 }
 
+void mgcp_trunk_free(struct mgcp_trunk_config *cfg)
+{
+	llist_del(&cfg->entry);
+	talloc_free(cfg);
+}
+
 struct mgcp_trunk_config *mgcp_trunk_num(struct mgcp_config *cfg, int index)
 {
 	struct mgcp_trunk_config *trunk;
