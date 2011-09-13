@@ -23,6 +23,7 @@
 #include <ss7_vty.h>
 
 #include <mgcp/mgcp.h>
+#include <mgcp/mgcp_internal.h>
 
 #include <stdlib.h>
 
@@ -172,6 +173,24 @@ DEFUN(cfg_mgcp_target_trunk, cfg_mgcp_target_trunk_cmd,
 	return CMD_SUCCESS;
 }
 
+#define ENDP_BLOCK_STR "Block the Endpoint/Timeslot for Audio\n"
+
+DEFUN(cfg_mgcp_timeslot_block, cfg_mgcp_timeslot_block_cmd,
+      "block-endpoint <1-65534>",
+       ENDP_BLOCK_STR "Endpoint number\n")
+{
+	int nr = atoi(argv[0]);
+
+	if (g_cfg->trunk.number_endpoints <= nr) {
+		vty_out(vty, "%%Endpoint %d too big. Current size: %d%s",
+			nr, g_cfg->trunk.number_endpoints, VTY_NEWLINE);
+		return CMD_WARNING;
+	}
+
+	g_cfg->trunk.endpoints[nr].blocked = 1;
+	return CMD_SUCCESS;
+}
+
 DEFUN(cfg_trunk_vad, cfg_trunk_vad_cmd,
       "vad (enabled|disabled)",
       "Enable the Voice Activity Detection\n"
@@ -315,6 +334,28 @@ DEFUN_DEPRECATED(cfg_trunk_endp_offset, cfg_trunk_endp_offset_cmd,
 	return CMD_WARNING;
 }
 
+DEFUN(cfg_trunk_timeslot_block, cfg_trunk_timeslot_block_cmd,
+      "block-endpoint <1-31>",
+      ENDP_BLOCK_STR "Endpoint number\n")
+{
+	struct mgcp_trunk_config *trunk = vty->index;
+	trunk->endpoints[atoi(argv[0])].blocked = 1;
+	return CMD_SUCCESS;
+}
+
+static void write_blocked_endpoints(struct vty *vty,
+				    struct mgcp_trunk_config *tcfg)
+{
+	int i;
+
+	for (i = 1; i < tcfg->number_endpoints; ++i) {
+		if (!tcfg->endpoints[i].blocked)
+			continue;
+
+		vty_out(vty, "block-endpoint %d%s", i, VTY_NEWLINE);
+	}
+}
+
 void mgcp_write_extra(struct vty *vty, struct mgcp_config *cfg)
 {
 	vty_out(vty, "  configure-trunks %d%s",
@@ -345,6 +386,7 @@ void mgcp_write_extra(struct vty *vty, struct mgcp_config *cfg)
 		cfg->trunk.dwnstr_target_lvl, VTY_NEWLINE);
 	vty_out(vty, "  target-trunk-start %d%s",
 		cfg->trunk.target_trunk_start, VTY_NEWLINE);
+	write_blocked_endpoints(vty, &cfg->trunk);
 }
 
 void mgcp_write_trunk_extra(struct vty *vty, struct mgcp_trunk_config *trunk)
@@ -373,6 +415,7 @@ void mgcp_write_trunk_extra(struct vty *vty, struct mgcp_trunk_config *trunk)
 		trunk->dwnstr_max_gain, VTY_NEWLINE);
 	vty_out(vty, "   downstream-target-level %d%s",
 		trunk->dwnstr_target_lvl, VTY_NEWLINE);
+	write_blocked_endpoints(vty, trunk);
 }
 
 
@@ -398,6 +441,7 @@ void mgcp_mgw_vty_init(void)
 	install_element(MGCP_NODE, &cfg_mgcp_dwnstr_target_cmd);
 	install_element(MGCP_NODE, &cfg_mgcp_endp_offset_cmd);
 	install_element(MGCP_NODE, &cfg_mgcp_target_trunk_cmd);
+	install_element(MGCP_NODE, &cfg_mgcp_timeslot_block_cmd);
 
 	install_element(TRUNK_NODE, &cfg_trunk_vad_cmd);
 	install_element(TRUNK_NODE, &cfg_trunk_realloc_cmd);
@@ -412,6 +456,7 @@ void mgcp_mgw_vty_init(void)
 	install_element(TRUNK_NODE, &cfg_trunk_dwnstr_max_gain_cmd);
 	install_element(TRUNK_NODE, &cfg_trunk_dwnstr_target_cmd);
 	install_element(TRUNK_NODE, &cfg_trunk_endp_offset_cmd);
+	install_element(TRUNK_NODE, &cfg_trunk_timeslot_block_cmd);
 }
 
 

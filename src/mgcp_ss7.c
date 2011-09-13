@@ -662,6 +662,41 @@ static int realloc_cb(struct mgcp_trunk_config *tcfg, int endp_no)
 	return 0;
 }
 
+static int configure_trunk(struct mgcp_trunk_config *tcfg, int *dsp_resource)
+{
+	int i, start;
+
+	start = tcfg->trunk_type == MGCP_TRUNK_VIRTUAL ?
+			tcfg->target_trunk_start : tcfg->trunk_nr;
+
+	for (i = 1; i < tcfg->number_endpoints; ++i) {
+		if (tcfg->endpoints[i].blocked)
+			continue;
+
+		*dsp_resource += 1;
+		tcfg->endpoints[i].hw_snmp_port = *dsp_resource;
+
+		if (tcfg->cfg->configure_trunks) {
+			int multiplex, timeslot, res;
+
+			mgcp_endpoint_to_timeslot(i, &multiplex, &timeslot);
+			res = mgcp_snmp_connect(*dsp_resource,
+						start + multiplex,
+						timeslot);
+
+			if (res != 0) {
+				LOGP(DMGCP, LOGL_ERROR,
+				     "Failed to configure trunk Type: %s Trunk: %d\n",
+				     tcfg->trunk_type == MGCP_TRUNK_VIRTUAL ?
+					"virtual" : "trunk", start);
+				return -1;
+			}
+		}
+	}
+
+	return 0;
+}
+
 static struct mgcp_ss7 *mgcp_ss7_init(struct mgcp_config *cfg)
 {
 	struct mgcp_trunk_config *trunk;
@@ -697,58 +732,16 @@ static struct mgcp_ss7 *mgcp_ss7_init(struct mgcp_config *cfg)
 	/* Now do the init of the trunks */
 	dsp_resource = 0;
 	for (i = 1; i < cfg->trunk.number_endpoints; ++i) {
-		int multiplex, timeslot;
-		mgcp_endpoint_to_timeslot(i, &multiplex, &timeslot);
-		if (timeslot == 0x0 || timeslot == 0x1F) {
-			cfg->trunk.endpoints[i].blocked = 1;
-			continue;
-		}
-
-		dsp_resource += 1;
-		cfg->trunk.endpoints[i].hw_snmp_port = dsp_resource;
-
-		if (cfg->configure_trunks) {
-			int res;
-
-			res = mgcp_snmp_connect(dsp_resource,
-						cfg->trunk.target_trunk_start + multiplex,
-						timeslot);
-
-			if (res != 0) {
-				LOGP(DMGCP, LOGL_ERROR, "Failed to configure virtual trunk.\n");
-				talloc_free(conf);
-				return NULL;
-			}
+		if (configure_trunk(&cfg->trunk, &dsp_resource) != 0) {
+			talloc_free(conf);
+			return NULL;
 		}
 	}
 
 	llist_for_each_entry(trunk, &cfg->trunks, entry) {
-
-		for (i = 1; i < trunk->number_endpoints; ++i) {
-			int multiplex, timeslot;
-			mgcp_endpoint_to_timeslot(i, &multiplex, &timeslot);
-			if (timeslot == 0x0 || timeslot == 0x1) {
-				trunk->endpoints[i].blocked = 1;
-				continue;
-			}
-
-			dsp_resource += 1;
-			trunk->endpoints[i].hw_snmp_port = dsp_resource;
-
-			if (cfg->configure_trunks) {
-				int res;
-
-				res = mgcp_snmp_connect(dsp_resource,
-							trunk->trunk_nr + multiplex,
-							timeslot);
-
-				if (res != 0) {
-					LOGP(DMGCP, LOGL_ERROR,
-					     "Failed to configure virtual trunk.\n");
-					talloc_free(conf);
-					return NULL;
-				}
-			}
+		if (configure_trunk(trunk, &dsp_resource) != 0) {
+			talloc_free(conf);
+			return NULL;
 		}
 	}
 
