@@ -329,7 +329,6 @@ int ss7_application_setup(struct ss7_application *ss7, int type,
 	}
 }
 
-
 static void start_mtp(struct mtp_link_set *set)
 {
 	struct mtp_link *link;
@@ -412,4 +411,13 @@ int mtp_link_set_data(struct mtp_link *link, struct msgb *msg)
 	}
 
 	return mtp_link_handle_data(link, msg);
+}
+
+int ss7_application_mgcp_domain_name(struct ss7_application *app,
+				     const char *name)
+{
+	talloc_free(app->mgcp_domain_name);
+	app->mgcp_domain_name = talloc_strdup(app, name);
+
+	return app->mgcp_domain_name == NULL;
 }
