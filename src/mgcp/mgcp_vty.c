@@ -37,6 +37,7 @@
 extern void mgcp_write_extra(struct vty *vty, struct mgcp_config *cfg);
 extern void mgcp_write_trunk_extra(struct vty *vty, struct mgcp_trunk_config *cfg);
 
+static int allocate_endpoints(struct mgcp_trunk_config *tcfg);
 
 enum node_type mgcp_go_parent(struct vty *vty)
 {
@@ -404,8 +405,18 @@ DEFUN(cfg_mgcp_number_endp,
       "number endpoints <0-65534>",
       "The number of endpoints to allocate. This is not dynamic.")
 {
+	if (g_cfg->trunk.endpoints) {
+		vty_out(vty, "Can not change size.%s", VTY_NEWLINE);
+		return CMD_WARNING;
+	}
+
 	/* + 1 as we start counting at one */
 	g_cfg->trunk.number_endpoints = atoi(argv[0]) + 1;
+	if (allocate_endpoints(&g_cfg->trunk) != 0) {
+		vty_out(vty, "Can not allocate endpoints.%s", VTY_NEWLINE);
+		return CMD_WARNING;
+	}
+
 	return CMD_SUCCESS;
 }
 
@@ -461,8 +472,15 @@ DEFUN(cfg_mgcp_trunk, cfg_mgcp_trunk_cmd,
 	int index = atoi(argv[0]);
 
 	trunk = mgcp_trunk_num(g_cfg, index);
-	if (!trunk)
+	if (!trunk) {
 		trunk = mgcp_trunk_alloc(g_cfg, index);
+		if (allocate_endpoints(trunk) != 0) {
+			vty_out(vty, "%%Unable to allocate endpoints.%s",
+				VTY_NEWLINE);
+			mgcp_trunk_free(trunk);
+			return CMD_WARNING;
+		}
+	}
 
 	if (!trunk) {
 		vty_out(vty, "%%Unable to allocate trunk %u.%s",
@@ -710,17 +728,22 @@ int mgcp_vty_init(void)
 	return 0;
 }
 
-static int allocate_trunk(struct mgcp_trunk_config *trunk)
+static int allocate_endpoints(struct mgcp_trunk_config *tcfg)
+{
+	if (mgcp_endpoints_allocate(tcfg) != 0) {
+		LOGP(DMGCP, LOGL_ERROR,
+		     "Failed to allocate %d endpoints on trunk %d.\n",
+		     tcfg->number_endpoints, tcfg->trunk_nr);
+		return -1;
+	}
+
+	return 0;
+}
+
+static int configure_endpoints(struct mgcp_trunk_config *trunk)
 {
 	int i;
 	struct mgcp_config *cfg = trunk->cfg;
-
-	if (mgcp_endpoints_allocate(trunk) != 0) {
-		LOGP(DMGCP, LOGL_ERROR,
-		     "Failed to allocate %d endpoints on trunk %d.\n",
-		     trunk->number_endpoints, trunk->trunk_nr);
-		return -1;
-	}
 
 	/* early bind */
 	for (i = 1; i < trunk->number_endpoints; ++i) {
@@ -798,13 +821,13 @@ int mgcp_parse_config(const char *config_file, struct mgcp_config *cfg)
 	g_cfg->last_bts_port = rtp_calculate_port(0, g_cfg->bts_ports.base_port);
 	g_cfg->last_net_port = rtp_calculate_port(0, g_cfg->net_ports.base_port);
 
-	if (allocate_trunk(&g_cfg->trunk) != 0) {
+	if (configure_endpoints(&g_cfg->trunk) != 0) {
 		LOGP(DMGCP, LOGL_ERROR, "Failed to initialize the virtual trunk.\n");
 		return -1;
 	}
 
 	llist_for_each_entry(trunk, &g_cfg->trunks, entry) {
-		if (allocate_trunk(trunk) != 0) {
+		if (configure_endpoints(trunk) != 0) {
 			LOGP(DMGCP, LOGL_ERROR,
 			     "Failed to initialize E1 trunk %d.\n", trunk->trunk_nr);
 			return -1;
