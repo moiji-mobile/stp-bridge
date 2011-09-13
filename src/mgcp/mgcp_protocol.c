@@ -876,7 +876,6 @@ static void trunk_init(struct mgcp_trunk_config *trunk)
 
 	/* MGW handling */
 	trunk->target_trunk_start = 1;
-	trunk->endp_offset = 1;
 	trunk->vad_enabled = 1;
 	trunk->digital_inp_gain = 31;
 	trunk->digital_out_gain = 31;

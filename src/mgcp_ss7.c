@@ -79,9 +79,7 @@ static int select_voice_port(struct mgcp_endpoint *endp)
 		return -1;
 	}
 
-	mgw_port = endp->tcfg->voice_base + 30 * multiplex;
-
-	mgw_port = mgw_port + timeslot - endp->tcfg->endp_offset;
+	mgw_port = endp->hw_snmp_port - 1;
 	fprintf(stderr, "TEST: Going to use MGW: %d for MUL: %d TS: %d\n",
 		mgw_port, multiplex, timeslot);
 	return mgw_port;
@@ -707,6 +705,7 @@ static struct mgcp_ss7 *mgcp_ss7_init(struct mgcp_config *cfg)
 		}
 
 		dsp_resource += 1;
+		cfg->trunk.endpoints[i].hw_snmp_port = dsp_resource;
 
 		if (cfg->configure_trunks) {
 			int res;
@@ -724,7 +723,6 @@ static struct mgcp_ss7 *mgcp_ss7_init(struct mgcp_config *cfg)
 	}
 
 	llist_for_each_entry(trunk, &cfg->trunks, entry) {
-		trunk->voice_base = dsp_resource;
 
 		for (i = 1; i < trunk->number_endpoints; ++i) {
 			int multiplex, timeslot;
@@ -735,6 +733,7 @@ static struct mgcp_ss7 *mgcp_ss7_init(struct mgcp_config *cfg)
 			}
 
 			dsp_resource += 1;
+			trunk->endpoints[i].hw_snmp_port = dsp_resource;
 
 			if (cfg->configure_trunks) {
 				int res;

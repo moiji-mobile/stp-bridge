@@ -156,12 +156,12 @@ DEFUN(cfg_mgcp_dwnstr_target, cfg_mgcp_dwnstr_target_cmd,
 	return CMD_SUCCESS;
 }
 
-DEFUN(cfg_mgcp_endp_offset, cfg_mgcp_endp_offset_cmd,
+DEFUN_DEPRECATED(cfg_mgcp_endp_offset, cfg_mgcp_endp_offset_cmd,
       "endpoint-offset <-60-60>",
       "Offset to the CIC map\n" "Value to set\n")
 {
-	g_cfg->trunk.endp_offset = atoi(argv[0]);
-	return CMD_SUCCESS;
+	vty_out(vty, "%%endpoint-offset is not used anymore.%s", VTY_NEWLINE);
+	return CMD_WARNING;
 }
 
 DEFUN(cfg_mgcp_target_trunk, cfg_mgcp_target_trunk_cmd,
@@ -307,14 +307,12 @@ DEFUN(cfg_trunk_dwnstr_target, cfg_trunk_dwnstr_target_cmd,
 	return CMD_SUCCESS;
 }
 
-DEFUN(cfg_trunk_endp_offset, cfg_trunk_endp_offset_cmd,
+DEFUN_DEPRECATED(cfg_trunk_endp_offset, cfg_trunk_endp_offset_cmd,
       "endpoint-offset <-60-60>",
       "Offset to the CIC map\n" "Value to set\n")
 {
-	struct mgcp_trunk_config *trunk = vty->index;
-
-	trunk->endp_offset = atoi(argv[0]);
-	return CMD_SUCCESS;
+	vty_out(vty, "%%endpoint-offset is not used anymore.%s", VTY_NEWLINE);
+	return CMD_WARNING;
 }
 
 void mgcp_write_extra(struct vty *vty, struct mgcp_config *cfg)
@@ -345,8 +343,6 @@ void mgcp_write_extra(struct vty *vty, struct mgcp_config *cfg)
 		cfg->trunk.dwnstr_max_gain, VTY_NEWLINE);
 	vty_out(vty, "  downstream-target-level %d%s",
 		cfg->trunk.dwnstr_target_lvl, VTY_NEWLINE);
-	vty_out(vty, "  endpoint-offset %d%s",
-		cfg->trunk.endp_offset, VTY_NEWLINE);
 	vty_out(vty, "  target-trunk-start %d%s",
 		cfg->trunk.target_trunk_start, VTY_NEWLINE);
 }
@@ -377,8 +373,6 @@ void mgcp_write_trunk_extra(struct vty *vty, struct mgcp_trunk_config *trunk)
 		trunk->dwnstr_max_gain, VTY_NEWLINE);
 	vty_out(vty, "   downstream-target-level %d%s",
 		trunk->dwnstr_target_lvl, VTY_NEWLINE);
-	vty_out(vty, "   endpoint-offset %d%s",
-		trunk->endp_offset, VTY_NEWLINE);
 }
 
 
