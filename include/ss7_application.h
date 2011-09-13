@@ -77,6 +77,9 @@ struct ss7_application {
 	struct mtp_link_set *target_link;
 	int forward_only;
 	int reset_count;
+
+	/* mgcp handling for the cellmgr */
+	char *mgcp_domain_name;
 };
 
 
@@ -90,5 +93,8 @@ int ss7_application_start(struct ss7_application *);
 
 /* config changes */
 void ss7_application_pass_isup(struct ss7_application *, int pass);
+
+int ss7_application_mgcp_domain_name(struct ss7_application *,
+				     const char *domain_name);
 
 #endif

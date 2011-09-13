@@ -291,6 +291,11 @@ static void write_application(struct vty *vty, struct ss7_application *app)
 	if (app->type == APP_STP)
 		vty_out(vty, "  isup-pass-through %d%s", app->isup_pass, VTY_NEWLINE);
 
+	if (app->type == APP_CELLMGR && app->mgcp_domain_name) {
+		vty_out(vty, "  domain-name %s%s",
+			app->mgcp_domain_name, VTY_NEWLINE);
+	}
+
 	if (app->route_is_set) {
 		vty_out(vty, "  route %s %d %s %d%s",
 			link_type(app->route_src.type), app->route_src.nr,
@@ -866,6 +871,44 @@ DEFUN(cfg_app_route_ls, cfg_app_route_ls_cmd,
 	return CMD_SUCCESS;
 }
 
+#define MGCP_DOMAIN_STR "MGCP domain name to use\n"
+
+DEFUN(cfg_app_domain_name, cfg_app_domain_name_cmd,
+      "domain-name NAME",
+      MGCP_DOMAIN_STR "Domain Name\n")
+{
+	struct ss7_application *app = vty->index;
+
+	if (app->type != APP_CELLMGR) {
+		vty_out(vty, "The app type needs to be 'msc'.%s", VTY_NEWLINE);
+		return CMD_WARNING;
+	}
+
+	if (ss7_application_mgcp_domain_name(app, argv[0]) != 0) {
+		vty_out(vty, "Failed to set the domain name.%s", VTY_NEWLINE);
+		return CMD_WARNING;
+	}
+
+	return CMD_SUCCESS;
+}
+
+DEFUN(cfg_app_no_domain_name, cfg_app_no_domain_name_cmd,
+      "no domain-name",
+      NO_STR MGCP_DOMAIN_STR)
+{
+	struct ss7_application *app = vty->index;
+
+	if (app->type != APP_CELLMGR) {
+		vty_out(vty, "The app type needs to be 'msc'.%s", VTY_NEWLINE);
+		return CMD_WARNING;
+	}
+
+	talloc_free(app->mgcp_domain_name);
+	app->mgcp_domain_name = NULL;
+	return CMD_SUCCESS;
+}
+
+
 static void install_defaults(int node)
 {
 	install_default(node);
@@ -929,6 +972,8 @@ void cell_vty_init(void)
 	install_element(APP_NODE, &cfg_app_isup_pass_cmd);
 	install_element(APP_NODE, &cfg_app_route_cmd);
 	install_element(APP_NODE, &cfg_app_route_ls_cmd);
+	install_element(APP_NODE, &cfg_app_domain_name_cmd);
+	install_element(APP_NODE, &cfg_app_no_domain_name_cmd);
 
 	cell_vty_init_cmds();
 }
