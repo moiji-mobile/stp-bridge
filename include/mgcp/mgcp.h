@@ -122,6 +122,7 @@ struct mgcp_trunk_config {
 	struct mgcp_endpoint *endpoints;
 
 	/* Special MGW handling */
+	char *virtual_domain;
 	int target_trunk_start;
 	int vad_enabled;
 
@@ -165,7 +166,7 @@ struct mgcp_config {
 	void *data;
 
 	/* trunk handling */
-	struct mgcp_trunk_config trunk;
+	struct llist_head vtrunks;
 	struct llist_head trunks;
 
 	/* only used for start with a static configuration */

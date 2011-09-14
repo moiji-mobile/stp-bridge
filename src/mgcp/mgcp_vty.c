@@ -36,6 +36,7 @@
 /* MGW changes */
 extern void mgcp_write_extra(struct vty *vty, struct mgcp_config *cfg);
 extern void mgcp_write_trunk_extra(struct vty *vty, struct mgcp_trunk_config *cfg);
+extern void mgcp_write_vtrunk_extra(struct vty *vty, struct mgcp_trunk_config *cfg);
 
 static int allocate_endpoints(struct mgcp_trunk_config *tcfg);
 
@@ -43,6 +44,7 @@ enum node_type mgcp_go_parent(struct vty *vty)
 {
 	switch (vty->node) {
 	case TRUNK_NODE:
+	case VTRUNK_NODE:
 		vty->node = MGCP_NODE;
 		break;
 	default:
@@ -88,14 +90,15 @@ static void bsc_replace_string(void *ctx, char **dst, const char *newstr)
 
 struct mgcp_config *g_cfg = NULL;
 
-static struct mgcp_trunk_config *find_trunk(struct mgcp_config *cfg, int nr)
+static struct mgcp_trunk_config *find_trunk(struct mgcp_config *cfg,
+					    const char *type, const char *name)
 {
 	struct mgcp_trunk_config *trunk;
 
-	if (nr == 0)
-		trunk = &cfg->trunk;
+	if (strcmp(type, "virtual") == 0)
+		trunk = mgcp_trunk_domain(cfg, name);
 	else
-		trunk = mgcp_trunk_num(cfg, nr);
+		trunk = mgcp_trunk_num(cfg, atoi(name));
 
 	return trunk;
 }
@@ -106,6 +109,12 @@ static struct mgcp_trunk_config *find_trunk(struct mgcp_config *cfg, int nr)
 struct cmd_node mgcp_node = {
 	MGCP_NODE,
 	"%s(mgcp)#",
+	1,
+};
+
+struct cmd_node vtrunk_node = {
+	VTRUNK_NODE,
+	"%s(vtrunk)#",
 	1,
 };
 
@@ -138,14 +147,6 @@ static int config_write_mgcp(struct vty *vty)
 			g_cfg->net_ports.range_start, g_cfg->net_ports.range_end, VTY_NEWLINE);
 
 	vty_out(vty, "  rtp ip-dscp %d%s", g_cfg->endp_dscp, VTY_NEWLINE);
-	if (g_cfg->trunk.audio_payload != -1)
-		vty_out(vty, "  sdp audio payload number %d%s",
-			g_cfg->trunk.audio_payload, VTY_NEWLINE);
-	if (g_cfg->trunk.audio_name)
-		vty_out(vty, "  sdp audio payload name %s%s",
-			g_cfg->trunk.audio_name, VTY_NEWLINE);
-	vty_out(vty, "  loop %u%s", !!g_cfg->trunk.audio_loop, VTY_NEWLINE);
-	vty_out(vty, "  number endpoints %u%s", g_cfg->trunk.number_endpoints - 1, VTY_NEWLINE);
 	if (g_cfg->call_agent_addr)
 		vty_out(vty, "  call agent ip %s%s", g_cfg->call_agent_addr, VTY_NEWLINE);
 	if (g_cfg->transcoder_ip)
@@ -159,7 +160,6 @@ static int config_write_mgcp(struct vty *vty)
 	vty_out(vty, "  transcoder-remote-base %u%s", g_cfg->transcoder_remote_base, VTY_NEWLINE);
 
 	mgcp_write_extra(vty, g_cfg);
-
 	return CMD_SUCCESS;
 }
 
@@ -197,7 +197,8 @@ DEFUN(show_mcgp, show_mgcp_cmd, "show mgcp",
 {
 	struct mgcp_trunk_config *trunk;
 
-	dump_trunk(vty, &g_cfg->trunk);
+	llist_for_each_entry(trunk, &g_cfg->vtrunks, entry)
+		dump_trunk(vty, trunk);
 
 	llist_for_each_entry(trunk, &g_cfg->trunks, entry)
 		dump_trunk(vty, trunk);
@@ -372,47 +373,21 @@ ALIAS_DEPRECATED(cfg_mgcp_rtp_ip_dscp, cfg_mgcp_rtp_ip_tos_cmd,
       "Set the IP_TOS socket attribute on the RTP/RTCP sockets.\n" "The DSCP value.")
 
 
-DEFUN(cfg_mgcp_sdp_payload_number,
-      cfg_mgcp_sdp_payload_number_cmd,
-      "sdp audio payload number <1-255>",
-      "Set the audio codec to use")
-{
-	unsigned int payload = atoi(argv[0]);
-	g_cfg->trunk.audio_payload = payload;
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_mgcp_sdp_payload_name,
-      cfg_mgcp_sdp_payload_name_cmd,
-      "sdp audio payload name NAME",
-      "Set the audio name to use")
-{
-	bsc_replace_string(g_cfg, &g_cfg->trunk.audio_name, argv[0]);
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_mgcp_loop,
-      cfg_mgcp_loop_cmd,
-      "loop (0|1)",
-      "Loop the audio")
-{
-	g_cfg->trunk.audio_loop = atoi(argv[0]);
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_mgcp_number_endp,
-      cfg_mgcp_number_endp_cmd,
+DEFUN(cfg_vtrunk_number_endp,
+      cfg_vtrunk_number_endp_cmd,
       "number endpoints <0-65534>",
       "The number of endpoints to allocate. This is not dynamic.")
 {
-	if (g_cfg->trunk.endpoints) {
+	struct mgcp_trunk_config *trunk = vty->index;
+
+	if (trunk->endpoints) {
 		vty_out(vty, "Can not change size.%s", VTY_NEWLINE);
 		return CMD_WARNING;
 	}
 
 	/* + 1 as we start counting at one */
-	g_cfg->trunk.number_endpoints = atoi(argv[0]) + 1;
-	if (allocate_endpoints(&g_cfg->trunk) != 0) {
+	trunk->number_endpoints = atoi(argv[0]) + 1;
+	if (allocate_endpoints(trunk) != 0) {
 		vty_out(vty, "Can not allocate endpoints.%s", VTY_NEWLINE);
 		return CMD_WARNING;
 	}
@@ -464,6 +439,27 @@ DEFUN(cfg_mgcp_transcoder_remote_base,
 	return CMD_SUCCESS;
 }
 
+DEFUN(cfg_mgcp_vtrunk, cfg_mgcp_vtrunk_cmd,
+      "vtrunk NAME",
+      "Configure a Virtual Trunk\n" "Domain Name\n")
+{
+	struct mgcp_trunk_config *trunk;
+
+	trunk = mgcp_trunk_domain(g_cfg, argv[0]);
+	if (!trunk)
+		trunk = mgcp_vtrunk_alloc(g_cfg, argv[0]);
+
+	if (!trunk) {
+		vty_out(vty, "%%Unable to allocate trunk %s.%s",
+			argv[0], VTY_NEWLINE);
+		return CMD_WARNING;
+	}
+
+	vty->node = VTRUNK_NODE;
+	vty->index = trunk;
+	return CMD_SUCCESS;
+}
+
 DEFUN(cfg_mgcp_trunk, cfg_mgcp_trunk_cmd,
       "trunk <1-64>",
       "Configure a SS7 trunk\n" "Trunk Nr\n")
@@ -493,19 +489,39 @@ DEFUN(cfg_mgcp_trunk, cfg_mgcp_trunk_cmd,
 	return CMD_SUCCESS;
 }
 
+static void config_write_trunk_common(struct vty *vty,
+				      struct mgcp_trunk_config *tcfg)
+{
+	vty_out(vty, "  sdp audio payload number %d%s",
+		tcfg->audio_payload, VTY_NEWLINE);
+	vty_out(vty, "  sdp audio payload name %s%s",
+		tcfg->audio_name, VTY_NEWLINE);
+	vty_out(vty, "  loop %d%s",
+		tcfg->audio_loop, VTY_NEWLINE);
+}
+
 static int config_write_trunk(struct vty *vty)
 {
 	struct mgcp_trunk_config *trunk;
 
 	llist_for_each_entry(trunk, &g_cfg->trunks, entry) {
 		vty_out(vty, " trunk %d%s", trunk->trunk_nr, VTY_NEWLINE);
-		vty_out(vty, "  sdp audio payload number %d%s",
-			trunk->audio_payload, VTY_NEWLINE);
-		vty_out(vty, "  sdp audio payload name %s%s",
-			trunk->audio_name, VTY_NEWLINE);
-		vty_out(vty, "  loop %d%s",
-			trunk->audio_loop, VTY_NEWLINE);
+		config_write_trunk_common(vty, trunk);
+		mgcp_write_trunk_extra(vty, trunk);
+	}
 
+	return CMD_SUCCESS;
+}
+
+static int config_write_vtrunk(struct vty *vty)
+{
+	struct mgcp_trunk_config *trunk;
+
+	llist_for_each_entry(trunk, &g_cfg->vtrunks, entry) {
+		vty_out(vty, " vtrunk %s%s", trunk->virtual_domain, VTY_NEWLINE);
+		vty_out(vty, "  number endpoints %d%s",
+			trunk->number_endpoints - 1, VTY_NEWLINE);
+		config_write_trunk_common(vty, trunk);
 		mgcp_write_trunk_extra(vty, trunk);
 	}
 
@@ -546,16 +562,21 @@ DEFUN(cfg_trunk_loop,
 	return CMD_SUCCESS;
 }
 
+#define TRUNK_TYPE_STR "Virtual trunk\nE1 trunk\n"
+#define TRUNK_IDENT_STR "Trunk identifier depending on the type\n"
+
 DEFUN(loop_endp,
       loop_endp_cmd,
-      "loop-endpoint <0-64> NAME (0|1)",
-      "Loop a given endpoint\n" "Trunk number\n"
+      "loop-endpoint (virtual|e1) IDENT NAME (0|1)",
+      "Loop a given endpoint\n"
+      TRUNK_TYPE_STR
+      TRUNK_IDENT_STR
       "The name in hex of the endpoint\n" "Disable the loop\n" "Enable the loop\n")
 {
 	struct mgcp_trunk_config *trunk;
 	struct mgcp_endpoint *endp;
 
-	trunk = find_trunk(g_cfg, atoi(argv[0]));
+	trunk = find_trunk(g_cfg, argv[0], argv[1]);
 	if (!trunk) {
 		vty_out(vty, "%%Trunk %d not found in the config.%s",
 			atoi(argv[0]), VTY_NEWLINE);
@@ -568,7 +589,7 @@ DEFUN(loop_endp,
 		return CMD_WARNING;
 	}
 
-	int endp_no = strtoul(argv[1], NULL, 16);
+	int endp_no = strtoul(argv[2], NULL, 16);
 	if (endp_no < 1 || endp_no >= trunk->number_endpoints) {
 		vty_out(vty, "Loopback number %s/%d is invalid.%s",
 		argv[1], endp_no, VTY_NEWLINE);
@@ -577,7 +598,7 @@ DEFUN(loop_endp,
 
 
 	endp = &trunk->endpoints[endp_no];
-	int loop = atoi(argv[2]);
+	int loop = atoi(argv[3]);
 
 	if (loop)
 		endp->conn_mode = MGCP_CONN_LOOPBACK;
@@ -590,8 +611,10 @@ DEFUN(loop_endp,
 
 DEFUN(tap_call,
       tap_call_cmd,
-      "tap-call <0-64> ENDPOINT (bts-in|bts-out|net-in|net-out) A.B.C.D <0-65534>",
-      "Forward data on endpoint to a different system\n" "Trunk number\n"
+      "tap-call (virtual|e1) IDENT ENDPOINT (bts-in|bts-out|net-in|net-out) A.B.C.D <0-65534>",
+      "Forward data on endpoint to a different system\n"
+      TRUNK_TYPE_STR
+      TRUNK_IDENT_STR
       "The endpoint in hex\n"
       "Forward the data coming from the bts\n"
       "Forward the data coming from the bts leaving to the network\n"
@@ -604,10 +627,10 @@ DEFUN(tap_call,
 	struct mgcp_endpoint *endp;
 	int port = 0;
 
-	trunk = find_trunk(g_cfg, atoi(argv[0]));
+	trunk = find_trunk(g_cfg, argv[0], argv[1]);
 	if (!trunk) {
 		vty_out(vty, "%%Trunk %d not found in the config.%s",
-			atoi(argv[0]), VTY_NEWLINE);
+			atoi(argv[1]), VTY_NEWLINE);
 		return CMD_WARNING;
 	}
 
@@ -617,7 +640,7 @@ DEFUN(tap_call,
 		return CMD_WARNING;
 	}
 
-	int endp_no = strtoul(argv[1], NULL, 16);
+	int endp_no = strtoul(argv[2], NULL, 16);
 	if (endp_no < 1 || endp_no >= trunk->number_endpoints) {
 		vty_out(vty, "Endpoint number %s/%d is invalid.%s",
 		argv[1], endp_no, VTY_NEWLINE);
@@ -626,13 +649,13 @@ DEFUN(tap_call,
 
 	endp = &trunk->endpoints[endp_no];
 
-	if (strcmp(argv[2], "bts-in") == 0) {
+	if (strcmp(argv[3], "bts-in") == 0) {
 		port = MGCP_TAP_BTS_IN;
-	} else if (strcmp(argv[2], "bts-out") == 0) {
+	} else if (strcmp(argv[3], "bts-out") == 0) {
 		port = MGCP_TAP_BTS_OUT;
-	} else if (strcmp(argv[2], "net-in") == 0) {
+	} else if (strcmp(argv[3], "net-in") == 0) {
 		port = MGCP_TAP_NET_IN;
-	} else if (strcmp(argv[2], "net-out") == 0) {
+	} else if (strcmp(argv[3], "net-out") == 0) {
 		port = MGCP_TAP_NET_OUT;
 	} else {
 		vty_out(vty, "Unknown mode... tricked vty?%s", VTY_NEWLINE);
@@ -641,24 +664,26 @@ DEFUN(tap_call,
 
 	tap = &endp->taps[port];
 	memset(&tap->forward, 0, sizeof(tap->forward));
-	inet_aton(argv[3], &tap->forward.sin_addr);
-	tap->forward.sin_port = htons(atoi(argv[4]));
+	inet_aton(argv[4], &tap->forward.sin_addr);
+	tap->forward.sin_port = htons(atoi(argv[5]));
 	tap->enabled = 1;
 	return CMD_SUCCESS;
 }
 
 DEFUN(free_endp, free_endp_cmd,
-      "free-endpoint <0-64> NUMBER",
-      "Free the given endpoint\n" "Trunk number\n"
+      "free-endpoint (virtual|e1) IDENT NUMBER",
+      "Free the given endpoint\n"
+      TRUNK_TYPE_STR
+      TRUNK_IDENT_STR
       "Endpoint number in hex.\n")
 {
 	struct mgcp_trunk_config *trunk;
 	struct mgcp_endpoint *endp;
 
-	trunk = find_trunk(g_cfg, atoi(argv[0]));
+	trunk = find_trunk(g_cfg, argv[0], argv[1]);
 	if (!trunk) {
 		vty_out(vty, "%%Trunk %d not found in the config.%s",
-			atoi(argv[0]), VTY_NEWLINE);
+			atoi(argv[1]), VTY_NEWLINE);
 		return CMD_WARNING;
 	}
 
@@ -668,7 +693,7 @@ DEFUN(free_endp, free_endp_cmd,
 		return CMD_WARNING;
 	}
 
-	int endp_no = strtoul(argv[1], NULL, 16);
+	int endp_no = strtoul(argv[2], NULL, 16);
 	if (endp_no < 1 || endp_no >= trunk->number_endpoints) {
 		vty_out(vty, "Endpoint number %s/%d is invalid.%s",
 		argv[1], endp_no, VTY_NEWLINE);
@@ -711,10 +736,16 @@ int mgcp_vty_init(void)
 	install_element(MGCP_NODE, &cfg_mgcp_transcoder_cmd);
 	install_element(MGCP_NODE, &cfg_mgcp_no_transcoder_cmd);
 	install_element(MGCP_NODE, &cfg_mgcp_transcoder_remote_base_cmd);
-	install_element(MGCP_NODE, &cfg_mgcp_sdp_payload_number_cmd);
-	install_element(MGCP_NODE, &cfg_mgcp_sdp_payload_name_cmd);
-	install_element(MGCP_NODE, &cfg_mgcp_loop_cmd);
-	install_element(MGCP_NODE, &cfg_mgcp_number_endp_cmd);
+
+	install_element(MGCP_NODE, &cfg_mgcp_vtrunk_cmd);
+	install_node(&vtrunk_node, config_write_vtrunk);
+	install_default(VTRUNK_NODE);
+	install_element(VTRUNK_NODE, &ournode_exit_cmd);
+	install_element(VTRUNK_NODE, &ournode_end_cmd);
+	install_element(VTRUNK_NODE, &cfg_vtrunk_number_endp_cmd);
+	install_element(VTRUNK_NODE, &cfg_trunk_payload_number_cmd);
+	install_element(VTRUNK_NODE, &cfg_trunk_payload_name_cmd);
+	install_element(VTRUNK_NODE, &cfg_trunk_loop_cmd);
 
 	install_element(MGCP_NODE, &cfg_mgcp_trunk_cmd);
 	install_node(&trunk_node, config_write_trunk);
@@ -821,9 +852,12 @@ int mgcp_parse_config(const char *config_file, struct mgcp_config *cfg)
 	g_cfg->last_bts_port = rtp_calculate_port(0, g_cfg->bts_ports.base_port);
 	g_cfg->last_net_port = rtp_calculate_port(0, g_cfg->net_ports.base_port);
 
-	if (configure_endpoints(&g_cfg->trunk) != 0) {
-		LOGP(DMGCP, LOGL_ERROR, "Failed to initialize the virtual trunk.\n");
-		return -1;
+	llist_for_each_entry(trunk, &g_cfg->vtrunks, entry) {
+		if (configure_endpoints(trunk) != 0) {
+			LOGP(DMGCP, LOGL_ERROR,
+			     "Failed to initialize virtual trunk %s.\n", trunk->virtual_domain);
+			return -1;
+		}
 	}
 
 	llist_for_each_entry(trunk, &g_cfg->trunks, entry) {
