@@ -1,7 +1,7 @@
 /* MSC related stuff... */
 /*
- * (C) 2010 by Holger Hans Peter Freyther <zecke@selfish.org>
- * (C) 2010 by On-Waves
+ * (C) 2010-2011 by Holger Hans Peter Freyther <zecke@selfish.org>
+ * (C) 2010-2011 by On-Waves
  * All Rights Reserved
  *
  * This program is free software: you can redistribute it and/or modify
@@ -26,6 +26,7 @@
 #include <ipaccess.h>
 #include <mtp_data.h>
 #include <cellmgr_debug.h>
+#include <ss7_application.h>
 
 #include <osmocore/talloc.h>
 #include <osmocore/tlv.h>
@@ -332,11 +333,16 @@ static void msc_schedule_reconnect(struct msc_connection *fw)
 /* send a RSIP to the MGCP GW */
 void msc_mgcp_reset(struct msc_connection *msc)
 {
-        static const char mgcp_reset[] = {
-            "RSIP 1 13@mgw MGCP 1.0\r\n"
-        };
+	char buf[512];
+	char *dest = "mgw";
 
-	mgcp_forward(msc, (const uint8_t *) mgcp_reset, strlen(mgcp_reset));
+	if (msc->app->mgcp_domain_name)
+		dest = msc->app->mgcp_domain_name;
+
+	snprintf(buf, sizeof(buf) - 1, "RSIP 1 13@%s MGCP 1.0\r\n", dest);
+	buf[sizeof(buf) - 1] = '\0';
+
+	mgcp_forward(msc, (const uint8_t *) buf, strlen(buf));
 }
 
 static int mgcp_do_write(struct bsc_fd *fd, struct msgb *msg)
