@@ -113,7 +113,7 @@ DEFUN(cfg_trunk_inp_dig_gain, cfg_trunk_inp_dig_gain_cmd,
 }
 
 DEFUN(cfg_trunk_out_dig_gain, cfg_trunk_out_dig_gain_cmd,
-      "outut-digital-gain <0-62>",
+      "output-digital-gain <0-62>",
       "Static Digital Output Gain\n"
       "Gain value")
 {
@@ -135,7 +135,7 @@ DEFUN(cfg_trunk_upstr_agc, cfg_trunk_upstr_agc_cmd,
 }
 
 DEFUN(cfg_trunk_upstr_adp, cfg_trunk_upstr_adp_cmd,
-      "upstream-adaptiton-rate <1-128>",
+      "upstream-adaptation-rate <1-128>",
       "Set the adaption rate in (dB/sec) * 10\n"
       "Range\n")
 {
