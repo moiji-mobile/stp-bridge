@@ -308,6 +308,27 @@ static struct mgcp_endpoint *find_e1_endpoint(struct mgcp_config *cfg,
 	return &tcfg->endpoints[endp];
 }
 
+struct mgcp_endpoint *find_virtual_endpoint(struct mgcp_config *cfg,
+					    const char *endptr, int gw)
+{
+	struct mgcp_trunk_config *tcfg;
+
+	if (gw <= 0)
+		return NULL;
+
+	llist_for_each_entry(tcfg, &cfg->vtrunks, entry) {
+		if (strcmp(&endptr[1], tcfg->virtual_domain) != 0)
+			continue;
+
+		if (gw >= tcfg->number_endpoints)
+			return NULL;
+
+		return &tcfg->endpoints[gw];
+	}
+
+	return NULL;
+}
+
 static struct mgcp_endpoint *find_endpoint(struct mgcp_config *cfg, const char *mgcp)
 {
 	struct mgcp_endpoint *endp = NULL;
@@ -318,8 +339,7 @@ static struct mgcp_endpoint *find_endpoint(struct mgcp_config *cfg, const char *
 		endp = find_e1_endpoint(cfg, mgcp);
 	} else {
 		gw = strtoul(mgcp, &endptr, 16);
-		if (gw > 0 && gw < cfg->trunk.number_endpoints && strcmp(endptr, "@mgw") == 0)
-			endp = &cfg->trunk.endpoints[gw];
+		endp = find_virtual_endpoint(cfg, endptr, gw);
 	}
 
 	if (!endp) {
@@ -908,11 +928,7 @@ struct mgcp_config *mgcp_config_alloc(void)
 	cfg->net_ports.base_port = RTP_PORT_NET_DEFAULT;
 
 	/* default trunk handling */
-	cfg->trunk.cfg = cfg;
-	cfg->trunk.trunk_nr = 0;
-	cfg->trunk.trunk_type = MGCP_TRUNK_VIRTUAL;
-	trunk_init(&cfg->trunk);
-
+	INIT_LLIST_HEAD(&cfg->vtrunks);
 	INIT_LLIST_HEAD(&cfg->trunks);
 
 	return cfg;
@@ -937,6 +953,32 @@ struct mgcp_trunk_config *mgcp_trunk_alloc(struct mgcp_config *cfg, int nr)
 	return trunk;
 }
 
+struct mgcp_trunk_config *mgcp_vtrunk_alloc(struct mgcp_config *cfg,
+					    const char *domain)
+{
+	struct mgcp_trunk_config *trunk;
+
+	trunk = talloc_zero(cfg, struct mgcp_trunk_config);
+	if (!trunk) {
+		LOGP(DMGCP, LOGL_ERROR, "Failed to allocate.\n");
+		return NULL;
+	}
+
+	trunk->virtual_domain = talloc_strdup(trunk, domain);
+	if (!trunk->virtual_domain) {
+		LOGP(DMGCP, LOGL_ERROR, "Failed to allocate.\n");
+		talloc_free(trunk);
+		return NULL;
+	}
+
+	trunk->cfg = cfg;
+	trunk->trunk_type = MGCP_TRUNK_VIRTUAL;
+	trunk->trunk_nr = 0;
+	trunk_init(trunk);
+	llist_add_tail(&trunk->entry, &cfg->vtrunks);
+	return trunk;
+}
+
 void mgcp_trunk_free(struct mgcp_trunk_config *cfg)
 {
 	llist_del(&cfg->entry);
@@ -949,6 +991,18 @@ struct mgcp_trunk_config *mgcp_trunk_num(struct mgcp_config *cfg, int index)
 
 	llist_for_each_entry(trunk, &cfg->trunks, entry)
 		if (trunk->trunk_nr == index)
+			return trunk;
+
+	return NULL;
+}
+
+struct mgcp_trunk_config *mgcp_trunk_domain(struct mgcp_config *cfg,
+					    const char *domain)
+{
+	struct mgcp_trunk_config *trunk;
+
+	llist_for_each_entry(trunk, &cfg->vtrunks, entry)
+		if (strcmp(trunk->virtual_domain, domain) == 0)
 			return trunk;
 
 	return NULL;

@@ -154,7 +154,9 @@ static inline int endp_back_channel(int endpoint)
 }
 
 struct mgcp_trunk_config *mgcp_trunk_alloc(struct mgcp_config *cfg, int index);
+struct mgcp_trunk_config *mgcp_vtrunk_alloc(struct mgcp_config *cfg, const char *);
 struct mgcp_trunk_config *mgcp_trunk_num(struct mgcp_config *cfg, int index);
+struct mgcp_trunk_config *mgcp_trunk_domain(struct mgcp_config *cfg, const char *);
 void mgcp_trunk_free(struct mgcp_trunk_config *cfg);
 
 

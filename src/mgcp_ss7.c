@@ -700,7 +700,7 @@ static int configure_trunk(struct mgcp_trunk_config *tcfg, int *dsp_resource)
 static struct mgcp_ss7 *mgcp_ss7_init(struct mgcp_config *cfg)
 {
 	struct mgcp_trunk_config *trunk;
-	int dsp_resource, i;
+	int dsp_resource;
 
 	struct mgcp_ss7 *conf = talloc_zero(NULL, struct mgcp_ss7);
 	if (!conf)
@@ -731,8 +731,8 @@ static struct mgcp_ss7 *mgcp_ss7_init(struct mgcp_config *cfg)
 
 	/* Now do the init of the trunks */
 	dsp_resource = 0;
-	for (i = 1; i < cfg->trunk.number_endpoints; ++i) {
-		if (configure_trunk(&cfg->trunk, &dsp_resource) != 0) {
+	llist_for_each_entry(trunk, &cfg->vtrunks, entry) {
+		if (configure_trunk(trunk, &dsp_resource) != 0) {
 			talloc_free(conf);
 			return NULL;
 		}
@@ -780,8 +780,9 @@ void mgcp_ss7_reset(struct mgcp_ss7 *mgcp)
 	LOGP(DMGCP, LOGL_INFO, "Resetting all endpoints.\n");
 
 	/* free UniPorte and MGCP data */
-	free_trunk(&mgcp->cfg->trunk);
 
+	llist_for_each_entry(trunk, &mgcp->cfg->vtrunks, entry)
+		free_trunk(trunk);
 	llist_for_each_entry(trunk, &mgcp->cfg->trunks, entry)
 		free_trunk(trunk);
 }

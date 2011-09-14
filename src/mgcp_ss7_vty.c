@@ -46,160 +46,27 @@ DEFUN(cfg_mgcp_configure, cfg_mgcp_configure_cmd,
 	return CMD_SUCCESS;
 }
 
-DEFUN(cfg_mgcp_vad, cfg_mgcp_vad_cmd,
-      "vad (enabled|disabled)",
-      "Enable the Voice Activity Detection\n"
-      "Enable\n" "Disable\n")
-{
-	if (argv[0][0] == 'e')
-		g_cfg->trunk.vad_enabled = 1;
-	else
-		g_cfg->trunk.vad_enabled = 0;
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_mgcp_realloc, cfg_mgcp_realloc_cmd,
-      "force-realloc (0|1)",
-      "Force the reallocation of an endpoint\n"
-      "Disable\n" "Enable\n")
-{
-	g_cfg->trunk.force_realloc = atoi(argv[0]);
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_mgcp_inp_dig_gain, cfg_mgcp_inp_dig_gain_cmd,
-      "input-digital-gain <0-62>",
-      "Static Digital Input Gain\n"
-      "Gain value")
-{
-	g_cfg->trunk.digital_inp_gain = atoi(argv[0]);
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_mgcp_out_dig_gain, cfg_mgcp_out_dig_gain_cmd,
-      "outut-digital-gain <0-62>",
-      "Static Digital Output Gain\n"
-      "Gain value")
-{
-	g_cfg->trunk.digital_out_gain = atoi(argv[0]);
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_mgcp_upstr_agc, cfg_mgcp_upstr_agc_cmd,
-      "upstream-automatic-gain (0|1)",
-      "Enable automatic gain control on upstream\n"
-      "Disable\n" "Enabled\n")
-{
-	g_cfg->trunk.upstr_agc_enbl = argv[0][0] == '1';
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_mgc_upstr_adp, cfg_mgcp_upstr_adp_cmd,
-      "upstream-adaptiton-rate <1-128>",
-      "Set the adaption rate in (dB/sec) * 10\n"
-      "Range\n")
-{
-	g_cfg->trunk.upstr_adp_rate = atoi(argv[0]);
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_mgcp_upstr_max_gain, cfg_mgcp_upstr_max_gain_cmd,
-      "upstream-max-applied-gain <0-49>",
-      "Maximum applied gain from -31db to 18db\n"
-      "Gain level\n")
-{
-	g_cfg->trunk.upstr_max_gain = atoi(argv[0]);
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_mgcp_upstr_target, cfg_mgcp_upstr_target_cmd,
-      "upstream-target-level <6-37>",
-      "Set the desired level in db\n"
-      "Desired lievel\n")
-{
-	g_cfg->trunk.upstr_target_lvl = atoi(argv[0]);
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_mgcp_dwnstr_agc, cfg_mgcp_dwnstr_agc_cmd,
-      "downstream-automatic-gain (0|1)",
-      "Enable automatic gain control on downstream\n"
-      "Disable\n" "Enabled\n")
-{
-	g_cfg->trunk.dwnstr_agc_enbl = argv[0][0] == '1';
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_mgc_dwnstr_adp, cfg_mgcp_dwnstr_adp_cmd,
-      "downstream-adaptation-rate <1-128>",
-      "Set the adaption rate in (dB/sec) * 10\n"
-      "Range\n")
-{
-	g_cfg->trunk.dwnstr_adp_rate = atoi(argv[0]);
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_mgcp_dwnstr_max_gain, cfg_mgcp_dwnstr_max_gain_cmd,
-      "downstream-max-applied-gain <0-49>",
-      "Maximum applied gain from -31db to 18db\n"
-      "Gain level\n")
-{
-	g_cfg->trunk.dwnstr_max_gain = atoi(argv[0]);
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_mgcp_dwnstr_target, cfg_mgcp_dwnstr_target_cmd,
-      "downstream-target-level <6-37>",
-      "Set the desired level in db\n"
-      "Desired lievel\n")
-{
-	g_cfg->trunk.dwnstr_target_lvl = atoi(argv[0]);
-	return CMD_SUCCESS;
-}
-
-DEFUN_DEPRECATED(cfg_mgcp_endp_offset, cfg_mgcp_endp_offset_cmd,
-      "endpoint-offset <-60-60>",
-      "Offset to the CIC map\n" "Value to set\n")
-{
-	vty_out(vty, "%%endpoint-offset is not used anymore.%s", VTY_NEWLINE);
-	return CMD_WARNING;
-}
-
-DEFUN(cfg_mgcp_target_trunk, cfg_mgcp_target_trunk_cmd,
+DEFUN(cfg_vtrunk_target_trunk, cfg_vtrunk_target_trunk_cmd,
       "target-trunk-start <1-24>",
       "Map the virtual trunk to start here\n" "Trunk Nr\n")
 {
-	g_cfg->trunk.target_trunk_start = atoi(argv[0]);
+	struct mgcp_trunk_config *trunk = vty->index;
+	trunk->target_trunk_start = atoi(argv[0]);
 	return CMD_SUCCESS;
 }
 
 #define ENDP_BLOCK_STR "Block the Endpoint/Timeslot for Audio\n"
 
-DEFUN(cfg_mgcp_timeslot_block, cfg_mgcp_timeslot_block_cmd,
-      "block-endpoint <1-65534>",
-       ENDP_BLOCK_STR "Endpoint number\n")
-{
-	int nr = atoi(argv[0]);
-
-	if (g_cfg->trunk.number_endpoints <= nr) {
-		vty_out(vty, "%%Endpoint %d too big. Current size: %d%s",
-			nr, g_cfg->trunk.number_endpoints, VTY_NEWLINE);
-		return CMD_WARNING;
-	}
-
-	g_cfg->trunk.endpoints[nr].blocked = 1;
-	return CMD_SUCCESS;
-}
-
-DEFUN(cfg_mgcp_block_defaults, cfg_mgcp_block_defaults_cmd,
+DEFUN(cfg_vtrunk_block_defaults, cfg_vtrunk_block_defaults_cmd,
       "block-defaults",
       "Block the default endpoints 0x0 and 0x1F\n")
 {
 	int i;
+	struct mgcp_trunk_config *trunk = vty->index;
 
-	for (i = 1; i < g_cfg->trunk.number_endpoints; ++i) {
+	for (i = 1; i < trunk->number_endpoints; ++i) {
 		int multiplex, timeslot;
-		struct mgcp_endpoint *endp = &g_cfg->trunk.endpoints[i];
+		struct mgcp_endpoint *endp = &trunk->endpoints[i];
 		mgcp_endpoint_to_timeslot(ENDPOINT_NUMBER(endp), &multiplex, &timeslot);
 
 		if (timeslot == 0x0 || timeslot == 0x1F)
@@ -357,8 +224,21 @@ DEFUN(cfg_trunk_timeslot_block, cfg_trunk_timeslot_block_cmd,
       ENDP_BLOCK_STR "Endpoint number\n")
 {
 	struct mgcp_trunk_config *trunk = vty->index;
+	int no = atoi(argv[0]);
+
+	if (no <= 0 || no >= trunk->number_endpoints) {
+		vty_out(vty, "%%Endpoint does not fit: %d.%s", no, VTY_NEWLINE);
+		return CMD_WARNING;
+	}
+
 	trunk->endpoints[atoi(argv[0])].blocked = 1;
 	return CMD_SUCCESS;
+}
+
+void mgcp_write_extra(struct vty *vty, struct mgcp_config *cfg)
+{
+	vty_out(vty, "  configure-trunks %d%s",
+		cfg->configure_trunks, VTY_NEWLINE);
 }
 
 static void write_blocked_endpoints(struct vty *vty,
@@ -374,40 +254,7 @@ static void write_blocked_endpoints(struct vty *vty,
 	}
 }
 
-void mgcp_write_extra(struct vty *vty, struct mgcp_config *cfg)
-{
-	vty_out(vty, "  configure-trunks %d%s",
-		cfg->configure_trunks, VTY_NEWLINE);
-	vty_out(vty, "  force-realloc %d%s",
-		cfg->trunk.force_realloc, VTY_NEWLINE);
-	vty_out(vty, "  vad %s%s",
-		cfg->trunk.vad_enabled ? "enabled" : "disabled", VTY_NEWLINE);
-	vty_out(vty, "  input-digital-gain %d%s",
-		cfg->trunk.digital_inp_gain, VTY_NEWLINE);
-	vty_out(vty, "  output-digital-gain %d%s",
-		cfg->trunk.digital_out_gain, VTY_NEWLINE);
-	vty_out(vty, "  upstream-automatic-gain %d%s",
-		cfg->trunk.upstr_agc_enbl, VTY_NEWLINE);
-	vty_out(vty, "  upstream-adaptation-rate %d%s",
-		cfg->trunk.upstr_adp_rate, VTY_NEWLINE);
-	vty_out(vty, "  upstream-max-applied-gain %d%s",
-		cfg->trunk.upstr_max_gain, VTY_NEWLINE);
-	vty_out(vty, "  upstream-target-level %d%s",
-		cfg->trunk.upstr_target_lvl, VTY_NEWLINE);
-	vty_out(vty, "  downstream-automatic-gain %d%s",
-		cfg->trunk.dwnstr_agc_enbl, VTY_NEWLINE);
-	vty_out(vty, "  downstream-adaptation-rate %d%s",
-		cfg->trunk.dwnstr_adp_rate, VTY_NEWLINE);
-	vty_out(vty, "  downstream-max-applied-gain %d%s",
-		cfg->trunk.dwnstr_max_gain, VTY_NEWLINE);
-	vty_out(vty, "  downstream-target-level %d%s",
-		cfg->trunk.dwnstr_target_lvl, VTY_NEWLINE);
-	vty_out(vty, "  target-trunk-start %d%s",
-		cfg->trunk.target_trunk_start, VTY_NEWLINE);
-	write_blocked_endpoints(vty, &cfg->trunk);
-}
-
-void mgcp_write_trunk_extra(struct vty *vty, struct mgcp_trunk_config *trunk)
+void write_trunk_extra(struct vty *vty, struct mgcp_trunk_config *trunk)
 {
 	vty_out(vty, "   force-realloc %d%s",
 		trunk->force_realloc, VTY_NEWLINE);
@@ -436,6 +283,18 @@ void mgcp_write_trunk_extra(struct vty *vty, struct mgcp_trunk_config *trunk)
 	write_blocked_endpoints(vty, trunk);
 }
 
+void mgcp_write_trunk_extra(struct vty *vty, struct mgcp_trunk_config *trunk)
+{
+	write_trunk_extra(vty, trunk);
+}
+
+void mgcp_write_vtrunk_extra(struct vty *vty, struct mgcp_trunk_config *trunk)
+{
+	vty_out(vty, "   target-trunk-start %d%s",
+		trunk->target_trunk_start, VTY_NEWLINE);
+	write_trunk_extra(vty, trunk);
+}
+
 
 void mgcp_mgw_vty_init(void)
 {
@@ -445,22 +304,23 @@ void mgcp_mgw_vty_init(void)
 	mgcp_vty_init();
 
 	install_element(MGCP_NODE, &cfg_mgcp_configure_cmd);
-	install_element(MGCP_NODE, &cfg_mgcp_vad_cmd);
-	install_element(MGCP_NODE, &cfg_mgcp_realloc_cmd);
-	install_element(MGCP_NODE, &cfg_mgcp_inp_dig_gain_cmd);
-	install_element(MGCP_NODE, &cfg_mgcp_out_dig_gain_cmd);
-	install_element(MGCP_NODE, &cfg_mgcp_upstr_agc_cmd);
-	install_element(MGCP_NODE, &cfg_mgcp_upstr_adp_cmd);
-	install_element(MGCP_NODE, &cfg_mgcp_upstr_max_gain_cmd);
-	install_element(MGCP_NODE, &cfg_mgcp_upstr_target_cmd);
-	install_element(MGCP_NODE, &cfg_mgcp_dwnstr_agc_cmd);
-	install_element(MGCP_NODE, &cfg_mgcp_dwnstr_adp_cmd);
-	install_element(MGCP_NODE, &cfg_mgcp_dwnstr_max_gain_cmd);
-	install_element(MGCP_NODE, &cfg_mgcp_dwnstr_target_cmd);
-	install_element(MGCP_NODE, &cfg_mgcp_endp_offset_cmd);
-	install_element(MGCP_NODE, &cfg_mgcp_target_trunk_cmd);
-	install_element(MGCP_NODE, &cfg_mgcp_timeslot_block_cmd);
-	install_element(MGCP_NODE, &cfg_mgcp_block_defaults_cmd);
+
+	install_element(VTRUNK_NODE, &cfg_vtrunk_target_trunk_cmd);
+	install_element(VTRUNK_NODE, &cfg_vtrunk_block_defaults_cmd);
+	install_element(VTRUNK_NODE, &cfg_trunk_vad_cmd);
+	install_element(VTRUNK_NODE, &cfg_trunk_realloc_cmd);
+	install_element(VTRUNK_NODE, &cfg_trunk_inp_dig_gain_cmd);
+	install_element(VTRUNK_NODE, &cfg_trunk_out_dig_gain_cmd);
+	install_element(VTRUNK_NODE, &cfg_trunk_upstr_agc_cmd);
+	install_element(VTRUNK_NODE, &cfg_trunk_upstr_adp_cmd);
+	install_element(VTRUNK_NODE, &cfg_trunk_upstr_max_gain_cmd);
+	install_element(VTRUNK_NODE, &cfg_trunk_upstr_target_cmd);
+	install_element(VTRUNK_NODE, &cfg_trunk_dwnstr_agc_cmd);
+	install_element(VTRUNK_NODE, &cfg_trunk_dwnstr_adp_cmd);
+	install_element(VTRUNK_NODE, &cfg_trunk_dwnstr_max_gain_cmd);
+	install_element(VTRUNK_NODE, &cfg_trunk_dwnstr_target_cmd);
+	install_element(VTRUNK_NODE, &cfg_trunk_endp_offset_cmd);
+	install_element(VTRUNK_NODE, &cfg_trunk_timeslot_block_cmd);
 
 	install_element(TRUNK_NODE, &cfg_trunk_vad_cmd);
 	install_element(TRUNK_NODE, &cfg_trunk_realloc_cmd);
