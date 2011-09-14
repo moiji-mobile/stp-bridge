@@ -250,35 +250,35 @@ static void write_blocked_endpoints(struct vty *vty,
 		if (!tcfg->endpoints[i].blocked)
 			continue;
 
-		vty_out(vty, "block-endpoint %d%s", i, VTY_NEWLINE);
+		vty_out(vty, "  block-endpoint %d%s", i, VTY_NEWLINE);
 	}
 }
 
 void write_trunk_extra(struct vty *vty, struct mgcp_trunk_config *trunk)
 {
-	vty_out(vty, "   force-realloc %d%s",
+	vty_out(vty, "  force-realloc %d%s",
 		trunk->force_realloc, VTY_NEWLINE);
-	vty_out(vty, "   vad %s%s",
+	vty_out(vty, "  vad %s%s",
 		trunk->vad_enabled ? "enabled" : "disabled", VTY_NEWLINE);
-	vty_out(vty, "   input-digital-gain %d%s",
+	vty_out(vty, "  input-digital-gain %d%s",
 		trunk->digital_inp_gain, VTY_NEWLINE);
-	vty_out(vty, "   output-digital-gain %d%s",
+	vty_out(vty, "  output-digital-gain %d%s",
 		trunk->digital_out_gain, VTY_NEWLINE);
-	vty_out(vty, "   upstream-automatic-gain %d%s",
+	vty_out(vty, "  upstream-automatic-gain %d%s",
 		trunk->upstr_agc_enbl, VTY_NEWLINE);
-	vty_out(vty, "   upstream-adaptation-rate %d%s",
+	vty_out(vty, "  upstream-adaptation-rate %d%s",
 		trunk->upstr_adp_rate, VTY_NEWLINE);
-	vty_out(vty, "   upstream-max-applied-gain %d%s",
+	vty_out(vty, "  upstream-max-applied-gain %d%s",
 		trunk->upstr_max_gain, VTY_NEWLINE);
-	vty_out(vty, "   upstream-target-level %d%s",
+	vty_out(vty, "  upstream-target-level %d%s",
 		trunk->upstr_target_lvl, VTY_NEWLINE);
-	vty_out(vty, "   downstream-automatic-gain %d%s",
+	vty_out(vty, "  downstream-automatic-gain %d%s",
 		trunk->dwnstr_agc_enbl, VTY_NEWLINE);
-	vty_out(vty, "   downstream-adaptation-rate %d%s",
+	vty_out(vty, "  downstream-adaptation-rate %d%s",
 		trunk->dwnstr_adp_rate, VTY_NEWLINE);
-	vty_out(vty, "   downstream-max-applied-gain %d%s",
+	vty_out(vty, "  downstream-max-applied-gain %d%s",
 		trunk->dwnstr_max_gain, VTY_NEWLINE);
-	vty_out(vty, "   downstream-target-level %d%s",
+	vty_out(vty, "  downstream-target-level %d%s",
 		trunk->dwnstr_target_lvl, VTY_NEWLINE);
 	write_blocked_endpoints(vty, trunk);
 }
@@ -290,7 +290,7 @@ void mgcp_write_trunk_extra(struct vty *vty, struct mgcp_trunk_config *trunk)
 
 void mgcp_write_vtrunk_extra(struct vty *vty, struct mgcp_trunk_config *trunk)
 {
-	vty_out(vty, "   target-trunk-start %d%s",
+	vty_out(vty, "  target-trunk-start %d%s",
 		trunk->target_trunk_start, VTY_NEWLINE);
 	write_trunk_extra(vty, trunk);
 }
