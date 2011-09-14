@@ -191,6 +191,24 @@ DEFUN(cfg_mgcp_timeslot_block, cfg_mgcp_timeslot_block_cmd,
 	return CMD_SUCCESS;
 }
 
+DEFUN(cfg_mgcp_block_defaults, cfg_mgcp_block_defaults_cmd,
+      "block-defaults",
+      "Block the default endpoints 0x0 and 0x1F\n")
+{
+	int i;
+
+	for (i = 1; i < g_cfg->trunk.number_endpoints; ++i) {
+		int multiplex, timeslot;
+		struct mgcp_endpoint *endp = &g_cfg->trunk.endpoints[i];
+		mgcp_endpoint_to_timeslot(ENDPOINT_NUMBER(endp), &multiplex, &timeslot);
+
+		if (timeslot == 0x0 || timeslot == 0x1F)
+			endp->blocked = 1;
+	}
+
+	return CMD_SUCCESS;
+}
+
 DEFUN(cfg_trunk_vad, cfg_trunk_vad_cmd,
       "vad (enabled|disabled)",
       "Enable the Voice Activity Detection\n"
@@ -442,6 +460,7 @@ void mgcp_mgw_vty_init(void)
 	install_element(MGCP_NODE, &cfg_mgcp_endp_offset_cmd);
 	install_element(MGCP_NODE, &cfg_mgcp_target_trunk_cmd);
 	install_element(MGCP_NODE, &cfg_mgcp_timeslot_block_cmd);
+	install_element(MGCP_NODE, &cfg_mgcp_block_defaults_cmd);
 
 	install_element(TRUNK_NODE, &cfg_trunk_vad_cmd);
 	install_element(TRUNK_NODE, &cfg_trunk_realloc_cmd);
