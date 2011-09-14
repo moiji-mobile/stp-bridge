@@ -55,8 +55,6 @@ struct mgcp_ss7_cmd {
 	uint32_t param;
 };
 
-void mgcp_ss7_reset(struct mgcp_ss7 *mgcp);
-
 void mgcp_mgw_vty_init();
 
 #endif

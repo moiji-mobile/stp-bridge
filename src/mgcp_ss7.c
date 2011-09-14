@@ -59,6 +59,7 @@ static int exit_on_failure = 0;
 
 extern struct mgcp_config *g_cfg;
 
+static void mgcp_ss7_reset(struct mgcp_trunk_config *tcfg);
 static void mgcp_ss7_endp_free(struct mgcp_endpoint *endp);
 
 
@@ -649,9 +650,9 @@ static void mgcp_ss7_endp_free(struct mgcp_endpoint *endp)
 	mgcp_ss7_exec(endp, MGCP_SS7_DELETE, 0);
 }
 
-static int reset_cb(struct mgcp_config *cfg)
+static int reset_cb(struct mgcp_trunk_config *trunk)
 {
-	mgcp_ss7_reset((struct mgcp_ss7 *) cfg->data);
+	mgcp_ss7_reset(trunk);
 	return 0;
 }
 
@@ -770,21 +771,14 @@ static void free_trunk(struct mgcp_trunk_config *trunk)
 	}
 }
 
-void mgcp_ss7_reset(struct mgcp_ss7 *mgcp)
+static void mgcp_ss7_reset(struct mgcp_trunk_config *tcfg)
 {
-	struct mgcp_trunk_config *trunk;
-
-	if (!mgcp)
-		return;
-
-	LOGP(DMGCP, LOGL_INFO, "Resetting all endpoints.\n");
+	LOGP(DMGCP, LOGL_INFO, "Resetting endpoint on trunk type %s %s/%d\n",
+	     tcfg->trunk_type == MGCP_TRUNK_VIRTUAL ? "virtual" : "e1",
+	     tcfg->virtual_domain, tcfg->trunk_nr);
 
 	/* free UniPorte and MGCP data */
-
-	llist_for_each_entry(trunk, &mgcp->cfg->vtrunks, entry)
-		free_trunk(trunk);
-	llist_for_each_entry(trunk, &mgcp->cfg->trunks, entry)
-		free_trunk(trunk);
+	free_trunk(tcfg);
 }
 
 static void print_help()
