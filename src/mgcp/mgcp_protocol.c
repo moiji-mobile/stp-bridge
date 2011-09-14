@@ -91,24 +91,24 @@ static struct msgb *handle_noti_req(struct mgcp_config *cfg, struct msgb *msg);
 static void create_transcoder(struct mgcp_endpoint *endp);
 static void delete_transcoder(struct mgcp_endpoint *endp);
 
-static uint32_t generate_call_id(struct mgcp_config *cfg)
+static uint32_t generate_call_id(struct mgcp_trunk_config *tcfg)
 {
 	int i;
 
 	/* use the call id */
-	++cfg->last_call_id;
+	++tcfg->last_call_id;
 
 	/* handle wrap around */
-	if (cfg->last_call_id == CI_UNUSED)
-		++cfg->last_call_id;
+	if (tcfg->last_call_id == CI_UNUSED)
+		++tcfg->last_call_id;
 
 	/* callstack can only be of size number_of_endpoints */
 	/* verify that the call id is free, e.g. in case of overrun */
-	for (i = 1; i < cfg->trunk.number_endpoints; ++i)
-		if (cfg->trunk.endpoints[i].ci == cfg->last_call_id)
-			return generate_call_id(cfg);
+	for (i = 1; i < tcfg->number_endpoints; ++i)
+		if (tcfg->endpoints[i].ci == tcfg->last_call_id)
+			return generate_call_id(tcfg);
 
-	return cfg->last_call_id;
+	return tcfg->last_call_id;
 }
 
 /*
@@ -577,7 +577,7 @@ static struct msgb *handle_create_con(struct mgcp_config *cfg, struct msgb *msg)
 		goto error2;
 
 	/* assign a local call identifier or fail */
-	endp->ci = generate_call_id(cfg);
+	endp->ci = generate_call_id(tcfg);
 	if (endp->ci == CI_UNUSED)
 		goto error2;
 

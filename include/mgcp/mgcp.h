@@ -109,6 +109,7 @@ struct mgcp_trunk_config {
 
 	int trunk_nr;
 	int trunk_type;
+	uint32_t last_call_id;
 
 	char *audio_name;
 	int audio_payload;
@@ -162,8 +163,6 @@ struct mgcp_config {
 	mgcp_reset reset_cb;
 	mgcp_realloc realloc_cb;
 	void *data;
-
-	uint32_t last_call_id;
 
 	/* trunk handling */
 	struct mgcp_trunk_config trunk;
