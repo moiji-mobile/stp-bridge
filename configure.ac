@@ -50,4 +50,5 @@ AC_OUTPUT(
     tests/mtp/Makefile
     tests/patching/Makefile
     tests/isup/Makefile
+    tests/mgcp/Makefile
     Makefile)

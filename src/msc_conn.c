@@ -27,6 +27,7 @@
 #include <mtp_data.h>
 #include <cellmgr_debug.h>
 #include <ss7_application.h>
+#include <mgcp_patch.h>
 
 #include <osmocom/core/talloc.h>
 #include <osmocom/gsm/tlv.h>
@@ -158,6 +159,7 @@ static int ipaccess_a_fd_cb(struct osmo_fd *bfd)
 	} else if (hh->proto == IPAC_PROTO_SCCP) {
 		msc_dispatch_sccp(fw, msg);
 	} else if (hh->proto == NAT_MUX) {
+		msg = mgcp_patch(fw->app, msg);
 		mgcp_forward(fw, msg->l2h, msgb_l2len(msg));
 	} else {
 		LOGP(DMSC, LOGL_ERROR, "Unknown IPA proto 0x%x\n", hh->proto);
