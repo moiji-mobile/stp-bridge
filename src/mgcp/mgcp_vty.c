@@ -522,7 +522,7 @@ static int config_write_vtrunk(struct vty *vty)
 		vty_out(vty, "  number endpoints %d%s",
 			trunk->number_endpoints - 1, VTY_NEWLINE);
 		config_write_trunk_common(vty, trunk);
-		mgcp_write_trunk_extra(vty, trunk);
+		mgcp_write_vtrunk_extra(vty, trunk);
 	}
 
 	return CMD_SUCCESS;
