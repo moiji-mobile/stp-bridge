@@ -167,9 +167,15 @@ static void dump_trunk(struct vty *vty, struct mgcp_trunk_config *cfg)
 {
 	int i;
 
-	vty_out(vty, "%s trunk nr %d with %d endpoints:%s",
-		cfg->trunk_type == MGCP_TRUNK_VIRTUAL ? "Virtual" : "E1",
-		cfg->trunk_nr, cfg->number_endpoints - 1, VTY_NEWLINE);
+	if (cfg->trunk_type == MGCP_TRUNK_VIRTUAL) {
+		vty_out(vty, "vtrunk %s with %d endpoints:%s",
+			cfg->virtual_domain, cfg->number_endpoints - 1,
+			VTY_NEWLINE);
+	} else {
+		vty_out(vty, "trunk nr %d with %d endpoints:%s",
+			cfg->trunk_nr, cfg->number_endpoints - 1,
+			VTY_NEWLINE);
+	}
 
 	if (!cfg->endpoints) {
 		vty_out(vty, "No endpoints allocated yet.%s", VTY_NEWLINE);
