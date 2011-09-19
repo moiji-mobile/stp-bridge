@@ -184,6 +184,11 @@ static void dump_trunk(struct vty *vty, struct mgcp_trunk_config *cfg)
 
 	for (i = 1; i < cfg->number_endpoints; ++i) {
 		struct mgcp_endpoint *endp = &cfg->endpoints[i];
+
+		/* skip if it is blocked */
+		if (endp->blocked)
+			continue;
+
 		vty_out(vty,
 			" Endpoint 0x%.2x: CI: %d net: %u/%u bts: %u/%u on %s "
 			"traffic received bts: %u/%u  remote: %u/%u transcoder: %u/%u%s",
