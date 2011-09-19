@@ -549,6 +549,7 @@ struct msc_connection *msc_connection_create(struct bsc_data *bsc, int mgcp)
 	msc->msc_link_down = 1;
 
 	/* handle the timeout */
+	msc->ping_time = -1;
 	msc->ping_timeout.cb = msc_ping_timeout;
 	msc->ping_timeout.data = msc;
 	msc->pong_timeout.cb = msc_pong_timeout;
