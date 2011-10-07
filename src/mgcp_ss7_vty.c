@@ -220,7 +220,7 @@ DEFUN_DEPRECATED(cfg_trunk_endp_offset, cfg_trunk_endp_offset_cmd,
 }
 
 DEFUN(cfg_trunk_timeslot_block, cfg_trunk_timeslot_block_cmd,
-      "block-endpoint <1-31>",
+      "block-endpoint <1-1024>",
       ENDP_BLOCK_STR "Endpoint number\n")
 {
 	struct mgcp_trunk_config *trunk = vty->index;
