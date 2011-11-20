@@ -94,7 +94,6 @@ static struct msgb *isup_simple_alloc(int cic, int msg_type)
 int isup_parse_status(const uint8_t *data, uint8_t in_length)
 {
 	uint8_t ptr;
-	uint8_t length;
 
 	if (in_length < 3) {
 		LOGP(DISUP, LOGL_ERROR, "This needs three bytes.\n");
@@ -106,8 +105,6 @@ int isup_parse_status(const uint8_t *data, uint8_t in_length)
 		LOGP(DISUP, LOGL_ERROR, "Pointing outside the packet.\n");
 		return -1;
 	}
-
-	length = data[0 + ptr];
 
 	if (1 + ptr + 1 > in_length) {
 		LOGP(DISUP, LOGL_ERROR, "No space for the data.\n");

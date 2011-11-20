@@ -57,4 +57,7 @@ struct mgcp_ss7_cmd {
 
 void mgcp_mgw_vty_init();
 
+int mgcp_snmp_init();
+int mgcp_snmp_connect(int port, int trunk, int timeslot);
+
 #endif

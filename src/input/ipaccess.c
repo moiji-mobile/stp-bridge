@@ -56,26 +56,6 @@ static const uint8_t id_req[] = { 0, 17, IPAC_PROTO_IPACCESS, IPAC_MSGT_ID_GET,
 					0x01, IPAC_IDTAG_SERNR,
 				};
 
-static const char *idtag_names[] = {
-	[IPAC_IDTAG_SERNR]	= "Serial_Number",
-	[IPAC_IDTAG_UNITNAME]	= "Unit_Name",
-	[IPAC_IDTAG_LOCATION1]	= "Location_1",
-	[IPAC_IDTAG_LOCATION2]	= "Location_2",
-	[IPAC_IDTAG_EQUIPVERS]	= "Equipment_Version",
-	[IPAC_IDTAG_SWVERSION]	= "Software_Version",
-	[IPAC_IDTAG_IPADDR]	= "IP_Address",
-	[IPAC_IDTAG_MACADDR]	= "MAC_Address",
-	[IPAC_IDTAG_UNIT]	= "Unit_ID",
-};
-
-static const char *ipac_idtag_name(int tag)
-{
-	if (tag >= ARRAY_SIZE(idtag_names))
-		return "unknown";
-
-	return idtag_names[tag];
-}
-
 /* send the id ack */
 int ipaccess_send_id_ack(int fd)
 {
@@ -104,7 +84,7 @@ int ipaccess_rcvmsg_base(struct msgb *msg,
 		ret = ipaccess_send_id_ack(bfd->fd);
 		break;
 	}
-	return 0;
+	return ret;
 }
 
 /*
