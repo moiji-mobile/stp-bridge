@@ -1,0 +1,26 @@
+AT_INIT
+AT_BANNER([Regression tests.])
+
+AT_SETUP([isup])
+AT_KEYWORDS([isup])
+cat $abs_srcdir/isup/isup_parse_test.ok > expout
+AT_CHECK([$abs_top_builddir/tests/isup/isup_parse_test], [], [expout], [ignore])
+AT_CLEANUP
+
+AT_SETUP([mgcp])
+AT_KEYWORDS([mgcp])
+cat $abs_srcdir/mgcp/mgcp_patch_test.ok > expout
+AT_CHECK([$abs_top_builddir/tests/mgcp/mgcp_patch_test], [], [expout], [ignore])
+AT_CLEANUP
+
+AT_SETUP([mtp])
+AT_KEYWORDS([mtp])
+cat $abs_srcdir/mtp/mtp_parse_test.ok > expout
+AT_CHECK([$abs_top_builddir/tests/mtp/mtp_parse_test], [], [expout], [ignore])
+AT_CLEANUP
+
+AT_SETUP([patching])
+AT_KEYWORDS([patching])
+cat $abs_srcdir/patching/patching_test.ok > expout
+AT_CHECK([$abs_top_builddir/tests/patching/patching_test], [], [expout], [ignore])
+AT_CLEANUP

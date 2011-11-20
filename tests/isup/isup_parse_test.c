@@ -35,6 +35,8 @@ static void test_cic_parsing()
 	static const uint8_t isup_grs[] = {3, 0, 23, 1, 1, 28};
 	struct isup_msg_hdr *hdr;
 
+	printf("Testing CIC parsing.\n");
+
 	hdr = (struct isup_msg_hdr *) isup_grs;
 	ASSERT(hdr->cic, 3);
 	ASSERT(hdr->msg_type, ISUP_MSG_GRS);
@@ -45,6 +47,8 @@ static void test_grs_parsing()
 	static const uint8_t isup_grs[] = {3, 0, 23, 1, 1, 28};
 	struct isup_msg_hdr *hdr;
 	int range;
+
+	printf("Testing GRS parsing.\n");
 
 	hdr = (struct isup_msg_hdr *) isup_grs;
 	range = isup_parse_status(&hdr->data[0], 3);

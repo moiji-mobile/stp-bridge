@@ -276,6 +276,6 @@ int main(int argc, char **argv)
 	test_patch_filter();
 	test_rewrite_msc();
 	test_rewrite_bsc();
-	printf("DONE!\n");
+	printf("All tests passed.\n");
 	return 0;
 }

@@ -1,0 +1,4 @@
+Testing patching of GSM messages to the MSC.
+Testing rewriting the SCCP header.
+Testing rewriting the SCCP header for BSC.
+All tests passed.

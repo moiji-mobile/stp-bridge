@@ -71,8 +71,10 @@ static const char mgcp_out[] =
 static void test_endp_name_rewriting()
 {
 	struct ss7_application app;
-	memset(&app, 0, sizeof(app));
 
+	printf("Test Endpoint Name rewriting.\n");
+
+	memset(&app, 0, sizeof(app));
 	app.mgcp_domain_name = "foo2";
 
 	/* prepare */
@@ -83,12 +85,10 @@ static void test_endp_name_rewriting()
 	/* patch it now */
 	struct msgb *msg_out = mgcp_patch(&app, msg);
 	msg_out->l2h[msgb_l2len(msg_out)] = '\0';
-#ifdef DEBUG
 	printf("Want : '%s'\n", mgcp_out);
 	printf("Outpu: '%s'\n", (const char *) msg_out->l2h);
-	printf("%s\n", osmo_hexdump(mgcp_out, strlen(mgcp_out)));
+	printf("%s\n", osmo_hexdump((const uint8_t *) mgcp_out, strlen(mgcp_out)));
 	printf("%s\n", osmo_hexdump(msg_out->l2h, msgb_l2len(msg_out)));
-#endif
 	ASSERT(msg_out, !=, msg, "msg should not be the same");
 
 	ASSERT(msgb_l2len(msg_out), ==, strlen(mgcp_out), "Output size wrong");
@@ -99,5 +99,6 @@ int main(int argc, char **argv)
 {
 	test_endp_name_rewriting();
 
+	printf("All tests passed.\n");
 	return 0;
 }
