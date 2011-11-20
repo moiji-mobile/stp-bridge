@@ -19,6 +19,7 @@ stamp-h1
 # compiled stuff
 *.o
 *.sw?
+*.orig
 
 # binaries
 cellmgr_ng
@@ -26,3 +27,15 @@ mgcp_mgw
 patching_test
 mtp_parse_test
 udt_relay
+osmo_stp
+
+.version
+aclocal.m4
+autom4te.cache/
+configure.lineno
+tests/atconfig
+tests/isup/isup_parse_test
+tests/mgcp/mgcp_patch_test
+tests/package.m4
+tests/testsuite
+tests/testsuite.log
