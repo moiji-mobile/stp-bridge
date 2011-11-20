@@ -33,6 +33,7 @@
 #include <osmocom/m2ua/m2ua_msg.h>
 
 #include <osmocom/core/application.h>
+#include <osmocom/core/rate_ctr.h>
 #include <osmocom/core/talloc.h>
 
 #include <osmocom/sccp/sccp.h>
@@ -196,6 +197,8 @@ int main(int argc, char **argv)
 {
 	int rc;
 	struct ss7_application *app;
+
+	rate_ctr_init(NULL);
 
 	thread_init();
 
