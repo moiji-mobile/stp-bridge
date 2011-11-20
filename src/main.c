@@ -31,6 +31,7 @@
 #include <ss7_application.h>
 
 #include <osmocore/talloc.h>
+#include <osmocore/rate_ctr.h>
 
 #include <osmocom/vty/vty.h>
 #include <osmocom/vty/telnet_interface.h>
@@ -60,6 +61,8 @@ int main(int argc, char **argv)
 	struct msc_connection *msc;
 	struct mtp_link_set *set;
 	struct ss7_application *app;
+
+	rate_ctr_init(NULL);
 
 	thread_init();
 
