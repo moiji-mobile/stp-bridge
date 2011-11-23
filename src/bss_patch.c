@@ -1,7 +1,7 @@
 /* Patch GSM 08.08 messages for the network and BS */
 /*
- * (C) 2010 by Holger Hans Peter Freyther <zecke@selfish.org>
- * (C) 2010 by On-Waves
+ * (C) 2010-2011 by Holger Hans Peter Freyther <zecke@selfish.org>
+ * (C) 2010-2011 by On-Waves
  * All Rights Reserved
  *
  * This program is free software: you can redistribute it and/or modify
@@ -130,7 +130,7 @@ int bss_patch_filter_msg(struct msgb *msg, struct sccp_parse_result *sccp)
 		return -1;
 	}
 
-	if (msg->l3h[0] != 0) {
+	if (msg->l3h[0] != BSSAP_MSG_BSS_MANAGEMENT) {
 		return -1;
 	}
 
