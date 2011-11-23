@@ -570,7 +570,7 @@ void msc_dispatch_sccp(struct msc_connection *msc, struct msgb *msg)
 			/* Check for Location Update Accept */
 			bsc_ussd_handle_in_msg(msc, &result, msg);
 
-			/* patch a possible PC */
+			/* Remove PointCodes to avoid routing issues */
 			bss_rewrite_header_to_bsc(msg, set->opc, set->dpc);
 
 			/* we can not forward it right now */
