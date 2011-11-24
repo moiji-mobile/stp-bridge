@@ -71,7 +71,7 @@ void app_forward_sccp(struct ss7_application *app, struct msgb *_msg, int sls)
 		return;
 	}
 
-	rc = bss_patch_filter_msg(_msg, &result);
+	rc = bss_patch_filter_msg(_msg, &result, BSS_DIR_MSC);
 	if (rc == BSS_FILTER_RESET) {
 		LOGP(DMSC, LOGL_NOTICE, "Filtering BSS Reset from the BSC\n");
 		msc_mgcp_reset(msc);
@@ -549,7 +549,7 @@ void msc_dispatch_sccp(struct msc_connection *msc, struct msgb *msg)
 		struct sccp_parse_result result;
 		int rc;
 
-		rc = bss_patch_filter_msg(msg, &result);
+		rc = bss_patch_filter_msg(msg, &result, BSS_DIR_BSC);
 
 		if (rc == BSS_FILTER_RESET_ACK) {
 			LOGP(DMSC, LOGL_NOTICE, "Filtering reset ack from the MSC\n");

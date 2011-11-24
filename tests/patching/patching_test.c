@@ -118,6 +118,16 @@ static uint8_t cr2_without_poi[] = {
 0x18, 0x93, 0x08, 0x29, 0x47, 0x80, 0x00, 0x00,
 0x00, 0x00, 0x80, 0x00};
 
+static uint8_t dt1_cc_confirmed[] = {
+0x06, 0x01, 0x0b, 0xef, 0x00, 0x01, 0x0e, 0x01,
+0x00, 0x0b, 0x83, 0x48, 0x04, 0x04, 0x20, 0x02,
+0x00, 0x81, 0x15, 0x01, 0x01};
+
+static uint8_t dt1_cc_confirmed_hr3[] = {
+0x06, 0x01, 0x0b, 0xef, 0x00, 0x01, 0x0e, 0x01,
+0x00, 0x0b, 0x83, 0x48, 0x04, 0x04, 0x40, 0x05,
+0x00, 0x81, 0x15, 0x01, 0x01};
+
 static struct result rewrite_results_to_msc[] = {
 	{
 		.input = udt_with_poi,
@@ -138,6 +148,13 @@ static struct result rewrite_results_to_msc[] = {
 		.inp_len = sizeof(cr2_without_poi),
 		.expected = cr2_without_poi,
 		.exp_len = sizeof(cr2_without_poi),
+	},
+
+	{
+		.input = dt1_cc_confirmed,
+		.inp_len = sizeof(dt1_cc_confirmed),
+		.expected = dt1_cc_confirmed_hr3,
+		.exp_len = sizeof(dt1_cc_confirmed_hr3),
 	},
 };
 
@@ -177,7 +194,7 @@ static void test_patch_filter(void)
 		msgb_put(msg, 1);
 		msg->l2h = msgb_put(msg, results[i].inp_len);
 		memcpy(msg->l2h, results[i].input, msgb_l2len(msg));
-		rc = bss_patch_filter_msg(msg, &result);
+		rc = bss_patch_filter_msg(msg, &result, BSS_DIR_ANY);
 
 		if (memcmp(msg->l2h, results[i].expected, results[i].exp_len) != 0) {
 			printf("Failed to patch the packet.\n");
@@ -209,7 +226,7 @@ static void test_rewrite_msc(void)
 		inp->l2h = msgb_put(inp, rewrite_results_to_msc[i].inp_len);
 		memcpy(inp->l2h, rewrite_results_to_msc[i].input, msgb_l2len(inp));
 
-		rc = bss_patch_filter_msg(inp, &result);
+		rc = bss_patch_filter_msg(inp, &result, BSS_DIR_MSC);
 		if (rc < 0) {
 			printf("Failed to parse header msg: %d\n", i);
 			abort();
@@ -218,7 +235,7 @@ static void test_rewrite_msc(void)
 		bss_rewrite_header_for_msc(rc, outp, inp, &result);
 
 		memset(&result, 0, sizeof(result));
-		rc = bss_patch_filter_msg(outp, &result);
+		rc = bss_patch_filter_msg(outp, &result, BSS_DIR_MSC);
 		if (rc < 0) {
 			printf("Patched message doesn't work: %d\n", i);
 			printf("hex: %s\n", hexdump(outp->l2h, msgb_l2len(outp)));
