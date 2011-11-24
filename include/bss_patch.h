@@ -1,7 +1,7 @@
 /* Patch Messages to and from the MSC */
 /*
- * (C) 2010 by Holger Hans Peter Freyther <zecke@selfish.org>
- * (C) 2010 by On-Waves
+ * (C) 2010-2011 by Holger Hans Peter Freyther <zecke@selfish.org>
+ * (C) 2010-2011 by On-Waves
  * All Rights Reserved
  *
  * This program is free software: you can redistribute it and/or modify
@@ -30,13 +30,20 @@
 #define BSS_FILTER_RLSD		3
 #define BSS_FILTER_RLC		4
 #define BSS_FILTER_CLEAR_COMPL	5
+#define BSS_FILTER_DTAP		6
+
+#define BSS_DIR_BSC		1
+#define BSS_DIR_MSC		2
+#define BSS_DIR_ANY		(BSS_DIR_MSC | BSS_DIR_BSC)
 
 /**
  * Error is < 0
  * Success is == 0
  * Filter is > 0
+ *
+ * Direction...
  */
-int bss_patch_filter_msg(struct msgb *msg, struct sccp_parse_result *result);
+int bss_patch_filter_msg(struct msgb *msg, struct sccp_parse_result *result, int dir);
 
 /*
  * Copy inpt->l2h to target->l2h but rewrite the SCCP header on the way

@@ -24,13 +24,18 @@
 
 #include <string.h>
 
+#include <osmocom/gsm/gsm48.h>
 #include <osmocom/gsm/gsm0808.h>
+#include <osmocom/gsm/protocol/gsm_04_08.h>
 #include <osmocom/gsm/protocol/gsm_08_08.h>
 #include <osmocom/gsm/tlv.h>
 
 #include <osmocom/sccp/sccp.h>
 
 #include <arpa/inet.h>
+
+static int handle_bss_mgmt(struct msgb *msg, struct sccp_parse_result *sccp);
+static int handle_bss_dtap(struct msgb *msg, struct sccp_parse_result *sccp, int dir);
 
 static void patch_ass_rqst(struct msgb *msg, int length)
 {
@@ -93,7 +98,7 @@ static void patch_ass_cmpl(struct msgb *msg, int length)
 	data[0] = GSM0808_PERM_HR3;
 }
 
-int bss_patch_filter_msg(struct msgb *msg, struct sccp_parse_result *sccp)
+int bss_patch_filter_msg(struct msgb *msg, struct sccp_parse_result *sccp, int dir)
 {
 	int type;
 	memset(sccp, 0, sizeof(*sccp));
@@ -130,14 +135,21 @@ int bss_patch_filter_msg(struct msgb *msg, struct sccp_parse_result *sccp)
 		return -1;
 	}
 
-	if (msg->l3h[0] != BSSAP_MSG_BSS_MANAGEMENT) {
-		return -1;
-	}
-
 	if (msgb_l3len(msg) < 2 + msg->l3h[1]) {
 		return -1;
 	}
 
+	if (msg->l3h[0] == BSSAP_MSG_BSS_MANAGEMENT)
+		return handle_bss_mgmt(msg, sccp);
+	if (msg->l3h[0] == BSSAP_MSG_DTAP)
+		return handle_bss_dtap(msg, sccp, dir);
+
+	/* Not handled... */
+	return -1;
+}
+
+static int handle_bss_mgmt(struct msgb *msg, struct sccp_parse_result *sccp)
+{
 	switch (msg->l3h[2]) {
 	case BSS_MAP_MSG_ASSIGMENT_RQST:
 		msg->l3h = &msg->l3h[2];
@@ -159,6 +171,109 @@ int bss_patch_filter_msg(struct msgb *msg, struct sccp_parse_result *sccp)
 	}
 
 	return 0;
+}
+
+/* patch bearer capabilities towards the BSC */
+static int handle_bss_dtap(struct msgb *msg, struct sccp_parse_result *sccp, int dir)
+{
+	struct gsm48_hdr *hdr48;
+	struct tlv_parsed tp;
+	uint8_t proto, msg_type;
+	uint8_t *data;
+	int rc, len, i, has_amr;
+
+	/* early exit for messages not going to the MSC */
+	if ((dir & BSS_DIR_MSC) == 0)
+		return BSS_FILTER_DTAP;
+
+	/* check if the plain gsm header fits */
+	if (msg->l3h[2] < sizeof(*hdr48)) {
+		LOGP(DMSC, LOGL_ERROR,
+		     "DTAP GSM48 hdr does not fit: %d\n", msgb_l3len(msg));
+		return -1;
+	}
+
+	/* check if the whole message fits */
+	if (msgb_l3len(msg) - 3 < msg->l3h[2]) {
+		LOGP(DMSC, LOGL_ERROR,
+		     "DTAG GSM48 msg does not fit: %d\n", msgb_l3len(msg) - 3);
+		return -1;
+	}
+
+	/* right now we only need to patch call control messages */
+	msg->l3h = &msg->l3h[3];
+	hdr48 = (struct gsm48_hdr *) &msg->l3h[0];
+	proto = hdr48->proto_discr & 0x0f;
+        msg_type = hdr48->msg_type & 0xbf;
+
+	if (proto != GSM48_PDISC_CC)
+		return BSS_FILTER_DTAP;
+
+	switch (msg_type) {
+	case GSM48_MT_CC_CALL_CONF:
+	case GSM48_MT_CC_SETUP:
+		rc = tlv_parse(&tp, &gsm48_att_tlvdef, &hdr48->data[0],
+			       msgb_l3len(msg) - sizeof(*hdr48), 0, 0);
+		if (rc <= 0) {
+			LOGP(DMSC, LOGL_ERROR,
+			     "Failed to parse CC message: %d\n", rc);
+			return BSS_FILTER_DTAP;
+		}
+
+		/* not judging if this is optional here or not */
+		if (!TLVP_PRESENT(&tp, GSM48_IE_BEARER_CAP))
+			return BSS_FILTER_DTAP;
+
+		if (TLVP_LEN(&tp, GSM48_IE_BEARER_CAP) < 2){
+			LOGP(DMSC, LOGL_ERROR,
+			     "Octet3/Octet3a do not fit: %d\n",
+			     TLVP_LEN(&tp, GSM48_IE_BEARER_CAP));
+			return BSS_FILTER_DTAP;
+		}
+
+		data = (uint8_t *) TLVP_VAL(&tp, GSM48_IE_BEARER_CAP);
+		if ((data[0] & 0x80) != 0) {
+			LOGP(DMSC, LOGL_DEBUG, "Octet3a not present.\n");
+			return BSS_FILTER_DTAP;
+		}
+
+		/*
+		 * Some lazy bit checks that work because the defines are
+		 * are 0. If this would not be the case we will need additional
+		 * shifts
+		 */
+		if ((data[0] & 0x07) != GSM48_BCAP_ITCAP_SPEECH)
+			return BSS_FILTER_DTAP;
+		if ((data[0] & 0x08) != GSM48_BCAP_TMOD_CIRCUIT)
+			return BSS_FILTER_DTAP;
+		if ((data[0] & 0x10) != GSM48_BCAP_CODING_GSM_STD)
+			return BSS_FILTER_DTAP;
+
+		/* Check if we have fr only */
+		if ((data[0] & 0x60) >> 5 == GSM48_BCAP_RRQ_FR_ONLY) {
+			data[0] &= ~0x60;
+			data[0] |= GSM48_BCAP_RRQ_DUAL_HR << 5;
+		}
+
+		/* Now check if HR AMR 3 shows up */
+		has_amr = 0;
+		len = TLVP_LEN(&tp, GSM48_IE_BEARER_CAP);
+		for (i = 1; i < len && !has_amr; ++i) {
+			/* ended the octet3a */
+			if ((data[i] & 0x80) > 0)
+				break;
+			if ((data[i] & 0x0f) == 0x5)
+				has_amr = 1;
+		}
+
+		/* patch HR AMR 3 as first used audio codec */
+		if (!has_amr)
+			data[1] = (data[1] & 0x80) | 0x5;
+
+		break;
+	}
+
+	return BSS_FILTER_DTAP;
 }
 
 static void create_cr(struct msgb *target, struct msgb *inpt, struct sccp_parse_result *sccp)
