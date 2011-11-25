@@ -105,14 +105,18 @@ DEFUN(show_msc, show_msc_cmd,
       "show msc",
       SHOW_STR "Display the status of the MSC\n")
 {
-	struct msc_connection *msc;
+	struct msc_connection *msc = msc_connection_num(bsc, 0);
 
-	llist_for_each_entry(msc, &bsc->mscs, entry) {
-		vty_out(vty, "MSC link is %s and had %s.%s",
-			msc->msc_link_down == 0 ? "up" : "down",
-			msc->first_contact == 1 ? "no contact" : "contact",
-			VTY_NEWLINE);
+	if (!msc) {
+		vty_out(vty, "%%No MSC Connection defined in this app.%s", VTY_NEWLINE);
+		return CMD_WARNING;
 	}
+
+
+	vty_out(vty, "MSC link is %s and had %s.%s",
+		msc->msc_link_down == 0 ? "up" : "down",
+		msc->first_contact == 1 ? "no contact" : "contact",
+		VTY_NEWLINE);
 
 	return CMD_SUCCESS;
 }
