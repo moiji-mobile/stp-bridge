@@ -54,9 +54,12 @@ void msc_close_connection(struct msc_connection *fw)
 {
 	struct bsc_fd *bfd = &fw->msc_connection.bfd;
 
-	close(bfd->fd);
-	bsc_unregister_fd(bfd);
-	bfd->fd = -1;
+	if (bfd->fd >= 0) {
+		close(bfd->fd);
+		bsc_unregister_fd(bfd);
+		bfd->fd = -1;
+	}
+
 	fw->msc_link_down = 1;
 	release_bsc_resources(fw);
 	bsc_del_timer(&fw->ping_timeout);
@@ -546,6 +549,7 @@ struct msc_connection *msc_connection_create(struct bsc_data *bsc, int mgcp)
 	msc->msc_connection.read_cb = ipaccess_a_fd_cb;
 	msc->msc_connection.write_cb = ipaccess_write_cb;
 	msc->msc_connection.bfd.data = msc;
+	msc->msc_connection.bfd.fd = -1;
 	msc->msc_link_down = 1;
 
 	/* handle the timeout */
