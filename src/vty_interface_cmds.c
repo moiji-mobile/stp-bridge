@@ -105,19 +105,35 @@ DEFUN(show_msc, show_msc_cmd,
       "show msc",
       SHOW_STR "Display the status of the MSC\n")
 {
-	struct msc_connection *msc = msc_connection_num(bsc, 0);
+	struct msc_connection *msc;
 
-	if (!msc) {
-		vty_out(vty, "%%No MSC Connection defined in this app.%s", VTY_NEWLINE);
-		return CMD_WARNING;
+	llist_for_each_entry(msc, &bsc->mscs, entry) {
+		vty_out(vty, "MSC link is %s and had %s.%s",
+			msc->msc_link_down == 0 ? "up" : "down",
+			msc->first_contact == 1 ? "no contact" : "contact",
+			VTY_NEWLINE);
 	}
 
-	vty_out(vty, "MSC link is %s and had %s.%s",
-		msc->msc_link_down == 0 ? "up" : "down",
-		msc->first_contact == 1 ? "no contact" : "contact",
-		VTY_NEWLINE);
 	return CMD_SUCCESS;
 }
+
+DEFUN(show_mscs, show_mscs_cmd,
+      "show mscs",
+      SHOW_STR "Display the status of all MSCs\n")
+{
+	struct msc_connection *msc;
+
+	llist_for_each_entry(msc, &bsc->mscs, entry) {
+		vty_out(vty, "MSC link nr %d name '%s' is %s and had %s.%s",
+			msc->nr, msc->name,
+			msc->msc_link_down == 0 ? "up" : "down",
+			msc->first_contact == 1 ? "no contact" : "contact",
+			VTY_NEWLINE);
+	}
+
+	return CMD_SUCCESS;
+}
+
 
 DEFUN(show_slc, show_slc_cmd,
       "show link-set <0-100> slc",
@@ -294,6 +310,7 @@ void cell_vty_init_cmds(void)
 	install_element_ve(&show_slc_cmd);
 
 	install_element_ve(&show_msc_cmd);
+	install_element_ve(&show_mscs_cmd);
 	install_element_ve(&show_sctp_count_cmd);
 	install_element_ve(&show_sctp_details_cmd);
 }
