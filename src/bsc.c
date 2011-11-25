@@ -118,8 +118,10 @@ static void sigusr2()
 	struct msc_connection *msc;
 	printf("Closing the MSC connection on demand.\n");
 
-	llist_for_each_entry(msc, &bsc->mscs, entry)
-		msc_close_connection(msc);
+	llist_for_each_entry(msc, &bsc->mscs, entry) {
+		if (!msc->msc_link_down)
+			msc_close_connection(msc);
+	}
 }
 
 
