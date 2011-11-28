@@ -103,10 +103,15 @@ DEFUN(show_linksets, show_linksets_cmd,
 }
 
 DEFUN(show_msc, show_msc_cmd,
-      "show msc",
-      SHOW_STR "Display the status of the MSC\n")
+      "show msc [NR]",
+      SHOW_STR "Display the status of the MSC\n" "Number of the MSC\n")
 {
-	struct msc_connection *msc = msc_connection_num(bsc, 0);
+	struct msc_connection *msc;
+
+	if (argc == 1)
+		msc = msc_connection_num(bsc, atoi(argv[0]));
+	else
+		msc = msc_connection_num(bsc, 0);
 
 	if (!msc) {
 		vty_out(vty, "%%No MSC Connection defined in this app.%s", VTY_NEWLINE);
