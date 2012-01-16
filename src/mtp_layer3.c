@@ -33,7 +33,7 @@
 
 #include <string.h>
 
-static int mtp_int_submit(struct mtp_link_set *set, int pc, int sls, int type, const uint8_t *data, unsigned int length);
+static int mtp_int_submit(struct mtp_link_set *set, int opc, int sls, int type, const uint8_t *data, unsigned int length);
 
 struct msgb *mtp_msg_alloc(struct mtp_link_set *set)
 {
@@ -552,7 +552,7 @@ int mtp_link_set_send(struct mtp_link_set *set, struct msgb *msg)
 	return 0;
 }
 
-static int mtp_int_submit(struct mtp_link_set *set, int pc, int sls, int type,
+static int mtp_int_submit(struct mtp_link_set *set, int opc, int sls, int type,
 			  const uint8_t *data, unsigned int length)
 {
 	uint8_t *put_ptr;
@@ -569,7 +569,7 @@ static int mtp_int_submit(struct mtp_link_set *set, int pc, int sls, int type,
 	hdr = (struct mtp_level_3_hdr *) msg->l2h;
 	hdr->ser_ind = type;
 
-	hdr->addr = MTP_ADDR(sls % 16, set->dpc, pc);
+	hdr->addr = MTP_ADDR(sls % 16, set->dpc, opc);
 
 	/* copy the raw sccp data */
 	put_ptr = msgb_put(msg, length);
