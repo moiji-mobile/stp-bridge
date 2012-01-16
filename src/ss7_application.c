@@ -32,7 +32,7 @@
 
 
 /* the SS7 dispatch... maybe as function pointers in the future */
-void forward_sccp_stp(struct mtp_link_set *set, struct msgb *_msg, int sls)
+static void forward_sccp_stp(struct mtp_link_set *set, struct msgb *_msg, int sls)
 {
 	struct mtp_link_set *other;
 	other = set->app->route_src.set == set ?
@@ -40,7 +40,7 @@ void forward_sccp_stp(struct mtp_link_set *set, struct msgb *_msg, int sls)
 	mtp_link_set_submit_sccp_data(other, sls, _msg->l2h, msgb_l2len(_msg));
 }
 
-void forward_isup_stp(struct mtp_link_set *set, struct msgb *msg, int sls)
+static void forward_isup_stp(struct mtp_link_set *set, struct msgb *msg, int sls)
 {
 	struct mtp_link_set *other;
 	other = set->app->route_src.set == set ?
