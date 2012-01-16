@@ -33,7 +33,7 @@
 
 #include <string.h>
 
-static int mtp_int_submit(struct mtp_link_set *set, int opc, int sls, int type, const uint8_t *data, unsigned int length);
+static int mtp_int_submit(struct mtp_link_set *set, int opc, int dpc, int sls, int type, const uint8_t *data, unsigned int length);
 
 struct msgb *mtp_msg_alloc(struct mtp_link_set *set)
 {
@@ -525,14 +525,14 @@ int mtp_link_set_submit_sccp_data(struct mtp_link_set *set, int sls, const uint8
 	}
 
 	rate_ctr_inc(&set->ctrg->ctr[MTP_LSET_SCCP_OUT_MSG]);
-	return mtp_int_submit(set, set->sccp_opc, sls, MTP_SI_MNT_SCCP, data, length);
+	return mtp_int_submit(set, set->sccp_opc, set->dpc, sls, MTP_SI_MNT_SCCP, data, length);
 }
 
 int mtp_link_set_submit_isup_data(struct mtp_link_set *set, int sls,
 			      const uint8_t *data, unsigned int length)
 {
 	rate_ctr_inc(&set->ctrg->ctr[MTP_LSET_ISUP_OUT_MSG]);
-	return mtp_int_submit(set, set->isup_opc, sls, MTP_SI_MNT_ISUP, data, length);
+	return mtp_int_submit(set, set->isup_opc, set->dpc, sls, MTP_SI_MNT_ISUP, data, length);
 }
 
 int mtp_link_set_send(struct mtp_link_set *set, struct msgb *msg)
@@ -552,8 +552,9 @@ int mtp_link_set_send(struct mtp_link_set *set, struct msgb *msg)
 	return 0;
 }
 
-static int mtp_int_submit(struct mtp_link_set *set, int opc, int sls, int type,
-			  const uint8_t *data, unsigned int length)
+static int mtp_int_submit(struct mtp_link_set *set, int opc, int dpc,
+			  int sls, int type, const uint8_t *data,
+			  unsigned int length)
 {
 	uint8_t *put_ptr;
 	struct mtp_level_3_hdr *hdr;
@@ -569,7 +570,7 @@ static int mtp_int_submit(struct mtp_link_set *set, int opc, int sls, int type,
 	hdr = (struct mtp_level_3_hdr *) msg->l2h;
 	hdr->ser_ind = type;
 
-	hdr->addr = MTP_ADDR(sls % 16, set->dpc, opc);
+	hdr->addr = MTP_ADDR(sls % 16, dpc, opc);
 
 	/* copy the raw sccp data */
 	put_ptr = msgb_put(msg, length);
