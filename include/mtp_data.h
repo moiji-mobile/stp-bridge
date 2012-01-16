@@ -52,8 +52,18 @@ struct mtp_link_set {
 	char *name;
 
 
-	/* routing info.. */
-	int dpc, opc, sccp_opc, isup_opc;
+	/**
+	 * Routing is very limited. We can only forward to one
+	 * other STP/Endpoint. For ISUP and SCCP we can statically
+	 * send it to another destination. We need to follow Q.704
+	 * more properly here.
+	 * DPC/OPC are the ones for the linkset,
+	 * sccp_dpc/isup_dpc are where we will send SCCP/ISUP messages
+	 * sccp_opc/isup_opc are what we announce in the TFP
+	 */
+	int dpc, opc;
+	int sccp_dpc, isup_dpc;
+	int sccp_opc, isup_opc;
 	int ni;
 	int spare;
 

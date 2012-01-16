@@ -206,6 +206,14 @@ static void write_linkset(struct vty *vty, struct mtp_link_set *set)
 		set->timeout_t18, VTY_NEWLINE);
 	vty_out(vty, "  mtp3 timeout t20 %d%s",
 		set->timeout_t20, VTY_NEWLINE);
+	if (set->sccp_dpc != -1)
+		vty_out(vty, "  mtp3 sccp dpc %d%s", set->sccp_dpc, VTY_NEWLINE);
+	if (set->sccp_opc != -1)
+		vty_out(vty, "  mtp3 sccp opc %d%s", set->sccp_opc, VTY_NEWLINE);
+	if (set->isup_dpc != -1)
+		vty_out(vty, "  mtp3 isup dpc %d%s", set->isup_dpc, VTY_NEWLINE);
+	if (set->isup_opc != -1)
+		vty_out(vty, "  mtp3 isup opc %d%s", set->isup_opc, VTY_NEWLINE);
 
 	for (i = 0; i < ARRAY_SIZE(set->supported_ssn); ++i) {
 		if (!set->supported_ssn[i])
@@ -449,6 +457,78 @@ DEFUN(cfg_linkset_t20, cfg_linkset_t20_cmd,
 {
 	struct mtp_link_set *set = vty->index;
 	set->timeout_t20 = atoi(argv[0]);
+	return CMD_SUCCESS;
+}
+
+DEFUN(cfg_linkset_mtp3_isup_opc, cfg_linkset_mtp3_isup_opc_cmd,
+      "mtp3 isup opc <0-8191>",
+      "MTP Level3\n" "ISUP Commands\n" "OPC\n" "OPC Number\n")
+{
+	struct mtp_link_set *set = vty->index;
+	set->isup_opc = atoi(argv[0]);
+	return CMD_SUCCESS;
+}
+
+DEFUN(cfg_linkset_no_mtp3_isup_opc, cfg_linkset_no_mtp3_isup_opc_cmd,
+      "no mtp3 isup opc",
+      NO_STR "MTP Level3\n" "ISUP Commands\n" "OPC\n")
+{
+	struct mtp_link_set *set = vty->index;
+	set->isup_opc = -1;
+	return CMD_SUCCESS;
+}
+
+DEFUN(cfg_linkset_mtp3_isup_dpc, cfg_linkset_mtp3_isup_dpc_cmd,
+      "mtp3 isup dpc <0-8191>",
+      "MTP Level3\n" "ISUP Commands\n" "DPC\n" "DPC Number\n")
+{
+	struct mtp_link_set *set = vty->index;
+	set->isup_dpc = atoi(argv[0]);
+	return CMD_SUCCESS;
+}
+
+DEFUN(cfg_linkset_no_mtp3_isup_dpc, cfg_linkset_no_mtp3_isup_dpc_cmd,
+      "no mtp3 isup dpc",
+      NO_STR "MTP Level3\n" "ISUP Commands\n" "DPC\n")
+{
+	struct mtp_link_set *set = vty->index;
+	set->isup_dpc = -1;
+	return CMD_SUCCESS;
+}
+
+DEFUN(cfg_linkset_mtp3_sccp_opc, cfg_linkset_mtp3_sccp_opc_cmd,
+      "mtp3 sccp opc <0-8191>",
+      "MTP Level3\n" "SCCP Commands\n" "OPC\n" "OPC Number\n")
+{
+	struct mtp_link_set *set = vty->index;
+	set->sccp_opc = atoi(argv[0]);
+	return CMD_SUCCESS;
+}
+
+DEFUN(cfg_linkset_no_mtp3_sccp_opc, cfg_linkset_no_mtp3_sccp_opc_cmd,
+      "no mtp3 sccp opc",
+      NO_STR "MTP Level3\n" "SCCP Commands\n" "OPC\n")
+{
+	struct mtp_link_set *set = vty->index;
+	set->sccp_opc = -1;
+	return CMD_SUCCESS;
+}
+
+DEFUN(cfg_linkset_mtp3_sccp_dpc, cfg_linkset_mtp3_sccp_dpc_cmd,
+      "mtp3 sccp dpc <0-8191>",
+      "MTP Level3\n" "SCCP Commands\n" "DPC\n" "DPC Number\n")
+{
+	struct mtp_link_set *set = vty->index;
+	set->sccp_dpc = atoi(argv[0]);
+	return CMD_SUCCESS;
+}
+
+DEFUN(cfg_linkset_no_mtp3_sccp_dpc, cfg_linkset_no_mtp3_sccp_dpc_cmd,
+      "no mtp3 sccp dpc",
+      NO_STR "MTP Level3\n" "SCCP Commands\n" "DPC\n")
+{
+	struct mtp_link_set *set = vty->index;
+	set->sccp_dpc = -1;
 	return CMD_SUCCESS;
 }
 
@@ -943,6 +1023,14 @@ void cell_vty_init(void)
 	install_element(LINKSETS_NODE, &cfg_linkset_sltm_once_cmd);
 	install_element(LINKSETS_NODE, &cfg_linkset_t18_cmd);
 	install_element(LINKSETS_NODE, &cfg_linkset_t20_cmd);
+	install_element(LINKSETS_NODE, &cfg_linkset_mtp3_isup_opc_cmd);
+	install_element(LINKSETS_NODE, &cfg_linkset_no_mtp3_isup_opc_cmd);
+	install_element(LINKSETS_NODE, &cfg_linkset_mtp3_sccp_opc_cmd);
+	install_element(LINKSETS_NODE, &cfg_linkset_no_mtp3_sccp_opc_cmd);
+	install_element(LINKSETS_NODE, &cfg_linkset_mtp3_isup_dpc_cmd);
+	install_element(LINKSETS_NODE, &cfg_linkset_no_mtp3_isup_dpc_cmd);
+	install_element(LINKSETS_NODE, &cfg_linkset_mtp3_sccp_dpc_cmd);
+	install_element(LINKSETS_NODE, &cfg_linkset_no_mtp3_sccp_dpc_cmd);
 
 	install_element(LINKSETS_NODE, &cfg_linkset_link_cmd);
 	install_node(&link_node, dummy_write);

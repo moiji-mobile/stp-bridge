@@ -525,14 +525,18 @@ int mtp_link_set_submit_sccp_data(struct mtp_link_set *set, int sls, const uint8
 	}
 
 	rate_ctr_inc(&set->ctrg->ctr[MTP_LSET_SCCP_OUT_MSG]);
-	return mtp_int_submit(set, set->sccp_opc, set->dpc, sls, MTP_SI_MNT_SCCP, data, length);
+	return mtp_int_submit(set, set->sccp_opc,
+			set->sccp_dpc == -1 ? set->dpc : set->sccp_dpc,
+			sls, MTP_SI_MNT_SCCP, data, length);
 }
 
 int mtp_link_set_submit_isup_data(struct mtp_link_set *set, int sls,
 			      const uint8_t *data, unsigned int length)
 {
 	rate_ctr_inc(&set->ctrg->ctr[MTP_LSET_ISUP_OUT_MSG]);
-	return mtp_int_submit(set, set->isup_opc, set->dpc, sls, MTP_SI_MNT_ISUP, data, length);
+	return mtp_int_submit(set, set->isup_opc,
+			set->isup_dpc == -1 ? set->dpc : set->isup_dpc,
+			sls, MTP_SI_MNT_ISUP, data, length);
 }
 
 int mtp_link_set_send(struct mtp_link_set *set, struct msgb *msg)
@@ -648,6 +652,7 @@ struct mtp_link_set *mtp_link_set_alloc(struct bsc_data *bsc)
 
 	set->nr = bsc->num_linksets++;
 	set->sccp_opc = set->isup_opc = -1;
+	set->sccp_dpc = set->isup_dpc = -1;
 	set->pcap_fd = bsc->pcap_fd;
 	set->bsc = bsc;
 
