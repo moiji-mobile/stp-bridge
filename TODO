@@ -1,0 +1,6 @@
+== Number of shortcomings ==
+
+Implement proper routing as in Q.704. The 'applications' need to describe
+which PCs can be reached by the application (insert items in the routing
+table), during the MTP Restart one needs to collect the TRA and TFA for
+rachable points, then TFA for the reachable points to all adjacent links..
