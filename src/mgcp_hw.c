@@ -94,7 +94,7 @@ int mgcp_snmp_init()
 
 int mgcp_snmp_connect(int port, int trunk, int timeslot)
 {
- 	int status;
+	int status;
 	netsnmp_pdu *response = NULL;
 	netsnmp_pdu *pdu;
 	int _rx_port, _tx_port;
@@ -155,8 +155,8 @@ int mgcp_snmp_connect(int port, int trunk, int timeslot)
 	} else if (status == STAT_TIMEOUT) {
 		fprintf(stderr, "Timeout for SNMP.\n");
 		goto failure;
- 	}
- 
+	}
+
 	if (response)
 		snmp_free_pdu(response);
 	return 0;
