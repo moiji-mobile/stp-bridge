@@ -125,7 +125,7 @@ struct mgcp_endpoint {
 
 	/* Special MGW handling */
 	int blocked;
-	unsigned int hw_snmp_port; /** This is index 1 based */
+	unsigned int hw_dsp_port; /** This is index 1 based */
 	unsigned int audio_port;
 	int block_processing;
 };

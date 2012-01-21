@@ -1,6 +1,6 @@
 /*
- * (C) 2010-2011 by Holger Hans Peter Freyther <zecke@selfish.org>
- * (C) 2010-2011 by On-Waves
+ * (C) 2010-2012 by Holger Hans Peter Freyther <zecke@selfish.org>
+ * (C) 2010-2012 by On-Waves
  * All Rights Reserved
  *
  * This program is free software: you can redistribute it and/or modify
@@ -23,6 +23,7 @@
 #include <net-snmp/net-snmp-includes.h>
 
 #include <cellmgr_debug.h>
+#include <mgcp_ss7.h>
 
 #define HSCOMM "PTI-NexusWare-HSCMCONN-MIB::"
 
@@ -72,7 +73,7 @@ static int tx_port_get(int port)
 		return PTMC_STREAM_A_TX0 + port;
 }
 
-int mgcp_snmp_init()
+int mgcp_hw_init()
 {
 	init_snmp("mgcp_mgw");
 	snmp_sess_init(&g_session);
@@ -92,7 +93,7 @@ int mgcp_snmp_init()
 	return 0;
 }
 
-int mgcp_snmp_connect(int port, int trunk, int timeslot)
+int mgcp_hw_connect(int port, int trunk, int timeslot)
 {
 	int status;
 	netsnmp_pdu *response = NULL;
