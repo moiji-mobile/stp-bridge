@@ -1,7 +1,7 @@
 /* mgcp_ss7 helper coder */
 /*
- * (C) 2010-2011 by Holger Hans Peter Freyther <zecke@selfish.org>
- * (C) 2010-2011 by On-Waves
+ * (C) 2010-2012 by Holger Hans Peter Freyther <zecke@selfish.org>
+ * (C) 2010-2012 by On-Waves
  * All Rights Reserved
  *
  * This program is free software: you can redistribute it and/or modify
@@ -57,4 +57,6 @@ struct mgcp_ss7_cmd {
 
 void mgcp_mgw_vty_init();
 
+int mgcp_hw_init();
+int mgcp_hw_connect(int port, int trunk, int timeslot);
 #endif

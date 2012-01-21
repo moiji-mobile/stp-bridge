@@ -80,7 +80,7 @@ static int select_voice_port(struct mgcp_endpoint *endp)
 		return -1;
 	}
 
-	mgw_port = endp->hw_snmp_port - 1;
+	mgw_port = endp->hw_dsp_port - 1;
 	fprintf(stderr, "TEST: Going to use MGW: %d for MUL: %d TS: %d\n",
 		mgw_port, multiplex, timeslot);
 	return mgw_port;
@@ -675,13 +675,13 @@ static int configure_trunk(struct mgcp_trunk_config *tcfg, int *dsp_resource)
 			continue;
 
 		*dsp_resource += 1;
-		tcfg->endpoints[i].hw_snmp_port = *dsp_resource;
+		tcfg->endpoints[i].hw_dsp_port = *dsp_resource;
 
 		if (tcfg->cfg->configure_trunks) {
 			int multiplex, timeslot, res;
 
 			mgcp_endpoint_to_timeslot(i, &multiplex, &timeslot);
-			res = mgcp_snmp_connect(*dsp_resource,
+			res = mgcp_hw_connect(*dsp_resource,
 						start + multiplex,
 						timeslot);
 
@@ -724,7 +724,7 @@ static struct mgcp_ss7 *mgcp_ss7_init(struct mgcp_config *cfg)
 		return NULL;
 	}
 
-	if (cfg->configure_trunks && mgcp_snmp_init() != 0) {
+	if (cfg->configure_trunks && mgcp_hw_init() != 0) {
 		LOGP(DMGCP, LOGL_ERROR, "Failed to initialize SNMP.\n");
 		talloc_free(conf);
 		return NULL;
