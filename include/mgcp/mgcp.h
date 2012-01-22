@@ -136,6 +136,8 @@ struct mgcp_trunk_config {
 	int dwnstr_adp_rate;
 	int dwnstr_max_gain;
 	int dwnstr_target_lvl;
+
+	int loop_on_idle;
 };
 
 struct mgcp_config {

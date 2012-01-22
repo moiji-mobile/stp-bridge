@@ -235,6 +235,17 @@ DEFUN(cfg_trunk_timeslot_block, cfg_trunk_timeslot_block_cmd,
 	return CMD_SUCCESS;
 }
 
+DEFUN(cfg_trunk_loop_idle, cfg_trunk_loop_idle_cmd,
+      "loop-on-idle <0-1>",
+      "Loop timeslot on idle mode\n"
+      "Do not loop\n" "Loop\n"
+)
+{
+	struct mgcp_trunk_config *trunk = vty->index;
+	trunk->loop_on_idle = atoi(argv[0]);
+	return CMD_SUCCESS;
+}
+
 void mgcp_write_extra(struct vty *vty, struct mgcp_config *cfg)
 {
 	vty_out(vty, "  configure-trunks %d%s",
@@ -280,6 +291,8 @@ void write_trunk_extra(struct vty *vty, struct mgcp_trunk_config *trunk)
 		trunk->dwnstr_max_gain, VTY_NEWLINE);
 	vty_out(vty, "  downstream-target-level %d%s",
 		trunk->dwnstr_target_lvl, VTY_NEWLINE);
+	vty_out(vty, "  loop-on-idle %d%s",
+		trunk->loop_on_idle, VTY_NEWLINE);
 	write_blocked_endpoints(vty, trunk);
 }
 
@@ -321,6 +334,7 @@ void mgcp_mgw_vty_init(void)
 	install_element(VTRUNK_NODE, &cfg_trunk_dwnstr_target_cmd);
 	install_element(VTRUNK_NODE, &cfg_trunk_endp_offset_cmd);
 	install_element(VTRUNK_NODE, &cfg_trunk_timeslot_block_cmd);
+	install_element(VTRUNK_NODE, &cfg_trunk_loop_idle_cmd);
 
 	install_element(TRUNK_NODE, &cfg_trunk_vad_cmd);
 	install_element(TRUNK_NODE, &cfg_trunk_realloc_cmd);
@@ -336,6 +350,7 @@ void mgcp_mgw_vty_init(void)
 	install_element(TRUNK_NODE, &cfg_trunk_dwnstr_target_cmd);
 	install_element(TRUNK_NODE, &cfg_trunk_endp_offset_cmd);
 	install_element(TRUNK_NODE, &cfg_trunk_timeslot_block_cmd);
+	install_element(TRUNK_NODE, &cfg_trunk_loop_idle_cmd);
 }
 
 

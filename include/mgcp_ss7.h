@@ -58,5 +58,6 @@ struct mgcp_ss7_cmd {
 void mgcp_mgw_vty_init();
 
 int mgcp_hw_init();
+int mgcp_hw_loop(int trunk, int timeslot);
 int mgcp_hw_connect(int port, int trunk, int timeslot);
 #endif
