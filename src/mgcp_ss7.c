@@ -1,7 +1,7 @@
 /* Use the UniPorte library to allocate endpoints */
 /*
- * (C) 2010-2011 by Holger Hans Peter Freyther <zecke@selfish.org>
- * (C) 2010-2011 by On-Waves
+ * (C) 2010-2012 by Holger Hans Peter Freyther <zecke@selfish.org>
+ * (C) 2010-2012 by On-Waves
  * All Rights Reserved
  *
  * This program is free software: you can redistribute it and/or modify
@@ -421,6 +421,34 @@ static void allocate_endp(struct mgcp_ss7 *ss7, struct mgcp_endpoint *endp)
 	endp->block_processing = 1;
 }
 
+static int hw_maybe_loop_endp(struct mgcp_endpoint *mgw_endp)
+{
+	int multiplex, timeslot, start;
+	struct mgcp_trunk_config *tcfg;
+	if (!mgw_endp->tcfg->loop_on_idle)
+		return 0;
+
+	tcfg = mgw_endp->tcfg;
+	start = tcfg->trunk_type == MGCP_TRUNK_VIRTUAL ?
+			tcfg->target_trunk_start : tcfg->trunk_nr;
+	mgcp_endpoint_to_timeslot(ENDPOINT_NUMBER(mgw_endp), &multiplex, &timeslot);
+	return mgcp_hw_loop(start + multiplex, timeslot);
+}
+
+static int hw_maybe_connect(struct mgcp_endpoint *mgw_endp)
+{
+	int multiplex, timeslot, start;
+	struct mgcp_trunk_config *tcfg;
+	if (!mgw_endp->tcfg->loop_on_idle)
+		return 0;
+
+	tcfg = mgw_endp->tcfg;
+	start = tcfg->trunk_type == MGCP_TRUNK_VIRTUAL ?
+			tcfg->target_trunk_start : tcfg->trunk_nr;
+	mgcp_endpoint_to_timeslot(ENDPOINT_NUMBER(mgw_endp), &multiplex, &timeslot);
+	return mgcp_hw_connect(mgw_endp->hw_dsp_port, start + multiplex, timeslot);
+}
+
 static void mgcp_ss7_do_exec(struct mgcp_ss7 *mgcp, uint8_t type,
 			     struct mgcp_endpoint *mgw_endp, uint32_t param)
 {
@@ -442,9 +470,11 @@ static void mgcp_ss7_do_exec(struct mgcp_ss7 *mgcp, uint8_t type,
 
 			mgw_endp->audio_port = UINT_MAX;
 			mgw_endp->block_processing = 1;
+			hw_maybe_loop_endp(mgw_endp);
 		}
 		break;
 	case MGCP_SS7_ALLOCATE:
+		hw_maybe_connect(mgw_endp);
 		allocate_endp(mgcp, mgw_endp);
 		break;
 	}
@@ -681,9 +711,12 @@ static int configure_trunk(struct mgcp_trunk_config *tcfg, int *dsp_resource)
 			int multiplex, timeslot, res;
 
 			mgcp_endpoint_to_timeslot(i, &multiplex, &timeslot);
-			res = mgcp_hw_connect(*dsp_resource,
-						start + multiplex,
-						timeslot);
+			if (tcfg->loop_on_idle)
+				res = mgcp_hw_loop(start + multiplex, timeslot);
+			else
+				res = mgcp_hw_connect(*dsp_resource,
+							start + multiplex,
+							timeslot);
 
 			if (res != 0) {
 				LOGP(DMGCP, LOGL_ERROR,

@@ -52,6 +52,16 @@ int mgcp_hw_init()
 	return 0;
 }
 
+int mgcp_hw_loop(int trunk, int timeslot)
+{
+#ifdef NO_UNIPORTE
+	return 0;
+#else
+	return PTI_ConnectHSCM(PTI_HSCM_TRUNK + trunk, timeslot - 1,
+			       PTI_HSCM_TRUNK + trunk, timeslot - 1, 1, 1);
+#endif
+}
+
 int mgcp_hw_connect(int port, int trunk, int timeslot)
 {
 #ifdef NO_UNIPORTE
