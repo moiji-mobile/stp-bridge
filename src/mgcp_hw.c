@@ -18,44 +18,17 @@
  *
  */
 
-#include <net-snmp/net-snmp-config.h>
-#include <net-snmp/utilities.h>
-#include <net-snmp/net-snmp-includes.h>
-
 #include <cellmgr_debug.h>
 #include <mgcp_ss7.h>
 
-#define HSCOMM "PTI-NexusWare-HSCMCONN-MIB::"
+#ifndef NO_UNIPORTE
+#include "NexusWare.h"
 
 #define PTMC_STREAM_A_RX0	0
 #define PTMC_STREAM_A_TX0	128
 #define PTMC_STREAM_A_RX1	1024
 #define PTMC_STREAM_A_TX1	1152
 
-
-static netsnmp_session g_session, *g_ss;
-
-static void add_pdu_var(netsnmp_pdu *pdu, const char *mib_name,
-			int id1, int id2, const char *value)
-{
-	oid oid_name[MAX_OID_LEN];
-	size_t name_length;
-
-	char buf[4096];
-	buf[4095] = '\0';
-	snprintf(buf, sizeof(buf)-1, "%s.%d.%d", mib_name, id1, id2);
-
-	name_length = MAX_OID_LEN;
-	if (snmp_parse_oid(buf, oid_name, &name_length) == NULL) {
-		snmp_perror(buf);
-		return;
-	}
-
-	if (snmp_add_var(pdu, oid_name, name_length, 'i', value)) {
-		snmp_perror(buf);
-		return;
-	}
-}
 
 static int rx_port_get(int port)
 {
@@ -72,98 +45,34 @@ static int tx_port_get(int port)
 	else
 		return PTMC_STREAM_A_TX0 + port;
 }
+#endif
 
 int mgcp_hw_init()
 {
-	init_snmp("mgcp_mgw");
-	snmp_sess_init(&g_session);
-	g_session.version = SNMP_VERSION_1;
-	g_session.community = (unsigned char *) "private";
-	g_session.community_len = strlen((const char *) g_session.community);
-
-	g_session.peername = "127.0.0.1";
-	g_ss = snmp_open(&g_session);
-	if (!g_ss) {
-		snmp_perror("create failure");
-		snmp_log(LOG_ERR, "Could not connect to the remote.\n");
-		LOGP(DINP, LOGL_ERROR, "Failed to open a SNMP session.\n");
-		return -1;
-	}
-
 	return 0;
 }
 
 int mgcp_hw_connect(int port, int trunk, int timeslot)
 {
+#ifdef NO_UNIPORTE
+#warning "NO Uniporte"
+#else
 	int status;
-	netsnmp_pdu *response = NULL;
-	netsnmp_pdu *pdu;
 	int _rx_port, _tx_port;
-	char tx_port[10];
-	char trunk_name[13], tslot_name[13];
-
-	if (!g_ss)
-		return -1;
-
-	/* have the trunk/timeslot as value */
-	snprintf(trunk_name, sizeof(trunk_name), "%d", trunk);
-	snprintf(tslot_name, sizeof(tslot_name), "%d", timeslot);
 
 	/* rx port, tx side for the port */
 	_rx_port = rx_port_get(port);
 	_tx_port = tx_port_get(port);
-	snprintf(tx_port, sizeof(tx_port), "%d", _tx_port);
 
-	pdu = snmp_pdu_create(SNMP_MSG_SET);
-	if (!pdu) {
-		LOGP(DINP, LOGL_ERROR, "Failed to allocate PDU.\n");
+	status = PTI_ConnectHSCM(PTI_HSCM_TRUNK + trunk, timeslot - 1,
+				 PTI_HSCM_PTMC, _rx_port, 1, 0);
+	if (status != 0)
 		return -1;
-	}
 
-	/* This connects the TX side to the given trunk/timeslot */
-	add_pdu_var(pdu, HSCOMM "hscmconnNewDataSourceType.hscmconnStreamTrunk",
-		    trunk, timeslot, "hscmconnStreamPtmc");
-	add_pdu_var(pdu, HSCOMM "hscmconnNewDataSourceTypeInstance.hscmconnStreamTrunk",
-		    trunk, timeslot, "1");
-	add_pdu_var(pdu, HSCOMM "hscmconnNewDataSourceTimeslot.hscmconnStreamTrunk",
-		    trunk, timeslot, tx_port);
-	add_pdu_var(pdu, HSCOMM "hscmconnNewDataSourcePattern.hscmconnStreamTrunk",
-		    trunk, timeslot, "0");
-	add_pdu_var(pdu, HSCOMM "hscmconnNewDataSourceTimeslotCount.hscmconnStreamTrunk",
-		    trunk, timeslot, "1");
-	add_pdu_var(pdu, HSCOMM "hscmconnConnectBidirectional.hscmconnStreamTrunk",
-		    trunk, timeslot, "false");
-
-	/* This connect the RX side to the given trunk/timeslot */
-	add_pdu_var(pdu, HSCOMM "hscmconnNewDataSourceType.hscmconnStreamPtmc",
-		    1, _rx_port, "hscmconnStreamTrunk");
-	add_pdu_var(pdu, HSCOMM "hscmconnNewDataSourceTypeInstance.hscmconnStreamPtmc",
-		    1, _rx_port, trunk_name);
-	add_pdu_var(pdu, HSCOMM "hscmconnNewDataSourceTimeslot.hscmconnStreamPtmc",
-		    1, _rx_port, tslot_name);
-	add_pdu_var(pdu, HSCOMM "hscmconnNewDataSourcePattern.hscmconnStreamPtmc",
-		    1, _rx_port, "0");
-	add_pdu_var(pdu, HSCOMM "hscmconnNewDataSourceTimeslotCount.hscmconnStreamPtmc",
-		    1, _rx_port, "1");
-	add_pdu_var(pdu, HSCOMM "hscmconnConnectBidirectional.hscmconnStreamPtmc",
-		    1, _rx_port, "false");
-
-
-	status = snmp_synch_response(g_ss, pdu, &response);
-	if (status == STAT_ERROR) {
-		snmp_sess_perror("set failed", g_ss);
-		goto failure;
-	} else if (status == STAT_TIMEOUT) {
-		fprintf(stderr, "Timeout for SNMP.\n");
-		goto failure;
-	}
-
-	if (response)
-		snmp_free_pdu(response);
+	status = PTI_ConnectHSCM(PTI_HSCM_PTMC, _tx_port,
+				 PTI_HSCM_TRUNK + trunk, timeslot - 1, 1, 0);
+	if (status != 0)
+		return -1;
+#endif
 	return 0;
-
-failure:
-	if (response)
-		snmp_free_pdu(response);
-	return -1;
 }
