@@ -704,8 +704,8 @@ static int configure_trunk(struct mgcp_trunk_config *tcfg, int *dsp_resource)
 		if (tcfg->endpoints[i].blocked)
 			continue;
 
-		*dsp_resource += 1;
 		tcfg->endpoints[i].hw_dsp_port = *dsp_resource;
+		*dsp_resource += 1;
 
 		if (tcfg->cfg->configure_trunks) {
 			int multiplex, timeslot, res;
@@ -764,7 +764,7 @@ static struct mgcp_ss7 *mgcp_ss7_init(struct mgcp_config *cfg)
 	}
 
 	/* Now do the init of the trunks */
-	dsp_resource = 0;
+	dsp_resource = 1;
 	llist_for_each_entry(trunk, &cfg->vtrunks, entry) {
 		if (configure_trunk(trunk, &dsp_resource) != 0) {
 			talloc_free(conf);
