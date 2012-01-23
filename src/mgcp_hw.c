@@ -75,11 +75,11 @@ int mgcp_hw_connect(int port, int trunk, int timeslot)
 	_tx_port = tx_port_get(port);
 
 	status = PTI_ConnectHSCM(PTI_HSCM_TRUNK + trunk, timeslot - 1,
-				 PTI_HSCM_PTMC, _rx_port, 1, 0);
+				 PTI_HSCM_PTMC, _rx_port - 1, 1, 0);
 	if (status != 0)
 		return -1;
 
-	status = PTI_ConnectHSCM(PTI_HSCM_PTMC, _tx_port,
+	status = PTI_ConnectHSCM(PTI_HSCM_PTMC, _tx_port - 1,
 				 PTI_HSCM_TRUNK + trunk, timeslot - 1, 1, 0);
 	if (status != 0)
 		return -1;
