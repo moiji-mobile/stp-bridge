@@ -714,7 +714,7 @@ static int configure_trunk(struct mgcp_trunk_config *tcfg, int *dsp_resource)
 			if (tcfg->loop_on_idle)
 				res = mgcp_hw_loop(start + multiplex, timeslot);
 			else
-				res = mgcp_hw_connect(*dsp_resource,
+				res = mgcp_hw_connect(tcfg->endpoints[i].hw_dsp_port,
 							start + multiplex,
 							timeslot);
 
