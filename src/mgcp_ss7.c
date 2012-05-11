@@ -470,8 +470,8 @@ static void mgcp_ss7_do_exec(struct mgcp_ss7 *mgcp, uint8_t type,
 
 			mgw_endp->audio_port = UINT_MAX;
 			mgw_endp->block_processing = 1;
-			hw_maybe_loop_endp(mgw_endp);
 		}
+		hw_maybe_loop_endp(mgw_endp);
 		break;
 	case MGCP_SS7_ALLOCATE:
 		hw_maybe_connect(mgw_endp);
