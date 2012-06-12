@@ -47,6 +47,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <signal.h>
+#include <syslog.h>
 
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
@@ -181,18 +182,22 @@ static int uniporte_events(unsigned long port, EventTypeT event,
 
       /* update the mgcp state */
       if (port >= ARRAY_SIZE(s_endpoints)) {
+         syslog(LOG_ERR, "The port is bigger than we can manage.\n");
          fprintf(stderr, "The port is bigger than we can manage.\n");
          return 0;
       }
 
       endp = s_endpoints[port];
       if (!endp) {
+         syslog(LOG_ERR, "Unexpected event on port %d\n", port);
          fprintf(stderr, "Unexpected event on port %d\n", port);
          return 0;
       }
 
-      if (endp->block_processing != 1)
+      if (endp->block_processing != 1) {
+         syslog(LOG_ERR, "State change on a non blocked port. ERROR.\n");
          fprintf(stderr, "State change on a non blocked port. ERROR.\n");
+      }
       endp->block_processing = 0;
     }
   }
@@ -276,8 +281,11 @@ static void* start_uniporte(void *_ss7) {
 	struct mgcp_ss7_cmd *cmd, *tmp;
 	struct mgcp_ss7 *ss7 = _ss7;
 
+	openlog("mgcp_ss7", 0, LOG_DAEMON);
+
 	if (initialize_uniporte(ss7) != 0) {
 		fprintf(stderr, "Failed to create Uniporte.\n");
+		syslog(LOG_CRIT, "Failed to create Uniporte.\n");
 		exit(-1);
 		return 0; 
 	}
@@ -354,11 +362,14 @@ static void allocate_endp(struct mgcp_ss7 *ss7, struct mgcp_endpoint *endp)
 
 	endp->audio_port = MtnSaAllocate(mgw_port);
 	if (endp->audio_port == UINT_MAX) {
+		syslog(LOG_ERR, "Failed to allocate the port: %d\n", ENDPOINT_NUMBER(endp));
 		fprintf(stderr, "Failed to allocate the port: %d\n", ENDPOINT_NUMBER(endp));
 		return;
 	}
 
 	if (mgw_port != endp->audio_port) {
+		syslog(LOG_ERR, "Oh... a lot of assumptions are now broken  %d %d %s:%d\n",
+			mgw_port, endp->audio_port, __func__, __LINE__);
 		fprintf(stderr, "Oh... a lot of assumptions are now broken  %d %d %s:%d\n",
 			mgw_port, endp->audio_port, __func__, __LINE__);
 	}
@@ -462,11 +473,15 @@ static void mgcp_ss7_do_exec(struct mgcp_ss7 *mgcp, uint8_t type,
 	case MGCP_SS7_DELETE:
 		if (mgw_endp->audio_port != UINT_MAX) {
 			rc = MtnSaDisconnect(mgw_endp->audio_port);
-			if (rc != 0)
+			if (rc != 0) {
+				syslog(LOG_ERR, "Failed to disconnect port: %u\n", mgw_endp->audio_port);
 				fprintf(stderr, "Failed to disconnect port: %u\n", mgw_endp->audio_port);
+			}
 			rc = MtnSaDeallocate(mgw_endp->audio_port);
-			if (rc != 0)
+			if (rc != 0) {
+				syslog(LOG_ERR, "Failed to deallocate port: %u\n", mgw_endp->audio_port);
 				fprintf(stderr, "Failed to deallocate port: %u\n", mgw_endp->audio_port);
+			}
 
 			mgw_endp->audio_port = UINT_MAX;
 			mgw_endp->block_processing = 1;
