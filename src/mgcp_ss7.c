@@ -87,10 +87,11 @@ static int select_voice_port(struct mgcp_endpoint *endp)
 	return mgw_port;
 }
 
-static void check_exit(int status)
+static void check_exit(const char *text, int status)
 {
 	if (exit_on_failure && status == 21) {
-		LOGP(DMGCP, LOGL_ERROR, "Failure detected with the MGW. Exiting.\n");
+		LOGP(DMGCP, LOGL_ERROR, "Failure detected with the MGW. Exiting: '%s'\n", text);
+		syslog(LOG_ERR, "Failure detected with the MGW. Exititng: '%s'\n", text);
       		exit(-1);
 	}
 }
@@ -207,7 +208,7 @@ static int uniporte_events(unsigned long port, EventTypeT event,
     sprintf(text, "Object %d value %d status %d", info->object, info->value, 
             info->status );
     puts(text);
-    check_exit(info->status);
+    check_exit(text, info->status);
   }
    else if ( ( event == Event_USER_MOB_SET_COMPLETE ) ||
 			    ( event == Event_USER_MOB_DEFINE_COMPLETE ) )
@@ -216,7 +217,7 @@ static int uniporte_events(unsigned long port, EventTypeT event,
 
 		sprintf( text, "Mob ID %d status %d", info->MOBId, info->status );
 		puts(text);
-		check_exit(info->status);
+		check_exit(text, info->status);
    }
    else if ( event == Event_USER_MOB_GET_COMPLETE )
    {
@@ -224,7 +225,7 @@ static int uniporte_events(unsigned long port, EventTypeT event,
 
 		sprintf( text, "Mob ID %d status %d", info->MOBId, info->status );
 		puts(text);
-		check_exit(info->status);
+		check_exit(text, info->status);
    }
    else if (event == Event_CONNECT)
    {
@@ -236,7 +237,7 @@ static int uniporte_events(unsigned long port, EventTypeT event,
 
 		sprintf(text, "Mob ID %d status %d", info->MOBId, info->status );
 		puts(text);
-		check_exit(info->status);
+		check_exit(text, info->status);
    }
 
    return( 0 );
