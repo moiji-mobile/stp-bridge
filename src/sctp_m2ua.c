@@ -804,9 +804,6 @@ int sctp_m2ua_transport_bind(struct sctp_m2ua_transport *trans,
 		return -3;
 	}
 
-	int on = 1;
-	setsockopt(sctp, SOL_SCTP, 112, &on, sizeof(on));
-
 	trans->bsc.fd = sctp;
 	trans->bsc.data = trans;
 	trans->bsc.cb = sctp_trans_accept;
