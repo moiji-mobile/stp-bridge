@@ -46,6 +46,7 @@ enum {
 	MGCP_SS7_MUTE_STATUS,
 	MGCP_SS7_ALLOCATE,
 	MGCP_SS7_DELETE,
+	MGCP_SS7_DTMF,
 };
 
 struct mgcp_ss7_cmd {

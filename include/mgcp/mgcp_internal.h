@@ -24,6 +24,7 @@
 #define OPENBSC_MGCP_DATA_H
 
 #include <osmocom/core/select.h>
+#include <dtmf_scheduler.h>
 
 #define CI_UNUSED 0
 
@@ -124,6 +125,7 @@ struct mgcp_endpoint {
 	struct mgcp_rtp_tap taps[MGCP_TAP_COUNT];
 
 	/* Special MGW handling */
+	struct dtmf_state dtmf_state;
 	int blocked;
 	unsigned int hw_dsp_port; /** This is index 1 based */
 	unsigned int audio_port;

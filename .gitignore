@@ -20,6 +20,9 @@ stamp-h1
 *.o
 *.sw?
 *.orig
+*.gcda
+*.gcno
+*.info
 
 # binaries
 cellmgr_ng
@@ -34,6 +37,7 @@ aclocal.m4
 autom4te.cache/
 configure.lineno
 tests/atconfig
+tests/dtmf/dtmf_test
 tests/isup/isup_parse_test
 tests/mgcp/mgcp_patch_test
 tests/package.m4

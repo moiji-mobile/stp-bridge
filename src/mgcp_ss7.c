@@ -70,6 +70,44 @@ static void mgcp_ss7_do_exec(struct mgcp_ss7 *mgcp, uint8_t type, struct mgcp_en
 /* Contains a mapping from UniPorte to the MGCP side of things */
 static struct mgcp_endpoint *s_endpoints[240];
 
+static void play_pending_tones(struct mgcp_endpoint *endp)
+{
+	ToneGenerationT toneGeneration;
+	char tones[25];
+
+	/* Check if we need to play anything? */
+	dtmf_state_get_pending(&endp->dtmf_state, tones);
+
+	/* nothing to play? */
+	if (strlen(tones) == 0)
+		return;
+
+	/* fill out the data now */
+	osmo_static_assert(sizeof(tones) <= sizeof(toneGeneration.list), Enough_space_for_tones);
+	memset(&toneGeneration, 0, sizeof(toneGeneration));
+	toneGeneration.count = strlen(tones);
+	strcpy(toneGeneration.list, tones);
+	MtnSaSetMOB(endp->audio_port, ChannelType_PORT,
+		PredefMob_C_TONE_GENERATION, (char *) &toneGeneration,
+		sizeof(toneGeneration), 1);
+}
+
+static void send_dtmf(struct mgcp_endpoint *mgw_endp, int ascii_tone)
+{
+	int rc;
+	rc = dtmf_state_add(&mgw_endp->dtmf_state, ascii_tone);
+	if (rc != 0) {
+		fprintf(stderr, "DTMF queue too long on 0x%x\n",
+			ENDPOINT_NUMBER(mgw_endp));
+		syslog(LOG_ERR, "DTMF queue too long on 0x%x\n",
+			ENDPOINT_NUMBER(mgw_endp));
+		return;
+	}
+
+	if (!mgw_endp->dtmf_state.playing)
+		play_pending_tones(mgw_endp);
+}
+
 static int select_voice_port(struct mgcp_endpoint *endp)
 {
 	int mgw_port;
@@ -200,6 +238,24 @@ static int uniporte_events(unsigned long port, EventTypeT event,
          fprintf(stderr, "State change on a non blocked port. ERROR.\n");
       }
       endp->block_processing = 0;
+    } else if (info->trapId == Trap_TONE_GENERATION_COMPLETE) {
+      sprintf(text, "DTMF complete on #%ld", port);
+      puts(text);
+
+      /* update the mgcp state */
+      if (port >= ARRAY_SIZE(s_endpoints)) {
+         syslog(LOG_ERR, "The port is bigger than we can manage.\n");
+         fprintf(stderr, "The port is bigger than we can manage.\n");
+         return 0;
+      }
+
+      endp = s_endpoints[port];
+      if (!endp) {
+         syslog(LOG_ERR, "Unexpected event on port %d\n", port);
+         fprintf(stderr, "Unexpected event on port %d\n", port);
+         return 0;
+      }
+      play_pending_tones(endp);
     }
   }
   else if ( event == Event_MANAGED_OBJECT_SET_COMPLETE ) {
@@ -356,6 +412,9 @@ static void allocate_endp(struct mgcp_ss7 *ss7, struct mgcp_endpoint *endp)
 	int mgw_port;
 	unsigned long mgw_address, loc_address;
 
+	/* reset the DTMF state */
+	dtmf_state_init(&endp->dtmf_state);
+
 	/* now find the voice processor we want to use */
 	mgw_port = select_voice_port(endp);
 	if (mgw_port < 0)
@@ -471,6 +530,10 @@ static void mgcp_ss7_do_exec(struct mgcp_ss7 *mgcp, uint8_t type,
 		if (mgw_endp->audio_port != UINT_MAX)
 			update_mute_status(mgw_endp->audio_port, param);
 		break;
+	case MGCP_SS7_DTMF:
+		if (mgw_endp->audio_port != UINT_MAX)
+			send_dtmf(mgw_endp, param);
+		break;
 	case MGCP_SS7_DELETE:
 		if (mgw_endp->audio_port != UINT_MAX) {
 			rc = MtnSaDisconnect(mgw_endp->audio_port);
@@ -487,6 +550,7 @@ static void mgcp_ss7_do_exec(struct mgcp_ss7 *mgcp, uint8_t type,
 			mgw_endp->audio_port = UINT_MAX;
 			mgw_endp->block_processing = 1;
 		}
+		dtmf_state_init(&mgw_endp->dtmf_state);
 		hw_maybe_loop_endp(mgw_endp);
 		break;
 	case MGCP_SS7_ALLOCATE:
@@ -577,6 +641,12 @@ static int mgcp_ss7_policy(struct mgcp_trunk_config *tcfg, int endp_no, int stat
 	}
 	
 	return rc;
+}
+
+static int mgcp_dtmf_cb(struct mgcp_endpoint *endp, char tone, const char *data)
+{
+	mgcp_ss7_exec(endp, MGCP_SS7_DTMF, tone);
+	return 0;
 }
 
 static void enqueue_msg(struct osmo_wqueue *queue, struct sockaddr_in *addr, struct msgb *msg)
@@ -904,6 +974,8 @@ int main(int argc, char **argv)
 		LOGP(DMGCP, LOGL_ERROR, "Failed to allocate mgcp config.\n");
 		return -1;
 	}
+
+	g_cfg->rqnt_cb = mgcp_dtmf_cb;
 
 	if (mgcp_parse_config(config_file, g_cfg) != 0) {
 		LOGP(DMGCP, LOGL_ERROR,
