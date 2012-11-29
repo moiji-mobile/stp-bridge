@@ -24,3 +24,9 @@ AT_KEYWORDS([patching])
 cat $abs_srcdir/patching/patching_test.ok > expout
 AT_CHECK([$abs_top_builddir/tests/patching/patching_test], [], [expout], [ignore])
 AT_CLEANUP
+
+AT_SETUP([dtmf])
+AT_KEYWORDS([dtmf])
+cat $abs_srcdir/dtmf/dtmf_test.ok > expout
+AT_CHECK([$abs_top_builddir/tests/dtmf/dtmf_test], [], [expout], [ignore])
+AT_CLEANUP
