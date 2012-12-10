@@ -36,60 +36,40 @@
 #include <mgcp/mgcp.h>
 #include <mgcp/mgcp_internal.h>
 
-/**
- * Macro for tokenizing MGCP messages and SDP in one go.
- *
- */
-#define MSG_TOKENIZE_START \
-	line_start = 0;						\
-	for (i = 0; i < msgb_l3len(msg); ++i) {			\
-		/* we have a line end */			\
-		if (msg->l3h[i] == '\n') {			\
-			/* skip the first line */		\
-			if (line_start == 0) {			\
-				line_start = i + 1;		\
-				continue;			\
-			}					\
-								\
-			/* check if we have a proper param */	\
-			if (i - line_start == 1 && msg->l3h[line_start] == '\r') { \
-			} else if (i - line_start > 2		\
-			    && islower(msg->l3h[line_start])	\
-			    && msg->l3h[line_start + 1] == '=') { \
-			} else if (i - line_start < 3		\
-			    || msg->l3h[line_start + 1] != ':'	\
-			    || msg->l3h[line_start + 2] != ' ')	\
-				goto error;			\
-								\
-			msg->l3h[i] = '\0';			\
-			if (msg->l3h[i-1] == '\r')		\
-				msg->l3h[i-1] = '\0';
-
-#define MSG_TOKENIZE_END \
-			line_start = i + 1; \
-		}			    \
-	}
+#define for_each_line(line, save)			\
+	for (line = strtok_r(NULL, "\r\n", &save); line;\
+	     line = strtok_r(NULL, "\r\n", &save))
 
 static void mgcp_rtp_end_reset(struct mgcp_rtp_end *end);
 
+struct mgcp_parse_data {
+	struct mgcp_config *cfg;
+	struct mgcp_endpoint *endp;
+	char *trans;
+	char *save;
+	int found;
+};
+
 struct mgcp_request {
 	char *name;
-	struct msgb *(*handle_request) (struct mgcp_config *cfg, struct msgb *msg);
+	struct msgb *(*handle_request) (struct mgcp_parse_data *data);
 	char *debug_name;
 };
 
 #define MGCP_REQUEST(NAME, REQ, DEBUG_NAME) \
 	{ .name = NAME, .handle_request = REQ, .debug_name = DEBUG_NAME },
 
-static struct msgb *handle_audit_endpoint(struct mgcp_config *cfg, struct msgb *msg);
-static struct msgb *handle_create_con(struct mgcp_config *cfg, struct msgb *msg);
-static struct msgb *handle_delete_con(struct mgcp_config *cfg, struct msgb *msg);
-static struct msgb *handle_modify_con(struct mgcp_config *cfg, struct msgb *msg);
-static struct msgb *handle_rsip(struct mgcp_config *cfg, struct msgb *msg);
-static struct msgb *handle_noti_req(struct mgcp_config *cfg, struct msgb *msg);
+static struct msgb *handle_audit_endpoint(struct mgcp_parse_data *data);
+static struct msgb *handle_create_con(struct mgcp_parse_data *data);
+static struct msgb *handle_delete_con(struct mgcp_parse_data *data);
+static struct msgb *handle_modify_con(struct mgcp_parse_data *data);
+static struct msgb *handle_rsip(struct mgcp_parse_data *data);
+static struct msgb *handle_noti_req(struct mgcp_parse_data *data);
 
 static void create_transcoder(struct mgcp_endpoint *endp);
 static void delete_transcoder(struct mgcp_endpoint *endp);
+
+static int mgcp_analyze_header(struct mgcp_parse_data *parse, char *data);
 
 static uint32_t generate_call_id(struct mgcp_trunk_config *tcfg)
 {
@@ -137,9 +117,21 @@ static struct msgb *mgcp_msgb_alloc(void)
 	return msg;
 }
 
-struct msgb *mgcp_create_response_with_data(int code, const char *txt,
-					    const char *msg, const char *trans,
-					    const char *data)
+static struct msgb *do_retransmission(const struct mgcp_endpoint *endp)
+{
+	struct msgb *msg = mgcp_msgb_alloc();
+	if (!msg)
+		return NULL;
+
+	msg->l2h = msgb_put(msg, strlen(endp->last_response));
+	memcpy(msg->l2h, endp->last_response, msgb_l2len(msg));
+	return msg;
+}
+
+static struct msgb *create_resp(struct mgcp_endpoint *endp, int code,
+				const char *txt, const char *msg,
+				const char *trans, const char *param,
+				const char *sdp)
 {
 	int len;
 	struct msgb *res;
@@ -148,25 +140,50 @@ struct msgb *mgcp_create_response_with_data(int code, const char *txt,
 	if (!res)
 		return NULL;
 
-	if (data) {
-		len = snprintf((char *) res->data, 2048, "%d %s%s\r\n%s", code, trans, txt, data);
-	} else {
-		len = snprintf((char *) res->data, 2048, "%d %s%s\r\n", code, trans, txt);
+	len = snprintf((char *) res->data, 2048, "%d %s%s%s\r\n%s",
+			code, trans, txt, param ? param : "", sdp ? sdp : "");
+	if (len < 0) {
+		LOGP(DMGCP, LOGL_ERROR, "Failed to sprintf MGCP response.\n");
+		msgb_free(res);
+		return NULL;
 	}
 
 	res->l2h = msgb_put(res, len);
-	LOGP(DMGCP, LOGL_DEBUG, "Sending response: code: %d for '%s'\n", code, res->l2h);
+	LOGP(DMGCP, LOGL_DEBUG, "Generated response: code: %d for '%s'\n", code, res->l2h);
+
+	/*
+	 * Remember the last transmission per endpoint.
+	 */
+	if (endp) {
+		struct mgcp_trunk_config *tcfg = endp->tcfg;
+		talloc_free(endp->last_response);
+		talloc_free(endp->last_trans);
+		endp->last_trans = talloc_strdup(tcfg->endpoints, trans);
+		endp->last_response = talloc_strndup(tcfg->endpoints,
+						(const char *) res->l2h,
+						msgb_l2len(res));
+	}
+
 	return res;
 }
 
-static struct msgb *create_ok_response(int code, const char *msg, const char *trans)
+static struct msgb *create_ok_resp_with_param(struct mgcp_endpoint *endp,
+					int code, const char *msg,
+					const char *trans, const char *param)
 {
-	return mgcp_create_response_with_data(code, " OK", msg, trans, NULL);
+	return create_resp(endp, code, " OK", msg, trans, param, NULL);
 }
 
-static struct msgb *create_err_response(int code, const char *msg, const char *trans)
+static struct msgb *create_ok_response(struct mgcp_endpoint *endp,
+					int code, const char *msg, const char *trans)
 {
-	return mgcp_create_response_with_data(code, " FAIL", msg, trans, NULL);
+	return create_ok_resp_with_param(endp, code, msg, trans, NULL);
+}
+
+static struct msgb *create_err_response(struct mgcp_endpoint *endp,
+					int code, const char *msg, const char *trans)
+{
+	return create_resp(endp, code, " FAIL", msg, trans, NULL, NULL);
 }
 
 static struct msgb *create_response_with_sdp(struct mgcp_endpoint *endp,
@@ -181,13 +198,15 @@ static struct msgb *create_response_with_sdp(struct mgcp_endpoint *endp,
 	snprintf(sdp_record, sizeof(sdp_record) - 1,
 			"I: %u\n\n"
 			"v=0\r\n"
+			"o=- %u 23 IN IP4 %s\r\n"
 			"c=IN IP4 %s\r\n"
+			"t=0 0\r\n"
 			"m=audio %d RTP/AVP %d\r\n"
 			"a=rtpmap:%d %s\r\n",
-			endp->ci, addr, endp->net_end.local_port,
-			endp->bts_end.payload_type, endp->bts_end.payload_type,
-		        endp->tcfg->audio_name);
-	return mgcp_create_response_with_data(200, " OK", msg, trans_id, sdp_record);
+			endp->ci, endp->ci, addr, addr,
+			endp->net_end.local_port, endp->bts_end.payload_type,
+			endp->bts_end.payload_type, endp->tcfg->audio_name);
+	return create_resp(endp, 200, " OK", msg, trans_id, NULL, sdp_record);
 }
 
 /*
@@ -197,68 +216,51 @@ static struct msgb *create_response_with_sdp(struct mgcp_endpoint *endp,
  */
 struct msgb *mgcp_handle_message(struct mgcp_config *cfg, struct msgb *msg)
 {
-        int code;
+	struct mgcp_parse_data pdata;
+	int i, code, handled = 0;
 	struct msgb *resp = NULL;
+	char *data;
 
 	if (msgb_l2len(msg) < 4) {
-		LOGP(DMGCP, LOGL_ERROR, "mgs too short: %d\n", msg->len);
+		LOGP(DMGCP, LOGL_ERROR, "msg too short: %d\n", msg->len);
 		return NULL;
 	}
 
         /* attempt to treat it as a response */
         if (sscanf((const char *)&msg->l2h[0], "%3d %*s", &code) == 1) {
 		LOGP(DMGCP, LOGL_DEBUG, "Response: Code: %d\n", code);
-	} else {
-		int i, handled = 0;
-		msg->l3h = &msg->l2h[4];
-		for (i = 0; i < ARRAY_SIZE(mgcp_requests); ++i)
-			if (strncmp(mgcp_requests[i].name, (const char *) &msg->l2h[0], 4) == 0) {
-				handled = 1;
-				resp = mgcp_requests[i].handle_request(cfg, msg);
-				break;
-			}
-		if (!handled) {
-			LOGP(DMGCP, LOGL_NOTICE, "MSG with type: '%.4s' not handled\n", &msg->l2h[0]);
+		return NULL;
+	}
+
+	msg->l3h = &msg->l2h[4];
+
+
+	/*
+	 * Check for a duplicate message and respond.
+	 * FIXME: Verify that the msg->l3h is NULL terminated.
+	 */
+	memset(&pdata, 0, sizeof(pdata));
+	pdata.cfg = cfg;
+	data = strtok_r((char *) msg->l3h, "\r\n", &pdata.save);
+	pdata.found = mgcp_analyze_header(&pdata, data);
+	if (pdata.endp && pdata.trans
+			&& pdata.endp->last_trans
+			&& strcmp(pdata.endp->last_trans, pdata.trans) == 0) {
+		return do_retransmission(pdata.endp);
+	}
+
+	for (i = 0; i < ARRAY_SIZE(mgcp_requests); ++i) {
+		if (strncmp(mgcp_requests[i].name, (const char *) &msg->l2h[0], 4) == 0) {
+			handled = 1;
+			resp = mgcp_requests[i].handle_request(&pdata);
+			break;
 		}
 	}
+
+	if (!handled)
+		LOGP(DMGCP, LOGL_NOTICE, "MSG with type: '%.4s' not handled\n", &msg->l2h[0]);
 
 	return resp;
-}
-
-/* string tokenizer for the poor */
-static int find_msg_pointers(struct msgb *msg, struct mgcp_msg_ptr *ptrs, int ptrs_length)
-{
-	int i, found = 0;
-
-	int whitespace = 1;
-	for (i = 0; i < msgb_l3len(msg) && ptrs_length > 0; ++i) {
-		/* if we have a space we found an end */
-		if (msg->l3h[i]	== ' ' || msg->l3h[i] == '\r' || msg->l3h[i] == '\n') {
-			if (!whitespace) {
-				++found;
-				whitespace = 1;
-				ptrs->length = i - ptrs->start - 1;
-				++ptrs;
-				--ptrs_length;
-			} else {
-			    /* skip any number of whitespace */
-			}
-
-			/* line end... stop */
-			if (msg->l3h[i] == '\r' || msg->l3h[i] == '\n')
-				break;
-		} else if (msg->l3h[i] == '\r' || msg->l3h[i] == '\n') {
-			/* line end, be done */
-			break;
-		} else if (whitespace) {
-			whitespace = 0;
-			ptrs->start = i;
-		}
-	}
-
-	if (ptrs_length == 0)
-		return -1;
-	return found;
 }
 
 /**
@@ -355,48 +357,56 @@ static struct mgcp_endpoint *find_endpoint(struct mgcp_config *cfg, const char *
 	return endp;
 }
 
-int mgcp_analyze_header(struct mgcp_config *cfg, struct msgb *msg,
-			struct mgcp_msg_ptr *ptr, int size,
-			const char **transaction_id, struct mgcp_endpoint **endp)
+/**
+ * @returns 0 when the status line was complete and transaction_id and
+ * endp out parameters are set.
+ */
+static int mgcp_analyze_header(struct mgcp_parse_data *pdata, char *data)
 {
-	int found;
+	int i = 0;
+	char *elem, *save;
 
-	*transaction_id = "000000";
+	pdata->trans = "000000";
 
-	if (size < 3) {
-		LOGP(DMGCP, LOGL_ERROR, "Not enough space in ptr\n");
+	for (elem = strtok_r(data, " ", &save); elem;
+	     elem = strtok_r(NULL, " ", &save)) {
+		switch (i) {
+		case 0:
+			pdata->trans = elem;
+			break;
+		case 1:
+			pdata->endp = find_endpoint(pdata->cfg, elem);
+			if (!pdata->endp) {
+				LOGP(DMGCP, LOGL_ERROR,
+				     "Unable to find Endpoint `%s'\n", elem);
+				return -1;
+			}
+			break;
+		case 2:
+			if (strcmp("MGCP", elem)) {
+				LOGP(DMGCP, LOGL_ERROR,
+				     "MGCP header parsing error\n");
+				return -1;
+			}
+			break;
+		case 3:
+			if (strcmp("1.0", elem)) {
+				LOGP(DMGCP, LOGL_ERROR, "MGCP version `%s' "
+					"not supported\n", elem);
+				return -1;
+			}
+			break;
+		}
+		i++;
+	}
+
+	if (i != 4) {
+		LOGP(DMGCP, LOGL_ERROR, "MGCP status line too short.\n");
+		pdata->trans = "000000";
+		pdata->endp = NULL;
 		return -1;
 	}
 
-	found = find_msg_pointers(msg, ptr, size);
-
-	if (found <= 3) {
-		LOGP(DMGCP, LOGL_ERROR, "Gateway: Not enough params. Found: %d\n", found);
-		return -1;
-	}
-
-	/*
-	 * replace the space with \0. the main method gurantess that
-	 * we still have + 1 for null termination
-	 */
-	msg->l3h[ptr[3].start + ptr[3].length + 1] = '\0';
-	msg->l3h[ptr[2].start + ptr[2].length + 1] = '\0';
-	msg->l3h[ptr[1].start + ptr[1].length + 1] = '\0';
-	msg->l3h[ptr[0].start + ptr[0].length + 1] = '\0';
-
-	if (strncmp("1.0", (const char *)&msg->l3h[ptr[3].start], 3) != 0
-	    || strncmp("MGCP", (const char *)&msg->l3h[ptr[2].start], 4) != 0) {
-		LOGP(DMGCP, LOGL_ERROR, "Wrong MGCP version. Not handling: '%s' '%s'\n",
-			(const char *)&msg->l3h[ptr[3].start],
-			(const char *)&msg->l3h[ptr[2].start]);
-		return -1;
-	}
-
-	*transaction_id = (const char *)&msg->l3h[ptr[0].start];
-	if (endp) {
-		*endp = find_endpoint(cfg, (const char *)&msg->l3h[ptr[1].start]);
-		return *endp == NULL;
-	}
 	return 0;
 }
 
@@ -426,18 +436,12 @@ static int verify_ci(const struct mgcp_endpoint *endp,
 	return 0;
 }
 
-static struct msgb *handle_audit_endpoint(struct mgcp_config *cfg, struct msgb *msg)
+static struct msgb *handle_audit_endpoint(struct mgcp_parse_data *p)
 {
-	struct mgcp_msg_ptr data_ptrs[6];
-	int found;
-	const char *trans_id;
-	struct mgcp_endpoint *endp;
-
-	found = mgcp_analyze_header(cfg, msg, data_ptrs, ARRAY_SIZE(data_ptrs), &trans_id, &endp);
-	if (found != 0)
-		return create_err_response(500, "AUEP", trans_id);
+	if (p->found != 0)
+		return create_err_response(NULL, 500, "AUEP", p->trans);
 	else
-		return create_ok_response(200, "AUEP", trans_id);
+		return create_ok_response(p->endp, 200, "AUEP", p->trans);
 }
 
 static int parse_conn_mode(const char *msg, int *conn_mode)
@@ -529,62 +533,72 @@ static int allocate_ports(struct mgcp_endpoint *endp)
 	return 0;
 }
 
-static struct msgb *handle_create_con(struct mgcp_config *cfg, struct msgb *msg)
+static struct msgb *handle_create_con(struct mgcp_parse_data *p)
 {
-	struct mgcp_msg_ptr data_ptrs[6];
-	int found, i, line_start;
-	const char *trans_id;
 	struct mgcp_trunk_config *tcfg;
-	struct mgcp_endpoint *endp;
+	struct mgcp_endpoint *endp = p->endp;
 	int error_code = 400;
 
-	found = mgcp_analyze_header(cfg, msg, data_ptrs, ARRAY_SIZE(data_ptrs), &trans_id, &endp);
-	if (found != 0)
-		return create_err_response(510, "CRCX", trans_id);
+	const char *local_options = NULL;
+	const char *callid = NULL;
+	const char *mode = NULL;
+	char *line;
 
-	tcfg = endp->tcfg;
+	if (p->found != 0)
+		return create_err_response(NULL, 510, "CRCX", p->trans);
+
+	/* parse CallID C: and LocalParameters L: */
+	for_each_line(line, p->save) {
+		switch (line[0]) {
+		case 'L':
+			local_options = (const char *) line + 3;
+			break;
+		case 'C':
+			callid = (const char *) line + 3;
+			break;
+		case 'M':
+			mode = (const char *) line + 3;
+			break;
+		default:
+			LOGP(DMGCP, LOGL_NOTICE, "Unhandled option: '%c'/%d on 0x%x\n",
+				*line, *line, ENDPOINT_NUMBER(endp));
+			break;
+		}
+	}
+
+	tcfg = p->endp->tcfg;
+
+	/* Check required data */
+	if (!callid || !mode) {
+		LOGP(DMGCP, LOGL_ERROR, "Missing callid and mode in CRCX on 0x%x\n",
+		     ENDPOINT_NUMBER(endp));
+		return create_err_response(endp, 400, "CRCX", p->trans);
+	}
 
 	if (endp->allocated) {
 		if (tcfg->force_realloc) {
 			LOGP(DMGCP, LOGL_NOTICE, "Endpoint 0x%x already allocated. Forcing realloc.\n",
 			    ENDPOINT_NUMBER(endp));
 			mgcp_free_endp(endp);
-			if (cfg->realloc_cb)
-				cfg->realloc_cb(tcfg, ENDPOINT_NUMBER(endp));
+			if (p->cfg->realloc_cb)
+				p->cfg->realloc_cb(tcfg, ENDPOINT_NUMBER(endp));
 		} else {
 			LOGP(DMGCP, LOGL_ERROR, "Endpoint is already used. 0x%x\n",
 			     ENDPOINT_NUMBER(endp));
-			return create_err_response(400, "CRCX", trans_id);
+			return create_err_response(endp, 400, "CRCX", p->trans);
 		}
 	}
 
-	/* parse CallID C: and LocalParameters L: */
-	MSG_TOKENIZE_START
-	switch (msg->l3h[line_start]) {
-	case 'L':
-		endp->local_options = talloc_strdup(tcfg->endpoints,
-			(const char *)&msg->l3h[line_start + 3]);
-		break;
-	case 'C':
-		endp->callid = talloc_strdup(tcfg->endpoints,
-			(const char *)&msg->l3h[line_start + 3]);
-		break;
-	case 'M':
-		if (parse_conn_mode((const char *)&msg->l3h[line_start + 3],
-			    &endp->conn_mode) != 0) {
+	/* copy some parameters */
+	endp->callid = talloc_strdup(tcfg->endpoints, callid);
+
+	if (local_options)
+		endp->local_options = talloc_strdup(tcfg->endpoints, local_options);
+
+	if (parse_conn_mode(mode, &endp->conn_mode) != 0) {
 		    error_code = 517;
 		    goto error2;
-		}
-
-		endp->orig_mode = endp->conn_mode;
-		break;
-	default:
-		LOGP(DMGCP, LOGL_NOTICE, "Unhandled option: '%c'/%d on 0x%x\n",
-			msg->l3h[line_start], msg->l3h[line_start],
-			ENDPOINT_NUMBER(endp));
-		break;
 	}
-	MSG_TOKENIZE_END
 
 	/* initialize */
 	endp->net_end.rtp_port = endp->net_end.rtcp_port = endp->bts_end.rtp_port = endp->bts_end.rtcp_port = 0;
@@ -605,13 +619,16 @@ static struct msgb *handle_create_con(struct mgcp_config *cfg, struct msgb *msg)
 	endp->bts_end.payload_type = tcfg->audio_payload;
 
 	/* policy CB */
-	if (cfg->policy_cb) {
-		switch (cfg->policy_cb(tcfg, ENDPOINT_NUMBER(endp), MGCP_ENDP_CRCX, trans_id)) {
+	if (p->cfg->policy_cb) {
+		int rc;
+		rc = p->cfg->policy_cb(tcfg, ENDPOINT_NUMBER(endp),
+				MGCP_ENDP_CRCX, p->trans);
+		switch (rc) {
 		case MGCP_POLICY_REJECT:
 			LOGP(DMGCP, LOGL_NOTICE, "CRCX rejected by policy on 0x%x\n",
 			     ENDPOINT_NUMBER(endp));
 			mgcp_free_endp(endp);
-			return create_err_response(400, "CRCX", trans_id);
+			return create_err_response(endp, 400, "CRCX", p->trans);
 			break;
 		case MGCP_POLICY_DEFER:
 			/* stop processing */
@@ -627,115 +644,106 @@ static struct msgb *handle_create_con(struct mgcp_config *cfg, struct msgb *msg)
 	LOGP(DMGCP, LOGL_DEBUG, "Creating endpoint on: 0x%x CI: %u port: %u/%u\n",
 		ENDPOINT_NUMBER(endp), endp->ci,
 		endp->net_end.local_port, endp->bts_end.local_port);
-	if (cfg->change_cb)
-		cfg->change_cb(tcfg, ENDPOINT_NUMBER(endp), MGCP_ENDP_CRCX);
+	if (p->cfg->change_cb)
+		p->cfg->change_cb(tcfg, ENDPOINT_NUMBER(endp), MGCP_ENDP_CRCX);
 
 	create_transcoder(endp);
-	return create_response_with_sdp(endp, "CRCX", trans_id);
-error:
-	LOGP(DMGCP, LOGL_ERROR, "Malformed line: %s on 0x%x with: line_start: %d %d\n",
-		    osmo_hexdump(msg->l3h, msgb_l3len(msg)),
-		    ENDPOINT_NUMBER(endp), line_start, i);
-	return create_err_response(error_code, "CRCX", trans_id);
-
+	return create_response_with_sdp(endp, "CRCX", p->trans);
 error2:
 	mgcp_free_endp(endp);
 	LOGP(DMGCP, LOGL_NOTICE, "Resource error on 0x%x\n", ENDPOINT_NUMBER(endp));
-	return create_err_response(error_code, "CRCX", trans_id);
+	return create_err_response(endp, error_code, "CRCX", p->trans);
 }
 
-static struct msgb *handle_modify_con(struct mgcp_config *cfg, struct msgb *msg)
+static struct msgb *handle_modify_con(struct mgcp_parse_data *p)
 {
-	struct mgcp_msg_ptr data_ptrs[6];
-	int found, i, line_start;
-	const char *trans_id;
-	struct mgcp_endpoint *endp;
+	struct mgcp_endpoint *endp = p->endp;
 	int error_code = 500;
 	int silent = 0;
+	char *line;
 
-	found = mgcp_analyze_header(cfg, msg, data_ptrs, ARRAY_SIZE(data_ptrs), &trans_id, &endp);
-	if (found != 0)
-		return create_err_response(510, "MDCX", trans_id);
+	if (p->found != 0)
+		return create_err_response(NULL, 510, "MDCX", p->trans);
 
 	if (endp->ci == CI_UNUSED) {
-		LOGP(DMGCP, LOGL_ERROR, "Endpoint is not holding a connection. 0x%x\n", ENDPOINT_NUMBER(endp));
-		return create_err_response(400, "MDCX", trans_id);
+		LOGP(DMGCP, LOGL_ERROR, "Endpoint is not "
+			"holding a connection. 0x%x\n", ENDPOINT_NUMBER(endp));
+		return create_err_response(endp, 400, "MDCX", p->trans);
 	}
 
-	MSG_TOKENIZE_START
-	switch (msg->l3h[line_start]) {
-	case 'C': {
-		if (verify_call_id(endp, (const char *)&msg->l3h[line_start + 3]) != 0)
-			goto error3;
-		break;
-	}
-	case 'I': {
-		if (verify_ci(endp, (const char *)&msg->l3h[line_start + 3]) != 0)
-			goto error3;
-		break;
-	}
-	case 'L':
-		/* skip */
-		break;
-	case 'M':
-		if (parse_conn_mode((const char *)&msg->l3h[line_start + 3],
-			    &endp->conn_mode) != 0) {
-		    error_code = 517;
-		    goto error3;
+	for_each_line(line, p->save) {
+		switch (line[0]) {
+		case 'C': {
+			if (verify_call_id(endp, line + 3) != 0)
+				goto error3;
+			break;
 		}
-		endp->orig_mode = endp->conn_mode;
-		break;
-	case 'Z':
-		silent = strcmp("noanswer", (const char *)&msg->l3h[line_start + 3]) == 0;
-		break;
-	case '\0':
-		/* SDP file begins */
-		break;
-	case 'a':
-	case 'o':
-	case 's':
-	case 't':
-	case 'v':
-		/* skip these SDP attributes */
-		break;
-	case 'm': {
-		int port;
-		int payload;
-		const char *param = (const char *)&msg->l3h[line_start];
+		case 'I': {
+			if (verify_ci(endp, line + 3) != 0)
+				goto error3;
+			break;
+		}
+		case 'L':
+			/* skip */
+			break;
+		case 'M':
+			if (parse_conn_mode(line + 3, &endp->conn_mode) != 0) {
+			    error_code = 517;
+			    goto error3;
+			}
+			endp->orig_mode = endp->conn_mode;
+			break;
+		case 'Z':
+			silent = strcmp("noanswer", line + 3) == 0;
+			break;
+		case '\0':
+			/* SDP file begins */
+			break;
+		case 'a':
+		case 'o':
+		case 's':
+		case 't':
+		case 'v':
+			/* skip these SDP attributes */
+			break;
+		case 'm': {
+			int port;
+			int payload;
 
-		if (sscanf(param, "m=audio %d RTP/AVP %d", &port, &payload) == 2) {
-			endp->net_end.rtp_port = htons(port);
-			endp->net_end.rtcp_port = htons(port + 1);
-			endp->net_end.payload_type = payload;
+			if (sscanf(line, "m=audio %d RTP/AVP %d", &port, &payload) == 2) {
+				endp->net_end.rtp_port = htons(port);
+				endp->net_end.rtcp_port = htons(port + 1);
+				endp->net_end.payload_type = payload;
+			}
+			break;
 		}
-		break;
-	}
-	case 'c': {
-		char ipv4[16];
-		const char *param = (const char *)&msg->l3h[line_start];
+		case 'c': {
+			char ipv4[16];
 
-		if (sscanf(param, "c=IN IP4 %15s", ipv4) == 1) {
-			inet_aton(ipv4, &endp->net_end.addr);
+			if (sscanf(line, "c=IN IP4 %15s", ipv4) == 1) {
+				inet_aton(ipv4, &endp->net_end.addr);
+			}
+			break;
 		}
-		break;
+		default:
+			LOGP(DMGCP, LOGL_NOTICE, "Unhandled option: '%c'/%d on 0x%x\n",
+				line[0], line[0], ENDPOINT_NUMBER(endp));
+			break;
+		}
 	}
-	default:
-		LOGP(DMGCP, LOGL_NOTICE, "Unhandled option: '%c'/%d on 0x%x\n",
-			msg->l3h[line_start], msg->l3h[line_start],
-			ENDPOINT_NUMBER(endp));
-		break;
-	}
-	MSG_TOKENIZE_END
 
 	/* policy CB */
-	if (cfg->policy_cb) {
-		switch (cfg->policy_cb(endp->tcfg, ENDPOINT_NUMBER(endp), MGCP_ENDP_MDCX, trans_id)) {
+	if (p->cfg->policy_cb) {
+		int rc;
+		rc = p->cfg->policy_cb(endp->tcfg, ENDPOINT_NUMBER(endp),
+						MGCP_ENDP_MDCX, p->trans);
+		switch (rc) {
 		case MGCP_POLICY_REJECT:
 			LOGP(DMGCP, LOGL_NOTICE, "MDCX rejected by policy on 0x%x\n",
 			     ENDPOINT_NUMBER(endp));
 			if (silent)
 				goto out_silent;
-			return create_err_response(400, "MDCX", trans_id);
+			return create_err_response(endp, 400, "MDCX", p->trans);
 			break;
 		case MGCP_POLICY_DEFER:
 			/* stop processing */
@@ -750,77 +758,70 @@ static struct msgb *handle_modify_con(struct mgcp_config *cfg, struct msgb *msg)
 	/* modify */
 	LOGP(DMGCP, LOGL_DEBUG, "Modified endpoint on: 0x%x Server: %s:%u\n",
 		ENDPOINT_NUMBER(endp), inet_ntoa(endp->net_end.addr), ntohs(endp->net_end.rtp_port));
-	if (cfg->change_cb)
-		cfg->change_cb(endp->tcfg, ENDPOINT_NUMBER(endp), MGCP_ENDP_MDCX);
+	if (p->cfg->change_cb)
+		p->cfg->change_cb(endp->tcfg, ENDPOINT_NUMBER(endp), MGCP_ENDP_MDCX);
 	if (silent)
 		goto out_silent;
 
-	return create_response_with_sdp(endp, "MDCX", trans_id);
-
-error:
-	LOGP(DMGCP, LOGL_ERROR, "Malformed line: %s on 0x%x with: line_start: %d %d %d\n",
-		    osmo_hexdump(msg->l3h, msgb_l3len(msg)),
-		    ENDPOINT_NUMBER(endp), line_start, i, msg->l3h[line_start]);
-	return create_err_response(error_code, "MDCX", trans_id);
+	return create_response_with_sdp(endp, "MDCX", p->trans);
 
 error3:
-	return create_err_response(error_code, "MDCX", trans_id);
+	return create_err_response(endp, error_code, "MDCX", p->trans);
 
 
 out_silent:
 	return NULL;
 }
 
-static struct msgb *handle_delete_con(struct mgcp_config *cfg, struct msgb *msg)
+static struct msgb *handle_delete_con(struct mgcp_parse_data *p)
 {
-	struct mgcp_msg_ptr data_ptrs[6];
-	int found, i, line_start;
-	const char *trans_id;
-	struct mgcp_endpoint *endp;
+	struct mgcp_endpoint *endp = p->endp;
 	int error_code = 400;
 	int silent = 0;
+	char *line;
+	char stats[1048];
 
-	found = mgcp_analyze_header(cfg, msg, data_ptrs, ARRAY_SIZE(data_ptrs), &trans_id, &endp);
-	if (found != 0)
-		return create_err_response(error_code, "DLCX", trans_id);
+	if (p->found != 0)
+		return create_err_response(NULL, error_code, "DLCX", p->trans);
 
-	if (!endp->allocated) {
-		LOGP(DMGCP, LOGL_ERROR, "Endpoint is not used. 0x%x\n", ENDPOINT_NUMBER(endp));
-		return create_err_response(400, "DLCX", trans_id);
-	}
-
-	MSG_TOKENIZE_START
-	switch (msg->l3h[line_start]) {
-	case 'C': {
-		if (verify_call_id(endp, (const char *)&msg->l3h[line_start + 3]) != 0)
-			goto error3;
-		break;
-	}
-	case 'I': {
-		if (verify_ci(endp, (const char *)&msg->l3h[line_start + 3]) != 0)
-			goto error3;
-		break;
-	case 'Z':
-		silent = strcmp("noanswer", (const char *)&msg->l3h[line_start + 3]) == 0;
-		break;
-	}
-	default:
-		LOGP(DMGCP, LOGL_NOTICE, "Unhandled option: '%c'/%d on 0x%x\n",
-			msg->l3h[line_start], msg->l3h[line_start],
+	if (!p->endp->allocated) {
+		LOGP(DMGCP, LOGL_ERROR, "Endpoint is not used. 0x%x\n",
 			ENDPOINT_NUMBER(endp));
-		break;
+		return create_err_response(endp, 400, "DLCX", p->trans);
 	}
-	MSG_TOKENIZE_END
+
+	for_each_line(line, p->save) {
+		switch (line[0]) {
+		case 'C':
+			if (verify_call_id(endp, line + 3) != 0)
+				goto error3;
+			break;
+		case 'I':
+			if (verify_ci(endp, line + 3) != 0)
+				goto error3;
+			break;
+		case 'Z':
+			silent = strcmp("noanswer", line + 3) == 0;
+			break;
+		default:
+			LOGP(DMGCP, LOGL_NOTICE, "Unhandled option: '%c'/%d on 0x%x\n",
+				line[0], line[0], ENDPOINT_NUMBER(endp));
+			break;
+		}
+	}
 
 	/* policy CB */
-	if (cfg->policy_cb) {
-		switch (cfg->policy_cb(endp->tcfg, ENDPOINT_NUMBER(endp), MGCP_ENDP_DLCX, trans_id)) {
+	if (p->cfg->policy_cb) {
+		int rc;
+		rc = p->cfg->policy_cb(endp->tcfg, ENDPOINT_NUMBER(endp),
+						MGCP_ENDP_DLCX, p->trans);
+		switch (rc) {
 		case MGCP_POLICY_REJECT:
 			LOGP(DMGCP, LOGL_NOTICE, "DLCX rejected by policy on 0x%x\n",
 			     ENDPOINT_NUMBER(endp));
 			if (silent)
 				goto out_silent;
-			return create_err_response(400, "DLCX", trans_id);
+			return create_err_response(endp, 400, "DLCX", p->trans);
 			break;
 		case MGCP_POLICY_DEFER:
 			/* stop processing */
@@ -837,45 +838,34 @@ static struct msgb *handle_delete_con(struct mgcp_config *cfg, struct msgb *msg)
 	LOGP(DMGCP, LOGL_DEBUG, "Deleted endpoint on: 0x%x Server: %s:%u\n",
 		ENDPOINT_NUMBER(endp), inet_ntoa(endp->net_end.addr), ntohs(endp->net_end.rtp_port));
 
+	/* save the statistics of the current call */
+	mgcp_format_stats(endp, stats, sizeof(stats));
+
 	delete_transcoder(endp);
 	mgcp_free_endp(endp);
-	if (cfg->change_cb)
-		cfg->change_cb(endp->tcfg, ENDPOINT_NUMBER(endp), MGCP_ENDP_DLCX);
+	if (p->cfg->change_cb)
+		p->cfg->change_cb(endp->tcfg, ENDPOINT_NUMBER(endp), MGCP_ENDP_DLCX);
 
 	if (silent)
 		goto out_silent;
-	return create_ok_response(250, "DLCX", trans_id);
-
-error:
-	LOGP(DMGCP, LOGL_ERROR, "Malformed line: %s on 0x%x with: line_start: %d %d\n",
-		    osmo_hexdump(msg->l3h, msgb_l3len(msg)),
-		    ENDPOINT_NUMBER(endp), line_start, i);
-	return create_err_response(error_code, "DLCX", trans_id);
+	return create_ok_resp_with_param(endp, 250, "DLCX", p->trans, stats);
 
 error3:
-	return create_err_response(error_code, "DLCX", trans_id);
+	return create_err_response(endp, error_code, "DLCX", p->trans);
 
 out_silent:
 	return NULL;
 }
 
-static struct msgb *handle_rsip(struct mgcp_config *cfg, struct msgb *msg)
+static struct msgb *handle_rsip(struct mgcp_parse_data *p)
 {
-	struct mgcp_msg_ptr data_ptrs[6];
-	const char *trans_id;
-	struct mgcp_endpoint *endp;
-	int found;
-
-	found = mgcp_analyze_header(cfg, msg, data_ptrs, ARRAY_SIZE(data_ptrs),
-				    &trans_id, &endp);
-	if (found != 0) {
+	if (p->found != 0) {
 		LOGP(DMGCP, LOGL_ERROR, "Failed to find the endpoint.\n");
 		return NULL;
 	}
 
-	if (cfg->reset_cb)
-		cfg->reset_cb(endp->tcfg);
-
+	if (p->cfg->reset_cb)
+		p->cfg->reset_cb(p->endp->tcfg);
 	return NULL;
 }
 
@@ -893,53 +883,40 @@ static char extract_tone(const char *line)
  * can also request when the notification should be send and such. We don't
  * do this right now.
  */
-static struct msgb *handle_noti_req(struct mgcp_config *cfg, struct msgb *msg)
+static struct msgb *handle_noti_req(struct mgcp_parse_data *p)
 {
-	struct mgcp_msg_ptr data_ptrs[6];
-	const char *trans_id;
-	struct mgcp_endpoint *endp;
-	int found, res = 0, i, line_start;
+	int res = 0;
+	char *line;
 	char tone = 0;
 
-	found = mgcp_analyze_header(cfg, msg, data_ptrs, ARRAY_SIZE(data_ptrs), &trans_id, &endp);
-	if (found != 0)
-		return create_err_response(400, "RQNT", trans_id);
+	if (p->found != 0)
+		return create_err_response(NULL, 400, "RQNT", p->trans);
 
-	if (!endp->allocated) {
-		LOGP(DMGCP, LOGL_ERROR, "Endpoint is not used. 0x%x\n", ENDPOINT_NUMBER(endp));
-		return create_err_response(400, "RQNT", trans_id);
+	for_each_line(line, p->save) {
+		switch (line[0]) {
+		case 'S':
+			tone = extract_tone(line);
+			break;
+		}
 	}
-
-	MSG_TOKENIZE_START
-	switch (msg->l3h[line_start]) {
-	case 'S':
-		tone = extract_tone((const char *)&msg->l3h[line_start]);
-		break;
-	}
-	MSG_TOKENIZE_END
 
 	/* we didn't see a signal request with a tone */
 	if (tone == CHAR_MAX)
-		return create_ok_response(200, "RQNT", trans_id);
+		return create_ok_response(p->endp, 200, "RQNT", p->trans);
 
-	if (cfg->rqnt_cb)
-		res = cfg->rqnt_cb(endp, tone, (const char *) msg->l3h);
+	if (p->cfg->rqnt_cb)
+		res = p->cfg->rqnt_cb(p->endp, tone);
 
 	return res == 0 ?
-		create_ok_response(200, "RQNT", trans_id) :
-		create_err_response(res, "RQNT", trans_id);
-
-error:
-	LOGP(DMGCP, LOGL_ERROR, "Malformed line: %s on 0x%x with: line_start: %d %d\n",
-		    osmo_hexdump(msg->l3h, msgb_l3len(msg)),
-		    ENDPOINT_NUMBER(endp), line_start, i);
-	return create_err_response(400, "RQNT", trans_id);
+		create_ok_response(p->endp, 200, "RQNT", p->trans) :
+		create_err_response(p->endp, res, "RQNT", p->trans);
 }
 
 static void trunk_init(struct mgcp_trunk_config *trunk)
 {
 	trunk->audio_name = talloc_strdup(trunk->cfg, "AMR/8000");
 	trunk->audio_payload = 126;
+	trunk->omit_rtcp = 0;
 
 	/* MGW handling */
 	trunk->target_trunk_start = 1;
@@ -1063,6 +1040,7 @@ static void mgcp_rtp_end_reset(struct mgcp_rtp_end *end)
 	}
 
 	end->packets = 0;
+	end->octets = 0;
 	memset(&end->addr, 0, sizeof(end->addr));
 	end->rtp_port = end->rtcp_port = 0;
 	end->payload_type = -1;
@@ -1111,15 +1089,11 @@ void mgcp_free_endp(struct mgcp_endpoint *endp)
 	endp->ci = CI_UNUSED;
 	endp->allocated = 0;
 
-	if (endp->callid) {
-		talloc_free(endp->callid);
-		endp->callid = NULL;
-	}
+	talloc_free(endp->callid);
+	endp->callid = NULL;
 
-	if (endp->local_options) {
-		talloc_free(endp->local_options);
-		endp->local_options = NULL;
-	}
+	talloc_free(endp->local_options);
+	endp->local_options = NULL;
 
 	mgcp_rtp_end_reset(&endp->bts_end);
 	mgcp_rtp_end_reset(&endp->net_end);
@@ -1193,6 +1167,36 @@ static void send_dlcx(struct mgcp_endpoint *endp, int endpoint)
 	send_trans(endp->cfg, buf, len);
 }
 
+static int send_agent(struct mgcp_config *cfg, const char *buf, int len)
+{
+	return write(cfg->gw_fd.bfd.fd, buf, len);
+}
+
+int mgcp_send_reset_all(struct mgcp_config *cfg)
+{
+	static const char mgcp_reset[] = {
+	    "RSIP 1 *@mgw MGCP 1.0\r\n"
+	};
+
+	return send_agent(cfg, mgcp_reset, sizeof mgcp_reset -1);
+}
+
+int mgcp_send_reset_ep(struct mgcp_endpoint *endp, int endpoint)
+{
+	char buf[128];
+	int len;
+
+	len = snprintf(buf, sizeof(buf),
+			"RSIP 39 %x@mgw MGCP 1.0\r\n"
+			, endpoint);
+	if (len < 0)
+		return len;
+
+	buf[sizeof(buf) - 1] = '\0';
+
+	return send_agent(endp->cfg, buf, len);
+}
+
 static void create_transcoder(struct mgcp_endpoint *endp)
 {
 	int port;
@@ -1238,4 +1242,19 @@ int mgcp_reset_transcoder(struct mgcp_config *cfg)
 	};
 
 	return send_trans(cfg, mgcp_reset, sizeof mgcp_reset -1);
+}
+
+void mgcp_format_stats(struct mgcp_endpoint *endp, char *msg, size_t size)
+{
+	uint32_t expected, jitter;
+	int ploss;
+	mgcp_state_calc_loss(&endp->net_state, &endp->net_end,
+				&expected, &ploss);
+	jitter = mgcp_state_calc_jitter(&endp->net_state);
+
+	snprintf(msg, size, "\r\nP: PS=%u, OS=%u, PR=%u, OR=%u, PL=%d, JI=%d",
+			endp->bts_end.packets, endp->bts_end.octets,
+			endp->net_end.packets, endp->net_end.octets,
+			ploss, jitter);
+	msg[size - 1] = '\0';
 }

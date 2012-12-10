@@ -83,7 +83,7 @@ typedef int (*mgcp_realloc)(struct mgcp_trunk_config *cfg, int endpoint);
 typedef int (*mgcp_change)(struct mgcp_trunk_config *cfg, int endpoint, int state);
 typedef int (*mgcp_policy)(struct mgcp_trunk_config *cfg, int endpoint, int state, const char *transactio_id);
 typedef int (*mgcp_reset)(struct mgcp_trunk_config *cfg);
-typedef int (*mgcp_rqnt)(struct mgcp_endpoint *endp, char tone, const char *data);
+typedef int (*mgcp_rqnt)(struct mgcp_endpoint *endp, char tone);
 
 #define PORT_ALLOC_STATIC	0
 #define PORT_ALLOC_DYNAMIC	1
@@ -115,6 +115,8 @@ struct mgcp_trunk_config {
 	char *audio_name;
 	int audio_payload;
 	int audio_loop;
+
+	int omit_rtcp;
 
 	/* spec handling */
 	int force_realloc;
@@ -188,12 +190,12 @@ int mgcp_vty_init(void);
 int mgcp_endpoints_allocate(struct mgcp_trunk_config *cfg);
 void mgcp_free_endp(struct mgcp_endpoint *endp);
 int mgcp_reset_transcoder(struct mgcp_config *cfg);
+void mgcp_format_stats(struct mgcp_endpoint *endp, char *stats, size_t size);
 
 /*
  * format helper functions
  */
 struct msgb *mgcp_handle_message(struct mgcp_config *cfg, struct msgb *msg);
-struct msgb *mgcp_create_response_with_data(int code, const char *txt, const char *msg, const char *trans, const char *data);
 
 /* adc helper */
 static inline int mgcp_timeslot_to_endpoint(int multiplex, int timeslot)
@@ -211,6 +213,9 @@ static inline void mgcp_endpoint_to_timeslot(int endpoint, int *multiplex, int *
 	*multiplex = endpoint / 32;
 	*timeslot = endpoint % 32;
 }
+
+int mgcp_send_reset_ep(struct mgcp_endpoint *endp, int endpoint);
+int mgcp_send_reset_all(struct mgcp_config *cfg);
 
 
 #endif

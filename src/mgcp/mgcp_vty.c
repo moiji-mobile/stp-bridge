@@ -88,6 +88,10 @@ static void bsc_replace_string(void *ctx, char **dst, const char *newstr)
 	*dst = talloc_strdup(ctx, newstr);
 }
 
+
+
+#define RTCP_OMIT_STR "Drop RTCP packets in both directions\n"
+
 struct mgcp_config *g_cfg = NULL;
 
 static struct mgcp_trunk_config *find_trunk(struct mgcp_config *cfg,
@@ -108,19 +112,19 @@ static struct mgcp_trunk_config *find_trunk(struct mgcp_config *cfg,
  */
 struct cmd_node mgcp_node = {
 	MGCP_NODE,
-	"%s(mgcp)#",
+	"%s(config-mgcp)# ",
 	1,
 };
 
 struct cmd_node vtrunk_node = {
 	VTRUNK_NODE,
-	"%s(vtrunk)#",
+	"%s(config-mgcp-vtrunk)#",
 	1,
 };
 
 struct cmd_node trunk_node = {
 	TRUNK_NODE,
-	"%s(trunk)#",
+	"%s(config-mgcp-trunk)# ",
 	1,
 };
 
@@ -148,7 +152,7 @@ static int config_write_mgcp(struct vty *vty)
 
 	vty_out(vty, "  rtp ip-dscp %d%s", g_cfg->endp_dscp, VTY_NEWLINE);
 	if (g_cfg->call_agent_addr)
-		vty_out(vty, "  call agent ip %s%s", g_cfg->call_agent_addr, VTY_NEWLINE);
+		vty_out(vty, "  call-agent ip %s%s", g_cfg->call_agent_addr, VTY_NEWLINE);
 	if (g_cfg->transcoder_ip)
 		vty_out(vty, "  transcoder-mgw %s%s", g_cfg->transcoder_ip, VTY_NEWLINE);
 
@@ -191,13 +195,12 @@ static void dump_trunk(struct vty *vty, struct mgcp_trunk_config *cfg)
 
 		vty_out(vty,
 			" Endpoint 0x%.2x: CI: %d net: %u/%u bts: %u/%u on %s "
-			"traffic received bts: %u/%u  remote: %u/%u transcoder: %u/%u%s",
+			"traffic received bts: %u  remote: %u transcoder: %u/%u%s",
 			i, endp->ci,
 			ntohs(endp->net_end.rtp_port), ntohs(endp->net_end.rtcp_port),
 			ntohs(endp->bts_end.rtp_port), ntohs(endp->bts_end.rtcp_port),
 			inet_ntoa(endp->bts_end.addr),
-			endp->bts_end.packets, endp->bts_state.lost_no,
-			endp->net_end.packets, endp->net_state.lost_no,
+			endp->bts_end.packets, endp->net_end.packets,
 			endp->trans_net.packets, endp->trans_bts.packets,
 			VTY_NEWLINE);
 	}
@@ -228,8 +231,10 @@ DEFUN(cfg_mgcp,
 
 DEFUN(cfg_mgcp_local_ip,
       cfg_mgcp_local_ip_cmd,
-      "local ip IP",
-      "Set the IP to be used in SDP records")
+      "local ip A.B.C.D",
+      "Local options for the SDP record\n"
+      IP_STR
+      "IPv4 Address to use in SDP record\n")
 {
 	struct hostent *hosts;
 	struct in_addr *addr;
@@ -247,8 +252,10 @@ DEFUN(cfg_mgcp_local_ip,
 
 DEFUN(cfg_mgcp_mgw_ip,
       cfg_mgcp_mgw_ip_cmd,
-      "mgw ip IP",
-      "Set the IP of the MGW for RTP forwarding")
+      "mgw ip A.B.C.D",
+      "BTS Audio source/destination options\n"
+      IP_STR
+      "IPv4 Address of the BTS\n")
 {
 	struct hostent *hosts;
 	struct in_addr *addr;
@@ -265,10 +272,13 @@ DEFUN(cfg_mgcp_mgw_ip,
 	return CMD_SUCCESS;
 }
 
+#define BIND_STR "Listen/Bind related socket option\n"
 DEFUN(cfg_mgcp_bind_ip,
       cfg_mgcp_bind_ip_cmd,
       "bind ip A.B.C.D",
-      "Bind the MGCP to this local addr")
+      BIND_STR
+      IP_STR
+      "IPv4 Address to bind to\n")
 {
 	bsc_replace_string(g_cfg, &g_cfg->source_addr, argv[0]);
 	return CMD_SUCCESS;
@@ -277,7 +287,9 @@ DEFUN(cfg_mgcp_bind_ip,
 DEFUN(cfg_mgcp_bind_port,
       cfg_mgcp_bind_port_cmd,
       "bind port <0-65534>",
-      "Bind the MGCP to this port")
+      BIND_STR
+      "Port information\n"
+      "UDP port to listen for MGCP messages\n")
 {
 	unsigned int port = atoi(argv[0]);
 	g_cfg->source_port = port;
@@ -287,7 +299,9 @@ DEFUN(cfg_mgcp_bind_port,
 DEFUN(cfg_mgcp_bind_early,
       cfg_mgcp_bind_early_cmd,
       "bind early (0|1)",
-      "Bind all RTP ports early")
+      BIND_STR
+      "Bind local ports on start up\n"
+      "Bind on demand\n" "Bind on startup\n")
 {
 	vty_out(vty, "bind early is deprecated, remove it from the config.\n");
 	return CMD_WARNING;
@@ -309,20 +323,28 @@ static void parse_range(struct mgcp_port_range *range, const char **argv)
 }
 
 
+#define RTP_STR "RTP configuration\n"
+#define BTS_START_STR "First UDP port allocated for the BTS side\n"
+#define NET_START_STR "First UDP port allocated for the NET side\n"
+#define UDP_PORT_STR "UDP Port number\n"
 DEFUN(cfg_mgcp_rtp_bts_base_port,
       cfg_mgcp_rtp_bts_base_port_cmd,
       "rtp bts-base <0-65534>",
-      "Base port to use")
+      RTP_STR
+      BTS_START_STR
+      UDP_PORT_STR)
 {
 	parse_base(&g_cfg->bts_ports, argv);
 	return CMD_SUCCESS;
 }
 
+#define RANGE_START_STR "Start of the range of ports\n"
+#define RANGE_END_STR "End of the range of ports\n"
 DEFUN(cfg_mgcp_rtp_bts_range,
       cfg_mgcp_rtp_bts_range_cmd,
       "rtp bts-range <0-65534> <0-65534>",
-      "Range of ports to allocate for endpoints\n"
-      "Start of the range of ports\n" "End of the range of ports\n")
+      RTP_STR "Range of ports to use for the BTS side\n"
+      RANGE_START_STR RANGE_END_STR)
 {
 	parse_range(&g_cfg->bts_ports, argv);
 	return CMD_SUCCESS;
@@ -331,8 +353,8 @@ DEFUN(cfg_mgcp_rtp_bts_range,
 DEFUN(cfg_mgcp_rtp_net_range,
       cfg_mgcp_rtp_net_range_cmd,
       "rtp net-range <0-65534> <0-65534>",
-      "Range of ports to allocate for endpoints\n"
-      "Start of the range of ports\n" "End of the range of ports\n")
+      RTP_STR "Range of ports to use for the NET side\n"
+      RANGE_START_STR RANGE_END_STR)
 {
 	parse_range(&g_cfg->net_ports, argv);
 	return CMD_SUCCESS;
@@ -341,20 +363,21 @@ DEFUN(cfg_mgcp_rtp_net_range,
 DEFUN(cfg_mgcp_rtp_net_base_port,
       cfg_mgcp_rtp_net_base_port_cmd,
       "rtp net-base <0-65534>",
-      "Base port to use for network port\n" "Port\n")
+      RTP_STR NET_START_STR UDP_PORT_STR)
 {
 	parse_base(&g_cfg->net_ports, argv);
 	return CMD_SUCCESS;
 }
 
 ALIAS_DEPRECATED(cfg_mgcp_rtp_bts_base_port, cfg_mgcp_rtp_base_port_cmd,
-      "rtp base <0-65534>", "Base port to use")
+      "rtp base <0-65534>",
+      RTP_STR BTS_START_STR UDP_PORT_STR)
 
 DEFUN(cfg_mgcp_rtp_transcoder_range,
       cfg_mgcp_rtp_transcoder_range_cmd,
       "rtp transcoder-range <0-65534> <0-65534>",
-      "Range of ports to allocate for the transcoder\n"
-      "Start of the range of ports\n" "End of the range of ports\n")
+      RTP_STR "Range of ports to use for the Transcoder\n"
+      RANGE_START_STR RANGE_END_STR)
 {
 	parse_range(&g_cfg->transcoder_ports, argv);
 	return CMD_SUCCESS;
@@ -363,7 +386,8 @@ DEFUN(cfg_mgcp_rtp_transcoder_range,
 DEFUN(cfg_mgcp_rtp_transcoder_base,
       cfg_mgcp_rtp_transcoder_base_cmd,
       "rtp transcoder-base <0-65534>",
-      "Base port for the transcoder range\n" "Port\n")
+      RTP_STR "First UDP port allocated for the Transcoder side\n"
+      UDP_PORT_STR)
 {
 	parse_base(&g_cfg->transcoder_ports, argv);
 	return CMD_SUCCESS;
@@ -372,7 +396,8 @@ DEFUN(cfg_mgcp_rtp_transcoder_base,
 DEFUN(cfg_mgcp_rtp_ip_dscp,
       cfg_mgcp_rtp_ip_dscp_cmd,
       "rtp ip-dscp <0-255>",
-      "Set the IP_TOS socket attribute on the RTP/RTCP sockets.\n" "The DSCP value.")
+      RTP_STR
+      "Apply IP_TOS to the audio stream\n" "The DSCP value\n")
 {
 	int dscp = atoi(argv[0]);
 	g_cfg->endp_dscp = dscp;
@@ -381,8 +406,12 @@ DEFUN(cfg_mgcp_rtp_ip_dscp,
 
 ALIAS_DEPRECATED(cfg_mgcp_rtp_ip_dscp, cfg_mgcp_rtp_ip_tos_cmd,
       "rtp ip-tos <0-255>",
-      "Set the IP_TOS socket attribute on the RTP/RTCP sockets.\n" "The DSCP value.")
+      RTP_STR
+      "Apply IP_TOS to the audio stream\n" "The DSCP value\n")
 
+
+#define SDP_STR "SDP File related options\n"
+#define AUDIO_STR "Audio payload options\n"
 
 DEFUN(cfg_vtrunk_number_endp,
       cfg_vtrunk_number_endp_cmd,
@@ -406,14 +435,23 @@ DEFUN(cfg_vtrunk_number_endp,
 	return CMD_SUCCESS;
 }
 
+
+#define CALL_AGENT_STR "Callagent information\n"
 DEFUN(cfg_mgcp_agent_addr,
       cfg_mgcp_agent_addr_cmd,
-      "call agent ip IP",
-      "Set the address of the call agent.")
+      "call-agent ip A.B.C.D",
+      CALL_AGENT_STR IP_STR
+      "IPv4 Address of the callagent\n")
 {
 	bsc_replace_string(g_cfg, &g_cfg->call_agent_addr, argv[0]);
 	return CMD_SUCCESS;
 }
+
+ALIAS_DEPRECATED(cfg_mgcp_agent_addr, cfg_mgcp_agent_addr_cmd_old,
+      "call agent ip A.B.C.D",
+      CALL_AGENT_STR CALL_AGENT_STR IP_STR
+      "IPv4 Address of the callagent\n")
+      
 
 DEFUN(cfg_mgcp_transcoder,
       cfg_mgcp_transcoder_cmd,
@@ -429,8 +467,8 @@ DEFUN(cfg_mgcp_transcoder,
 
 DEFUN(cfg_mgcp_no_transcoder,
       cfg_mgcp_no_transcoder_cmd,
-      NO_STR "transcoder-mgw",
-      "Disable the transcoding\n")
+      "no transcoder-mgw",
+      NO_STR "Disable the transcoding\n")
 {
 	if (g_cfg->transcoder_ip) {
 		LOGP(DMGCP, LOGL_NOTICE, "Disabling transcoding on future calls.\n");
@@ -509,6 +547,10 @@ static void config_write_trunk_common(struct vty *vty,
 		tcfg->audio_name, VTY_NEWLINE);
 	vty_out(vty, "  loop %d%s",
 		tcfg->audio_loop, VTY_NEWLINE);
+	if (tcfg->omit_rtcp)
+		vty_out(vty, "  rtcp-omit%s", VTY_NEWLINE);
+	else
+		vty_out(vty, "  no rtcp-omit%s", VTY_NEWLINE);
 }
 
 static int config_write_trunk(struct vty *vty)
@@ -541,8 +583,8 @@ static int config_write_vtrunk(struct vty *vty)
 
 DEFUN(cfg_trunk_payload_number,
       cfg_trunk_payload_number_cmd,
-      "sdp audio payload number <1-255>",
-      "SDP related\n" "Audio\n" "Payload\n" "Payload Number\n")
+      "sdp audio-payload number <1-255>",
+      SDP_STR AUDIO_STR "Number\n" "Payload Number\n")
 {
 	struct mgcp_trunk_config *trunk = vty->index;
 	unsigned int payload = atoi(argv[0]);
@@ -551,10 +593,14 @@ DEFUN(cfg_trunk_payload_number,
 	return CMD_SUCCESS;
 }
 
+ALIAS_DEPRECATED(cfg_trunk_payload_number, cfg_trunk_payload_number_cmd_old,
+      "sdp audio payload number <1-255>",
+      SDP_STR AUDIO_STR AUDIO_STR "Number\n" "Payload Number\n")
+
 DEFUN(cfg_trunk_payload_name,
       cfg_trunk_payload_name_cmd,
-      "sdp audio payload name NAME",
-      "SDP related\n" "Audio\n" "Payload\n" "Payload Name\n")
+      "sdp audio-payload name NAME",
+       SDP_STR AUDIO_STR "Payload\n" "Payload Name\n")
 {
 	struct mgcp_trunk_config *trunk = vty->index;
 
@@ -562,14 +608,40 @@ DEFUN(cfg_trunk_payload_name,
 	return CMD_SUCCESS;
 }
 
+ALIAS_DEPRECATED(cfg_trunk_payload_name, cfg_trunk_payload_name_cmd_old,
+      "sdp audio payload name NAME",
+       SDP_STR AUDIO_STR AUDIO_STR "Payload\n" "Payload Name\n")
+
+
 DEFUN(cfg_trunk_loop,
       cfg_trunk_loop_cmd,
       "loop (0|1)",
-      "Loop the audio")
+      "Loop audio for all endpoints on this trunk\n"
+      "Don't Loop\n" "Loop\n")
 {
 	struct mgcp_trunk_config *trunk = vty->index;
 
 	trunk->audio_loop = atoi(argv[0]);
+	return CMD_SUCCESS;
+}
+
+DEFUN(cfg_trunk_omit_rtcp,
+      cfg_trunk_omit_rtcp_cmd,
+      "rtcp-omit",
+      RTCP_OMIT_STR)
+{
+	struct mgcp_trunk_config *trunk = vty->index;
+	trunk->omit_rtcp = 1;
+	return CMD_SUCCESS;
+}
+
+DEFUN(cfg_trunk_no_omit_rtcp,
+      cfg_trunk_no_omit_rtcp_cmd,
+      "no rtcp-omit",
+      NO_STR RTCP_OMIT_STR)
+{
+	struct mgcp_trunk_config *trunk = vty->index;
+	trunk->omit_rtcp = 0;
 	return CMD_SUCCESS;
 }
 
@@ -716,12 +788,70 @@ DEFUN(free_endp, free_endp_cmd,
 	return CMD_SUCCESS;
 }
 
+DEFUN(reset_endp, reset_endp_cmd,
+      "reset-endpoint (virtual|e1) IDENT NUMBER",
+      "Reset the given endpoint\n"
+      TRUNK_TYPE_STR
+      TRUNK_IDENT_STR
+      "Endpoint number in hex.\n")
+{
+	struct mgcp_trunk_config *trunk;
+	struct mgcp_endpoint *endp;
+	int endp_no, rc;
+
+	trunk = find_trunk(g_cfg, argv[0], argv[1]);
+	if (!trunk) {
+		vty_out(vty, "%%Trunk %d not found in the config.%s",
+			atoi(argv[0]), VTY_NEWLINE);
+		return CMD_WARNING;
+	}
+
+	if (!trunk->endpoints) {
+		vty_out(vty, "%%Trunk %d has no endpoints allocated.%s",
+			trunk->trunk_nr, VTY_NEWLINE);
+		return CMD_WARNING;
+	}
+
+	endp_no = strtoul(argv[2], NULL, 16);
+	if (endp_no < 1 || endp_no >= trunk->number_endpoints) {
+		vty_out(vty, "Endpoint number %s/%d is invalid.%s",
+		argv[1], endp_no, VTY_NEWLINE);
+		return CMD_WARNING;
+	}
+
+	endp = &trunk->endpoints[endp_no];
+	rc = mgcp_send_reset_ep(endp, ENDPOINT_NUMBER(endp));
+	if (rc < 0) {
+		vty_out(vty, "Error %d sending reset.%s", rc, VTY_NEWLINE);
+		return CMD_WARNING;
+	}
+	return CMD_SUCCESS;
+}
+
+DEFUN(reset_all_endp, reset_all_endp_cmd,
+      "reset-all-endpoints",
+      "Reset all endpoints\n")
+{
+	int rc;
+
+	rc = mgcp_send_reset_all(g_cfg);
+	if (rc < 0) {
+		vty_out(vty, "Error %d during endpoint reset.%s",
+			rc, VTY_NEWLINE);
+		return CMD_WARNING;
+	}
+	return CMD_SUCCESS;
+}
+
+
 int mgcp_vty_init(void)
 {
 	install_element_ve(&show_mgcp_cmd);
 	install_element(ENABLE_NODE, &loop_endp_cmd);
 	install_element(ENABLE_NODE, &tap_call_cmd);
 	install_element(ENABLE_NODE, &free_endp_cmd);
+	install_element(ENABLE_NODE, &reset_endp_cmd);
+	install_element(ENABLE_NODE, &reset_all_endp_cmd);
 
 	install_element(CONFIG_NODE, &cfg_mgcp_cmd);
 	install_node(&mgcp_node, config_write_mgcp);
@@ -744,6 +874,7 @@ int mgcp_vty_init(void)
 	install_element(MGCP_NODE, &cfg_mgcp_rtp_ip_dscp_cmd);
 	install_element(MGCP_NODE, &cfg_mgcp_rtp_ip_tos_cmd);
 	install_element(MGCP_NODE, &cfg_mgcp_agent_addr_cmd);
+	install_element(MGCP_NODE, &cfg_mgcp_agent_addr_cmd_old);
 	install_element(MGCP_NODE, &cfg_mgcp_transcoder_cmd);
 	install_element(MGCP_NODE, &cfg_mgcp_no_transcoder_cmd);
 	install_element(MGCP_NODE, &cfg_mgcp_transcoder_remote_base_cmd);
@@ -756,7 +887,11 @@ int mgcp_vty_init(void)
 	install_element(VTRUNK_NODE, &cfg_vtrunk_number_endp_cmd);
 	install_element(VTRUNK_NODE, &cfg_trunk_payload_number_cmd);
 	install_element(VTRUNK_NODE, &cfg_trunk_payload_name_cmd);
+	install_element(VTRUNK_NODE, &cfg_trunk_payload_number_cmd_old);
+	install_element(VTRUNK_NODE, &cfg_trunk_payload_name_cmd_old);
 	install_element(VTRUNK_NODE, &cfg_trunk_loop_cmd);
+	install_element(VTRUNK_NODE, &cfg_trunk_omit_rtcp_cmd);
+	install_element(VTRUNK_NODE, &cfg_trunk_no_omit_rtcp_cmd);
 
 	install_element(MGCP_NODE, &cfg_mgcp_trunk_cmd);
 	install_node(&trunk_node, config_write_trunk);
@@ -765,7 +900,13 @@ int mgcp_vty_init(void)
 	install_element(TRUNK_NODE, &ournode_end_cmd);
 	install_element(TRUNK_NODE, &cfg_trunk_payload_number_cmd);
 	install_element(TRUNK_NODE, &cfg_trunk_payload_name_cmd);
+	install_element(TRUNK_NODE, &cfg_trunk_payload_number_cmd_old);
+	install_element(TRUNK_NODE, &cfg_trunk_payload_name_cmd_old);
 	install_element(TRUNK_NODE, &cfg_trunk_loop_cmd);
+	install_element(TRUNK_NODE, &cfg_trunk_omit_rtcp_cmd);
+	install_element(TRUNK_NODE, &cfg_trunk_no_omit_rtcp_cmd);
+	install_element(TRUNK_NODE, &cfg_trunk_omit_rtcp_cmd);
+	install_element(TRUNK_NODE, &cfg_trunk_no_omit_rtcp_cmd);
 
 	return 0;
 }
