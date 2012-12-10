@@ -8,4 +8,4 @@ mgcp_patch_test_SOURCES = mgcp_patch_test.c $(top_srcdir)/src/mgcp_patch.c \
 			$(top_srcdir)/src/mgcp/mgcp_protocol.c \
 			$(top_srcdir)/src/mgcp/mgcp_network.c \
 			$(top_srcdir)/src/debug.c
-mgcp_patch_test_LDADD = $(LIBOSMOCORE_LIBS)
+mgcp_patch_test_LDADD = $(LIBOSMOCORE_LIBS) -lrt

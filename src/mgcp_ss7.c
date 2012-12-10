@@ -643,7 +643,7 @@ static int mgcp_ss7_policy(struct mgcp_trunk_config *tcfg, int endp_no, int stat
 	return rc;
 }
 
-static int mgcp_dtmf_cb(struct mgcp_endpoint *endp, char tone, const char *data)
+static int mgcp_dtmf_cb(struct mgcp_endpoint *endp, char tone)
 {
 	mgcp_ss7_exec(endp, MGCP_SS7_DTMF, tone);
 	return 0;
