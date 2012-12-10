@@ -2,8 +2,8 @@
 /* The protocol implementation */
 
 /*
- * (C) 2009-2011 by Holger Hans Peter Freyther <zecke@selfish.org>
- * (C) 2009-2011 by On-Waves
+ * (C) 2009-2012 by Holger Hans Peter Freyther <zecke@selfish.org>
+ * (C) 2009-2012 by On-Waves
  * All Rights Reserved
  *
  * This program is free software; you can redistribute it and/or modify
@@ -38,12 +38,18 @@
 #warning "Make use of the rtp proxy code"
 
 /* attempt to determine byte order */
-#include <sys/types.h>
 #include <sys/param.h>
 #include <limits.h>
+#include <time.h>
 
 #ifndef __BYTE_ORDER
-#error "__BYTE_ORDER should be defined by someone"
+# ifdef __APPLE__
+#  define __BYTE_ORDER __DARWIN_BYTE_ORDER
+#  define __LITTLE_ENDIAN __DARWIN_LITTLE_ENDIAN
+#  define __BIG_ENDIAN __DARWIN_BIG_ENDIAN
+# else
+#  error "__BYTE_ORDER should be defined by someone"
+# endif
 #endif
 
 /* according to rtp_proxy.c RFC 3550 */
@@ -68,6 +74,10 @@ struct rtp_hdr {
 	uint32_t ssrc;
 } __attribute__((packed));
 
+#define RTP_SEQ_MOD		(1 << 16)
+#define RTP_MAX_DROPOUT		3000
+#define RTP_MAX_MISORDER	100
+
 
 enum {
 	DEST_NETWORK = 0,
@@ -81,6 +91,29 @@ enum {
 
 #define DUMMY_LOAD 0x23
 
+
+/**
+ * This does not need to be a precision timestamp and
+ * is allowed to wrap quite fast. The returned value is
+ * milli seconds now.
+ */
+uint32_t get_current_ts(void)
+{
+	struct timespec tp;
+	uint64_t ret;
+
+	memset(&tp, 0, sizeof(tp));
+	if (clock_gettime(CLOCK_MONOTONIC, &tp) != 0)
+		LOGP(DMGCP, LOGL_NOTICE,
+			"Getting the clock failed.\n");
+
+	/* convert it to useconds */
+	ret = tp.tv_sec;
+	ret *= 1000;
+	ret += tp.tv_nsec / 1000 / 1000;
+
+	return ret;
+}
 
 static int udp_send(int fd, struct in_addr *addr, int port, char *buf, int len)
 {
@@ -100,10 +133,20 @@ int mgcp_send_dummy(struct mgcp_endpoint *endp)
 			endp->net_end.rtp_port, buf, 1);
 }
 
+/**
+ * The RFC 3550 Appendix A assumes there are multiple sources but
+ * some of the supported endpoints (e.g. the nanoBTS) can only handle
+ * one source and this code will patch packages to appear as if there
+ * is only one source.
+ * There is also no probation period for new sources. Every package
+ * we receive will be seen as a switch in streams.
+ */
 static void patch_and_count(struct mgcp_endpoint *endp, struct mgcp_rtp_state *state,
 			    int payload, struct sockaddr_in *addr, char *data, int len)
 {
-	uint16_t seq;
+	uint32_t arrival_time;
+	int32_t transit, d;
+	uint16_t seq, udelta;
 	uint32_t timestamp;
 	struct rtp_hdr *rtp_hdr;
 
@@ -113,15 +156,19 @@ static void patch_and_count(struct mgcp_endpoint *endp, struct mgcp_rtp_state *s
 	rtp_hdr = (struct rtp_hdr *) data;
 	seq = ntohs(rtp_hdr->sequence);
 	timestamp = ntohl(rtp_hdr->timestamp);
+	arrival_time = get_current_ts();
 
 	if (!state->initialized) {
-		state->seq_no = seq - 1;
+		state->base_seq = seq;
+		state->max_seq = seq - 1;
 		state->ssrc = state->orig_ssrc = rtp_hdr->ssrc;
 		state->initialized = 1;
 		state->last_timestamp = timestamp;
+		state->jitter = 0;
+		state->transit = arrival_time - timestamp;
 	} else if (state->ssrc != rtp_hdr->ssrc) {
 		state->ssrc = rtp_hdr->ssrc;
-		state->seq_offset = (state->seq_no + 1) - seq;
+		state->seq_offset = (state->max_seq + 1) - seq;
 		state->timestamp_offset = state->last_timestamp - timestamp;
 #warning "Always allow to patch the SSRC"
 		state->patch = 1;
@@ -141,11 +188,35 @@ static void patch_and_count(struct mgcp_endpoint *endp, struct mgcp_rtp_state *s
 		rtp_hdr->timestamp = htonl(timestamp);
 	}
 
-	/* seq changed, now compare if we have lost something */
-	if (state->seq_no + 1u != seq)
-		state->lost_no = abs(seq - (state->seq_no + 1));
-	state->seq_no = seq;
+	/*
+	 * The below takes the shape of the validation from Appendix A. Check
+	 * if there is something weird with the sequence number, otherwise check
+	 * for a wrap around in the sequence number.
+	 */
+	udelta = seq - state->max_seq;
+	if (udelta < RTP_MAX_DROPOUT) {
+		if (seq < state->max_seq)
+			state->cycles += RTP_SEQ_MOD;
+	} else if (udelta <= RTP_SEQ_MOD + RTP_MAX_MISORDER) {
+		LOGP(DMGCP, LOGL_NOTICE,
+			"RTP seqno made a very large jump on 0x%x delta: %u\n",
+			ENDPOINT_NUMBER(endp), udelta);
+	}
 
+	/*
+	 * calculate the jitter between the two packages. The TS should be
+	 * taken closer to the read function. This was taken from the
+	 * Appendix A of RFC 3550. The local timestamp has a usec resolution.
+	 */
+	transit = arrival_time - timestamp;
+	d = transit - state->transit;
+	state->transit = transit;
+	if (d < 0)
+		d = -d;
+	state->jitter += d - ((state->jitter + 8) >> 4);
+
+
+	state->max_seq = seq;
 	state->last_timestamp = timestamp;
 
 	if (payload < 0)
@@ -214,7 +285,7 @@ static int send_to(struct mgcp_endpoint *endp, int dest, int is_rtp,
 				     &endp->taps[MGCP_TAP_NET_OUT], buf, rc);
 			return udp_send(endp->net_end.rtp.fd, &endp->net_end.addr,
 					endp->net_end.rtp_port, buf, rc);
-		} else {
+		} else if (!tcfg->omit_rtcp) {
 			return udp_send(endp->net_end.rtcp.fd, &endp->net_end.addr,
 					endp->net_end.rtcp_port, buf, rc);
 		}
@@ -227,15 +298,17 @@ static int send_to(struct mgcp_endpoint *endp, int dest, int is_rtp,
 				     &endp->taps[MGCP_TAP_BTS_OUT], buf, rc);
 			return udp_send(endp->bts_end.rtp.fd, &endp->bts_end.addr,
 					endp->bts_end.rtp_port, buf, rc);
-		} else {
+		} else if (!tcfg->omit_rtcp) {
 			return udp_send(endp->bts_end.rtcp.fd, &endp->bts_end.addr,
 					endp->bts_end.rtcp_port, buf, rc);
 		}
 	}
+
+	return 0;
 }
 
-static int recevice_from(struct mgcp_endpoint *endp, int fd, struct sockaddr_in *addr,
-			 char *buf, int bufsize)
+static int receive_from(struct mgcp_endpoint *endp, int fd, struct sockaddr_in *addr,
+			char *buf, int bufsize)
 {
 	int rc;
 	socklen_t slen = sizeof(*addr);
@@ -266,14 +339,16 @@ static int rtp_data_net(struct osmo_fd *fd, unsigned int what)
 
 	endp = (struct mgcp_endpoint *) fd->data;
 
-	rc = recevice_from(endp, fd->fd, &addr, buf, sizeof(buf));
+	rc = receive_from(endp, fd->fd, &addr, buf, sizeof(buf));
 	if (rc <= 0)
 		return -1;
 
 	if (memcmp(&addr.sin_addr, &endp->net_end.addr, sizeof(addr.sin_addr)) != 0) {
 		LOGP(DMGCP, LOGL_ERROR,
-			"Data from wrong address %s on 0x%x\n",
-			inet_ntoa(addr.sin_addr), ENDPOINT_NUMBER(endp));
+			"Endpoint 0x%x data from wrong address %s vs. ",
+			ENDPOINT_NUMBER(endp), inet_ntoa(addr.sin_addr));
+		LOGPC(DMGCP, LOGL_ERROR,
+			"%s\n", inet_ntoa(endp->net_end.addr));
 		return -1;
 	}
 
@@ -294,6 +369,7 @@ static int rtp_data_net(struct osmo_fd *fd, unsigned int what)
 
 	proto = fd == &endp->net_end.rtp ? PROTO_RTP : PROTO_RTCP;
 	endp->net_end.packets += 1;
+	endp->net_end.octets += rc;
 
 	forward_data(fd->fd, &endp->taps[MGCP_TAP_NET_IN], buf, rc);
 	if (endp->is_transcoded)
@@ -338,7 +414,7 @@ static int rtp_data_bts(struct osmo_fd *fd, unsigned int what)
 
 	endp = (struct mgcp_endpoint *) fd->data;
 
-	rc = recevice_from(endp, fd->fd, &addr, buf, sizeof(buf));
+	rc = receive_from(endp, fd->fd, &addr, buf, sizeof(buf));
 	if (rc <= 0)
 		return -1;
 
@@ -372,6 +448,7 @@ static int rtp_data_bts(struct osmo_fd *fd, unsigned int what)
 
 	/* do this before the loop handling */
 	endp->bts_end.packets += 1;
+	endp->bts_end.octets += rc;
 
 	forward_data(fd->fd, &endp->taps[MGCP_TAP_BTS_IN], buf, rc);
 	if (endp->is_transcoded)
@@ -389,7 +466,7 @@ static int rtp_data_transcoder(struct mgcp_rtp_end *end, struct mgcp_endpoint *_
 	int rc, proto;
 
 	cfg = _endp->cfg;
-	rc = recevice_from(_endp, fd->fd, &addr, buf, sizeof(buf));
+	rc = receive_from(_endp, fd->fd, &addr, buf, sizeof(buf));
 	if (rc <= 0)
 		return -1;
 
@@ -574,4 +651,39 @@ int mgcp_free_rtp_port(struct mgcp_rtp_end *end)
 	}
 
 	return 0;
+}
+
+
+void mgcp_state_calc_loss(struct mgcp_rtp_state *state,
+			struct mgcp_rtp_end *end, uint32_t *expected,
+			int *loss)
+{
+	*expected = state->cycles + state->max_seq;
+	*expected = *expected - state->base_seq + 1;
+
+	if (!state->initialized) {
+		*expected = 0;
+		*loss = 0;
+		return;
+	}
+
+	/*
+	 * Make sure the sign is correct and use the biggest
+	 * positive/negative number that fits.
+	 */
+	*loss = *expected - end->packets;
+	if (*expected < end->packets) {
+		if (*loss > 0)
+			*loss = INT_MIN;
+	} else {
+		if (*loss < 0)
+			*loss = INT_MAX;
+	}
+}
+
+uint32_t mgcp_state_calc_jitter(struct mgcp_rtp_state *state)
+{
+	if (!state->initialized)
+		return 0;
+	return state->jitter >> 4;
 }
