@@ -1,7 +1,7 @@
 /* VTY code for the osmo-stp */
 /*
- * (C) 2010-2011 by Holger Hans Peter Freyther <zecke@selfish.org>
- * (C) 2010-2011 by On-Waves
+ * (C) 2010-2012 by Holger Hans Peter Freyther <zecke@selfish.org>
+ * (C) 2010-2012 by On-Waves
  * All Rights Reserved
  *
  * This program is free software: you can redistribute it and/or modify
@@ -296,8 +296,10 @@ static void write_application(struct vty *vty, struct ss7_application *app)
 	vty_out(vty, "  description %s%s", name, VTY_NEWLINE);
 	vty_out(vty, "  type %s%s", app_type(app->type), VTY_NEWLINE);
 
-	if (app->type == APP_STP)
+	if (app->type == APP_STP) {
 		vty_out(vty, "  isup-pass-through %d%s", app->isup_pass, VTY_NEWLINE);
+		vty_out(vty, "  trunk-name %s%s", app->trunk_name, VTY_NEWLINE);
+	}
 
 	if (app->type == APP_CELLMGR && app->mgcp_domain_name) {
 		vty_out(vty, "  domain-name %s%s",
@@ -988,6 +990,42 @@ DEFUN(cfg_app_no_domain_name, cfg_app_no_domain_name_cmd,
 	return CMD_SUCCESS;
 }
 
+#define TRUNK_NAME_STR "Trunk name to use\n"
+
+DEFUN(cfg_app_trunk_name, cfg_app_trunk_name_cmd,
+      "trunk-name NAME",
+      TRUNK_NAME_STR "The name\n")
+{
+	struct ss7_application *app = vty->index;
+
+	if (app->type != APP_STP) {
+		vty_out(vty, "The app type needs to be 'stp'.%s", VTY_NEWLINE);
+		return CMD_WARNING;
+	}
+
+	if (ss7_application_trunk_name(app, argv[0]) != 0) {
+		vty_out(vty, "Failed to set the trunk name.%s", VTY_NEWLINE);
+		return CMD_WARNING;
+	}
+
+	return CMD_SUCCESS;
+}
+
+DEFUN(cfg_app_no_trunk_name, cfg_app_no_trunk_name_cmd,
+      "no trunk-name NAME",
+      NO_STR TRUNK_NAME_STR "The name\n")
+{
+	struct ss7_application *app = vty->index;
+
+	if (app->type != APP_STP) {
+		vty_out(vty, "The app type needs to be 'stp'.%s", VTY_NEWLINE);
+		return CMD_WARNING;
+	}
+
+	talloc_free(app->trunk_name);
+	app->trunk_name = NULL;
+	return CMD_SUCCESS;
+}
 
 static void install_defaults(int node)
 {
@@ -1062,6 +1100,8 @@ void cell_vty_init(void)
 	install_element(APP_NODE, &cfg_app_route_ls_cmd);
 	install_element(APP_NODE, &cfg_app_domain_name_cmd);
 	install_element(APP_NODE, &cfg_app_no_domain_name_cmd);
+	install_element(APP_NODE, &cfg_app_trunk_name_cmd);
+	install_element(APP_NODE, &cfg_app_no_trunk_name_cmd);
 
 	cell_vty_init_cmds();
 }
