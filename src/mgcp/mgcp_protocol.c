@@ -860,13 +860,29 @@ out_silent:
 
 static struct msgb *handle_rsip(struct mgcp_parse_data *p)
 {
+	int range = -1;
+	const char *line;
+
 	if (p->found != 0) {
 		LOGP(DMGCP, LOGL_ERROR, "Failed to find the endpoint.\n");
 		return NULL;
 	}
 
+	for_each_line(line, p->save) {
+		if (strlen(line) < 4)
+			continue;
+
+		switch (line[0]) {
+		case 'R':
+			range = atoi(line + 3);
+			break;
+		}
+	}
+
+
 	if (p->cfg->reset_cb)
-		p->cfg->reset_cb(p->endp->tcfg);
+		p->cfg->reset_cb(p->endp->tcfg,
+			ENDPOINT_NUMBER(p->endp), range);
 	return NULL;
 }
 

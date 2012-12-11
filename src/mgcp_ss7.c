@@ -60,7 +60,7 @@ static int exit_on_failure = 0;
 
 extern struct mgcp_config *g_cfg;
 
-static void mgcp_ss7_reset(struct mgcp_trunk_config *tcfg);
+static void mgcp_ss7_reset(struct mgcp_trunk_config *tcfg, int endpoint, int range);
 static void mgcp_ss7_endp_free(struct mgcp_endpoint *endp);
 
 
@@ -766,9 +766,25 @@ static void mgcp_ss7_endp_free(struct mgcp_endpoint *endp)
 	mgcp_ss7_exec(endp, MGCP_SS7_DELETE, 0);
 }
 
-static int reset_cb(struct mgcp_trunk_config *trunk)
+static int reset_cb(struct mgcp_trunk_config *trunk, int _endpoint, int _range)
 {
-	mgcp_ss7_reset(trunk);
+	int endpoint, range;
+
+	if (_range < -1) {
+		LOGP(DMGCP, LOGL_ERROR, "Range is invalid: %d\n", _range);
+		return -1;
+	}
+
+	if (_range == -1) {
+		endpoint = 1;
+		range = OSMO_MAX(endpoint, trunk->number_endpoints - 1);
+	} else {
+		endpoint = _endpoint;
+		range = OSMO_MIN(_endpoint + _range, trunk->number_endpoints - 1);
+	}
+
+
+	mgcp_ss7_reset(trunk, endpoint, range);
 	return 0;
 }
 
@@ -880,24 +896,28 @@ static struct mgcp_ss7 *mgcp_ss7_init(struct mgcp_config *cfg)
 	return conf;
 }
 
-static void free_trunk(struct mgcp_trunk_config *trunk)
+/* range must be < number_endpoints, it includes the endpoint */
+static void free_trunk(struct mgcp_trunk_config *trunk,
+			const int start, const int range)
 {
 	int i;
-	for (i = 1; i < trunk->number_endpoints; ++i) {
+	for (i = start; i <= range; ++i) {
 		struct mgcp_endpoint *endp = &trunk->endpoints[i];
 		mgcp_ss7_endp_free(endp);
 		mgcp_free_endp(endp);
 	}
 }
 
-static void mgcp_ss7_reset(struct mgcp_trunk_config *tcfg)
+static void mgcp_ss7_reset(struct mgcp_trunk_config *tcfg, int start, int range)
 {
-	LOGP(DMGCP, LOGL_INFO, "Resetting endpoint on trunk type %s %s/%d\n",
-	     tcfg->trunk_type == MGCP_TRUNK_VIRTUAL ? "virtual" : "e1",
-	     tcfg->virtual_domain, tcfg->trunk_nr);
+	LOGP(DMGCP, LOGL_INFO,
+		"Resetting endpoints(%d to %d) on trunk type %s %s/%d\n",
+		start, range,
+		tcfg->trunk_type == MGCP_TRUNK_VIRTUAL ? "virtual" : "e1",
+		tcfg->virtual_domain, tcfg->trunk_nr);
 
 	/* free UniPorte and MGCP data */
-	free_trunk(tcfg);
+	free_trunk(tcfg, start, range);
 }
 
 static void print_help()
