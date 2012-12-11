@@ -1,8 +1,8 @@
 /*
  * The SS7 Application part for forwarding or nat...
  *
- * (C) 2010-2011 by Holger Hans Peter Freyther <zecke@selfish.org>
- * (C) 2010-2011 by On-Waves
+ * (C) 2010-2012 by Holger Hans Peter Freyther <zecke@selfish.org>
+ * (C) 2010-2012 by On-Waves
  * All Rights Reserved
  *
  * This program is free software: you can redistribute it and/or modify
@@ -420,4 +420,12 @@ int ss7_application_mgcp_domain_name(struct ss7_application *app,
 	app->mgcp_domain_name = talloc_strdup(app, name);
 
 	return app->mgcp_domain_name == NULL;
+}
+
+int ss7_application_trunk_name(struct ss7_application *app, const char *name)
+{
+	talloc_free(app->trunk_name);
+	app->trunk_name = talloc_strdup(app, name);
+
+	return app->trunk_name == NULL;
 }
