@@ -1,7 +1,7 @@
 /* MSC related stuff... */
 /*
- * (C) 2010-2011 by Holger Hans Peter Freyther <zecke@selfish.org>
- * (C) 2010-2011 by On-Waves
+ * (C) 2010-2012 by Holger Hans Peter Freyther <zecke@selfish.org>
+ * (C) 2010-2012 by On-Waves
  * All Rights Reserved
  *
  * This program is free software: you can redistribute it and/or modify
@@ -49,7 +49,6 @@
 static void msc_send_id_response(struct msc_connection *bsc);
 static void msc_send(struct msc_connection *bsc, struct msgb *msg, int proto);
 static void msc_schedule_reconnect(struct msc_connection *bsc);
-static void mgcp_forward(struct msc_connection *fw, const uint8_t *data, unsigned int length);
 
 void msc_close_connection(struct msc_connection *fw)
 {
@@ -163,7 +162,7 @@ static int ipaccess_a_fd_cb(struct osmo_fd *bfd)
 		msc_dispatch_sccp(fw, msg);
 	} else if (hh->proto == NAT_MUX) {
 		msg = mgcp_patch(fw->app, msg);
-		mgcp_forward(fw, msg->l2h, msgb_l2len(msg));
+		mgcp_forward(&fw->mgcp_agent, msg->l2h, msgb_l2len(msg));
 	} else {
 		LOGP(DMSC, LOGL_ERROR, "Unknown IPA proto 0x%x\n", hh->proto);
 	}
@@ -348,122 +347,13 @@ void msc_mgcp_reset(struct msc_connection *msc)
 	snprintf(buf, sizeof(buf) - 1, "RSIP 1 13@%s MGCP 1.0\r\n", dest);
 	buf[sizeof(buf) - 1] = '\0';
 
-	mgcp_forward(msc, (const uint8_t *) buf, strlen(buf));
+	mgcp_forward(&msc->mgcp_agent, (const uint8_t *) buf, strlen(buf));
 }
 
-static int mgcp_do_write(struct osmo_fd *fd, struct msgb *msg)
+static void msc_mgcp_read_cb(struct mgcp_callagent *agent, struct msgb *msg)
 {
-	int ret;
-
-	LOGP(DMGCP, LOGL_DEBUG, "Sending msg to MGCP GW size: %u\n", msg->len);
-
-	ret = write(fd->fd, msg->data, msg->len);
-	if (ret != msg->len)
-		LOGP(DMGCP, LOGL_ERROR, "Failed to forward message to MGCP GW (%s).\n", strerror(errno));
-
-	return ret;
-}
-
-static int mgcp_do_read(struct osmo_fd *fd)
-{
-	struct msgb *mgcp;
-	int ret;
-
-	mgcp = msgb_alloc_headroom(4096, 128, "mgcp_from_gw");
-	if (!mgcp) {
-		LOGP(DMGCP, LOGL_ERROR, "Failed to allocate MGCP message.\n");
-		return -1;
-	}
-
-	ret = read(fd->fd, mgcp->data, 4096 - 128);
-	if (ret <= 0) {
-		LOGP(DMGCP, LOGL_ERROR, "Failed to read: %d/%s\n", errno, strerror(errno));
-		msgb_free(mgcp);
-		return -1;
-	} else if (ret > 4096 - 128) {
-		LOGP(DMGCP, LOGL_ERROR, "Too much data: %d\n", ret);
-		msgb_free(mgcp);
-		return -1; 
-        }
-
-	mgcp->l2h = msgb_put(mgcp, ret);
-	msc_send(fd->data, mgcp, NAT_MUX);
-	return 0;
-}
-
-static void mgcp_forward(struct msc_connection *fw, const uint8_t *data, unsigned int length)
-{
-	struct msgb *mgcp;
-
-	if (length > 4096) {
-		LOGP(DMGCP, LOGL_ERROR, "Can not forward too big message.\n");
-		return;
-	}
-
-	mgcp = msgb_alloc(4096, "mgcp_to_gw");
-	if (!mgcp) {
-		LOGP(DMGCP, LOGL_ERROR, "Failed to send message.\n");
-		return;
-	}
-
-	msgb_put(mgcp, length);
-	memcpy(mgcp->data, data, mgcp->len);
-	if (osmo_wqueue_enqueue(&fw->mgcp_agent, mgcp) != 0) {
-		LOGP(DMGCP, LOGL_FATAL, "Could not queue message to MGCP GW.\n");
-		msgb_free(mgcp);
-	}
-}
-
-static int mgcp_create_port(struct msc_connection *fw)
-{
-	int on;
-	struct sockaddr_in addr;
-
-	fw->mgcp_agent.bfd.fd = socket(AF_INET, SOCK_DGRAM, 0);
-	if (fw->mgcp_agent.bfd.fd < 0) {
-		LOGP(DMGCP, LOGL_FATAL, "Failed to create UDP socket errno: %d\n", errno);
-		return -1;
-	}
-
-	on = 1;
-	setsockopt(fw->mgcp_agent.bfd.fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
-
-	/* try to bind the socket */
-	memset(&addr, 0, sizeof(addr));
-	addr.sin_family = AF_INET;
-	addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-	addr.sin_port = 0;
-
-	if (bind(fw->mgcp_agent.bfd.fd, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
-		LOGP(DMGCP, LOGL_FATAL, "Failed to bind to any port.\n");
-		close(fw->mgcp_agent.bfd.fd);
-		fw->mgcp_agent.bfd.fd = -1;
-		return -1;
-	}
-
-	/* connect to the remote */
-	addr.sin_port = htons(2427);
-	if (connect(fw->mgcp_agent.bfd.fd, (struct sockaddr *) & addr, sizeof(addr)) < 0) {
-		LOGP(DMGCP, LOGL_FATAL, "Failed to connect to local MGCP GW. %s\n", strerror(errno));
-		close(fw->mgcp_agent.bfd.fd);
-		fw->mgcp_agent.bfd.fd = -1;
-		return -1;
-	}
-
-	osmo_wqueue_init(&fw->mgcp_agent, 10);
-	fw->mgcp_agent.bfd.data = fw;
-	fw->mgcp_agent.bfd.when = BSC_FD_READ;
-	fw->mgcp_agent.read_cb = mgcp_do_read;
-	fw->mgcp_agent.write_cb = mgcp_do_write;
-
-	if (osmo_fd_register(&fw->mgcp_agent.bfd) != 0) {
-		LOGP(DMGCP, LOGL_FATAL, "Failed to register BFD\n");
-		close(fw->mgcp_agent.bfd.fd);
-		fw->mgcp_agent.bfd.fd = -1;
-		return -1;
-	}
-
-	return 0;
+	struct msc_connection *fw = container_of(agent, struct msc_connection, mgcp_agent);
+	msc_send(fw, msg, NAT_MUX);
 }
 
 static void msc_send(struct msc_connection *fw, struct msgb *msg, int proto)
@@ -561,7 +451,7 @@ struct msc_connection *msc_connection_create(struct bsc_data *bsc, int mgcp)
 	msc->pong_timeout.data = msc;
 
 	/* create MGCP port */
-	if (mgcp && mgcp_create_port(msc) != 0) {
+	if (mgcp && mgcp_create_port(&msc->mgcp_agent) != 0) {
 		LOGP(DMSC, LOGL_ERROR, "Failed to bind for the MGCP port.\n");
 		talloc_free(msc);
 		return NULL;
@@ -569,6 +459,7 @@ struct msc_connection *msc_connection_create(struct bsc_data *bsc, int mgcp)
 
 	llist_add_tail(&msc->entry, &bsc->mscs);
 	msc->nr = bsc->num_mscs++;
+	msc->mgcp_agent.read_cb = msc_mgcp_read_cb;
 
 	return msc;
 }
