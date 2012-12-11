@@ -288,6 +288,7 @@ static struct mgcp_endpoint *find_e1_endpoint(struct mgcp_config *cfg,
 	}
 
 	/* signalling is on timeslot 1 */
+#warning "One should check if the endpoint is blocked!"
 	if (endp == 1)
 		return NULL;
 
