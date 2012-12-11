@@ -20,8 +20,9 @@
 #ifndef MSC_CONNECTION_H
 #define MSC_CONNECTION_H
 
+#include "mgcp_callagent.h"
+
 #include <osmocom/core/linuxlist.h>
-#include <osmocom/core/write_queue.h>
 #include <osmocom/core/timer.h>
 
 #include <osmocom/sccp/sccp.h>
@@ -57,7 +58,7 @@ struct msc_connection {
 	struct osmo_timer_list pong_timeout;
 
 	/* mgcp messgaes */
-	struct osmo_wqueue mgcp_agent;
+	struct mgcp_callagent mgcp_agent;
 
 	/* application pointer */
 	struct ss7_application *app;
