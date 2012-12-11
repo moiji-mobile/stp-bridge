@@ -1,7 +1,7 @@
 /* Everything related to the BSC connection */
 /*
- * (C) 2010-2011 by Holger Hans Peter Freyther <zecke@selfish.org>
- * (C) 2010-2011 by On-Waves
+ * (C) 2010-2012 by Holger Hans Peter Freyther <zecke@selfish.org>
+ * (C) 2010-2012 by On-Waves
  * All Rights Reserved
  *
  * This program is free software: you can redistribute it and/or modify
@@ -23,6 +23,7 @@
 #define BSC_DATA_H
 
 #include "mtp_data.h"
+#include "mgcp_callagent.h"
 
 #include <osmocom/core/linuxlist.h>
 #include <osmocom/core/select.h>
@@ -91,6 +92,9 @@ struct bsc_data {
 	/* MSCs */
 	struct llist_head mscs;
 	int num_mscs;
+
+	/* Simple send only mgcp agent */
+	struct mgcp_callagent mgcp_agent;
 
 	/* application */
 	struct llist_head apps;
