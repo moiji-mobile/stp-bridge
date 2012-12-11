@@ -1,6 +1,6 @@
 /*
- * (C) 2010-2011 by Holger Hans Peter Freyther <zecke@selfish.org>
- * (C) 2010-2011 by On-Waves
+ * (C) 2010-2012 by Holger Hans Peter Freyther <zecke@selfish.org>
+ * (C) 2010-2012 by On-Waves
  * All Rights Reserved
  *
  * This program is free software: you can redistribute it and/or modify
@@ -53,13 +53,45 @@ static void test_grs_parsing()
 	hdr = (struct isup_msg_hdr *) isup_grs;
 	range = isup_parse_status(&hdr->data[0], 3);
 
+	ASSERT(hdr->cic, 3);
+	ASSERT(hdr->msg_type, ISUP_MSG_GRS);
 	ASSERT(range, 28);
+}
+
+static void test_gra_parsing()
+{
+	static const uint8_t isup_gra[] = {
+					0x02, 0x00, 0x29, 0x01,
+					0x05, 0x1d, 0x00, 0x00,
+					0xff, 0x3f };
+	struct isup_msg_hdr *hdr;
+	int range;
+
+	printf("Testing GRA parsing.\n");
+	hdr = (struct isup_msg_hdr *) isup_gra;
+	range = isup_parse_status(&hdr->data[0], 3);
+	ASSERT(hdr->cic, 2);
+	ASSERT(hdr->msg_type, ISUP_MSG_GRA);
+	ASSERT(range, 29);
+}
+
+static void test_rsc_parsing()
+{
+	static const uint8_t isup_rsc[] = {0x01, 0x00, 0x012};
+	struct isup_msg_hdr *hdr;
+
+	printf("Testing RSC parsing.\n");
+	hdr = (struct isup_msg_hdr *) isup_rsc;
+	ASSERT(hdr->cic, 1);
+	ASSERT(hdr->msg_type, ISUP_MSG_RSC);
 }
 
 int main(int argc, char **argv)
 {
 	test_cic_parsing();
 	test_grs_parsing();
+	test_gra_parsing();
+	test_rsc_parsing();
 
 	printf("All tests passed.\n");
 	return 0;
