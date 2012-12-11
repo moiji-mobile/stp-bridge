@@ -261,6 +261,8 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
+#error "Start the MGCP callagent of the bsc_data"
+
 	/* start all apps */
 	llist_for_each_entry(app, &bsc->apps, entry) {
 		LOGP(DINP, LOGL_NOTICE,
