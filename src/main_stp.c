@@ -70,6 +70,12 @@ struct bsc_data *bsc;
 extern void cell_vty_init(void);
 extern void handle_options(int argc, char **argv);
 
+static void mgcp_destroy_cb(struct mgcp_callagent *agent, struct msgb *msg)
+{
+	/* we do not care about potential responses here */
+	msgb_free(msg);
+}
+
 static struct mtp_link_set *find_link_set(struct bsc_data *bsc,
 					  int len, const char *buf)
 {
@@ -260,6 +266,13 @@ int main(int argc, char **argv)
 		     "Failed to bind on port %d\n", bsc->m2ua_src_port);
 		return -1;
 	}
+
+	if (mgcp_create_port(&bsc->mgcp_agent) != 0) {
+		LOGP(DINP, LOGL_ERROR,
+			"Failed to create the MGCP call agent.\n");
+		return -1;
+	}
+	bsc->mgcp_agent.read_cb = mgcp_destroy_cb;
 
 	/* start all apps */
 	llist_for_each_entry(app, &bsc->apps, entry) {

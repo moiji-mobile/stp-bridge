@@ -27,6 +27,7 @@
 #include <msc_connection.h>
 #include <sctp_m2ua.h>
 #include <counter.h>
+#include <isup_filter.h>
 
 #include <osmocom/core/talloc.h>
 
@@ -45,6 +46,7 @@ static void forward_isup_stp(struct mtp_link_set *set, struct msgb *msg, int sls
 	struct mtp_link_set *other;
 	other = set->app->route_src.set == set ?
 			set->app->route_dst.set : set->app->route_src.set;
+	isup_scan_for_reset(set->app, msg);
 	mtp_link_set_submit_isup_data(other, sls, msg->l3h, msgb_l3len(msg));
 }
 

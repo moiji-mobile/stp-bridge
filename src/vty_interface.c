@@ -298,7 +298,9 @@ static void write_application(struct vty *vty, struct ss7_application *app)
 
 	if (app->type == APP_STP) {
 		vty_out(vty, "  isup-pass-through %d%s", app->isup_pass, VTY_NEWLINE);
-		vty_out(vty, "  trunk-name %s%s", app->trunk_name, VTY_NEWLINE);
+		if (app->trunk_name)
+			vty_out(vty, "  trunk-name %s%s",
+				app->trunk_name, VTY_NEWLINE);
 	}
 
 	if (app->type == APP_CELLMGR && app->mgcp_domain_name) {
