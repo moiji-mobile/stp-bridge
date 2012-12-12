@@ -784,6 +784,8 @@ DEFUN(free_endp, free_endp_cmd,
 	}
 
 	endp = &trunk->endpoints[endp_no];
+	if (endp->allocated && g_cfg->realloc_cb)
+		g_cfg->realloc_cb(trunk, ENDPOINT_NUMBER(endp));
 	mgcp_free_endp(endp);
 	return CMD_SUCCESS;
 }
