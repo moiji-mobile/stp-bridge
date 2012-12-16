@@ -802,8 +802,8 @@ static struct mgcp_ss7 *mgcp_ss7_init(struct mgcp_config *cfg)
 		return NULL;
 	}
 
-#ifndef NO_UNIPORTE
 	conf->cmd_queue->no_write = 1;
+#ifndef NO_UNIPORTE
 	pthread_create(&conf->thread, NULL, start_uniporte, conf);
 #endif
 

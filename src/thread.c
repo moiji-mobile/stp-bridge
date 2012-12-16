@@ -72,7 +72,7 @@ struct thread_notifier *thread_notifier_alloc()
 
 void thread_safe_add(struct thread_notifier *not, struct llist_head *_new)
 {
-	char c;
+	char c = 1;
 	pthread_mutex_lock(&not->guard);
 
 	llist_add_tail(_new, not->thread_head);
