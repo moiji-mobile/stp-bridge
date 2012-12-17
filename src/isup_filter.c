@@ -61,6 +61,7 @@ int isup_scan_for_reset(struct ss7_application *app, struct msgb *msg)
 {
 	struct isup_msg_hdr *hdr;
 	int range;
+	uint16_t cic;
 
 	/* too small for an isup message? */
 	if (msgb_l3len(msg) < sizeof(*hdr)) {
@@ -76,6 +77,8 @@ int isup_scan_for_reset(struct ss7_application *app, struct msgb *msg)
 	}
 
 	hdr = (struct isup_msg_hdr *) msg->l3h;
+	cic = isup_cic_to_local(hdr);
+
 	switch (hdr->msg_type) {
 	case ISUP_MSG_GRS:
 		range = isup_parse_status(&hdr->data[0],
@@ -88,14 +91,14 @@ int isup_scan_for_reset(struct ss7_application *app, struct msgb *msg)
 
 		LOGP(DISUP, LOGL_DEBUG,
 			"Going to reset ISUP for app %s, cic %d range %d\n",
-			app->name, hdr->cic, range);
-		reset_cics(app, hdr->cic, range);
+			app->name, cic, range);
+		reset_cics(app, cic, range);
 		break;
 	case ISUP_MSG_RSC:
 		LOGP(DISUP, LOGL_DEBUG,
 			"Going to reset single CIC %d on app %s\n",
-			hdr->cic, app->name);
-		reset_cic(app, hdr->cic);
+			cic, app->name);
+		reset_cic(app, cic);
 		break;
 	}
 

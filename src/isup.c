@@ -21,9 +21,12 @@
 #include <isup_types.h>
 #include <cellmgr_debug.h>
 #include <mtp_data.h>
+#include <mtp_level3.h>
 
 #include <osmocom/core/msgb.h>
 #include <osmocom/gsm/tlv.h>
+
+#include <endian.h>
 
 static struct msgb *isup_status_alloc(int cic, int msg_type, uint8_t *extra, int range, int val)
 {
@@ -260,3 +263,15 @@ int mtp_link_set_isup(struct mtp_link_set *set, struct msgb *msg, int sls)
 
 	return rc;
 }
+
+uint16_t isup_cic_to_local(const struct isup_msg_hdr *hdr)
+{
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+	return hdr->cic;
+#elif __BYTE_ORDER == __BIG_ENDIAN
+	return c_swap_16(hdr->cic);
+#else
+	#error "Unknown endian"
+#endif
+}
+
