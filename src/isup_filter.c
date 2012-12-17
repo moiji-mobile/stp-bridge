@@ -23,6 +23,7 @@
 #include <mgcp_callagent.h>
 #include <ss7_application.h>
 #include <bsc_data.h>
+#include <cellmgr_debug.h>
 
 
 #include <osmocom/core/msgb.h>
@@ -62,22 +63,38 @@ int isup_scan_for_reset(struct ss7_application *app, struct msgb *msg)
 	int range;
 
 	/* too small for an isup message? */
-	if (msgb_l3len(msg) < sizeof(*hdr))
+	if (msgb_l3len(msg) < sizeof(*hdr)) {
+		LOGP(DISUP, LOGL_ERROR, "Message too small for the header\n");
 		return -1;
+	}
 
 	/* no trunk name, don't bother forwarding */
-	if (!app->trunk_name)
+	if (!app->trunk_name) {
+		LOGP(DISUP, LOGL_DEBUG,
+			"No trunk name defined for: %s\n", app->name);
 		return 0;
+	}
 
 	hdr = (struct isup_msg_hdr *) msg->l3h;
 	switch (hdr->msg_type) {
 	case ISUP_MSG_GRS:
 		range = isup_parse_status(&hdr->data[0],
 				msgb_l3len(msg) - sizeof(*hdr));
-		if (range >= 0)
-			reset_cics(app, hdr->cic, range);
+		if (range <= 0) {
+			LOGP(DISUP, LOGL_ERROR,
+				"Failed to parse range on app %s\n", app->name);
+			return -1;
+		}
+
+		LOGP(DISUP, LOGL_DEBUG,
+			"Going to reset ISUP for app %s, cic %d range %d\n",
+			app->name, hdr->cic, range);
+		reset_cics(app, hdr->cic, range);
 		break;
 	case ISUP_MSG_RSC:
+		LOGP(DISUP, LOGL_DEBUG,
+			"Going to reset single CIC %d on app %s\n",
+			hdr->cic, app->name);
 		reset_cic(app, hdr->cic);
 		break;
 	}
