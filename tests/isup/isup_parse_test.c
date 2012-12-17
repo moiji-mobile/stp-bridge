@@ -38,7 +38,7 @@ static void test_cic_parsing()
 	printf("Testing CIC parsing.\n");
 
 	hdr = (struct isup_msg_hdr *) isup_grs;
-	ASSERT(hdr->cic, 3);
+	ASSERT(isup_cic_to_local(hdr), 3);
 	ASSERT(hdr->msg_type, ISUP_MSG_GRS);
 }
 
@@ -53,7 +53,7 @@ static void test_grs_parsing()
 	hdr = (struct isup_msg_hdr *) isup_grs;
 	range = isup_parse_status(&hdr->data[0], 3);
 
-	ASSERT(hdr->cic, 3);
+	ASSERT(isup_cic_to_local(hdr), 3);
 	ASSERT(hdr->msg_type, ISUP_MSG_GRS);
 	ASSERT(range, 28);
 }
@@ -70,7 +70,7 @@ static void test_gra_parsing()
 	printf("Testing GRA parsing.\n");
 	hdr = (struct isup_msg_hdr *) isup_gra;
 	range = isup_parse_status(&hdr->data[0], 3);
-	ASSERT(hdr->cic, 2);
+	ASSERT(isup_cic_to_local(hdr), 2);
 	ASSERT(hdr->msg_type, ISUP_MSG_GRA);
 	ASSERT(range, 29);
 }
@@ -82,7 +82,7 @@ static void test_rsc_parsing()
 
 	printf("Testing RSC parsing.\n");
 	hdr = (struct isup_msg_hdr *) isup_rsc;
-	ASSERT(hdr->cic, 1);
+	ASSERT(isup_cic_to_local(hdr), 1);
 	ASSERT(hdr->msg_type, ISUP_MSG_RSC);
 }
 
