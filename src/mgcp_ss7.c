@@ -204,7 +204,6 @@ static int uniporte_events(unsigned long port, EventTypeT event,
   DataReceiveInfoPtr dataInfo;
   struct mgcp_endpoint *endp;
   int i;
-  ToneDetectionPtr tones;
 
   /*  Don't print output when we receive data or complete
    * sending data.  That would be too verbose.
