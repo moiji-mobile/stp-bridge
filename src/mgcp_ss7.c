@@ -1,7 +1,7 @@
 /* Use the UniPorte library to allocate endpoints */
 /*
- * (C) 2010-2012 by Holger Hans Peter Freyther <zecke@selfish.org>
- * (C) 2010-2012 by On-Waves
+ * (C) 2010-2013 by Holger Hans Peter Freyther <zecke@selfish.org>
+ * (C) 2010-2013 by On-Waves
  * All Rights Reserved
  *
  * This program is free software: you can redistribute it and/or modify
@@ -254,6 +254,7 @@ static int uniporte_events(unsigned long port, EventTypeT event,
          fprintf(stderr, "Unexpected event on port %d\n", port);
          return 0;
       }
+      dtmf_state_played(&endp->dtmf_state);
       play_pending_tones(endp);
     }
   }
