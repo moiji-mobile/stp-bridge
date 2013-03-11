@@ -87,6 +87,10 @@ struct bsc_data {
 	struct mtp_transport *m2ua_trans;
 	int m2ua_src_port;
 
+	/* sccp lite code */
+	struct mtp_transport *lite_trans;
+	int lite_src_port;
+
 	/* MSCs */
 	struct llist_head mscs;
 	int num_mscs;

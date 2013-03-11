@@ -1,7 +1,7 @@
 /* Relay UDT/all SCCP messages */
 /*
- * (C) 2010-2011 by Holger Hans Peter Freyther <zecke@selfish.org>
- * (C) 2010-2011 by On-Waves
+ * (C) 2010-2013 by Holger Hans Peter Freyther <zecke@selfish.org>
+ * (C) 2010-2013 by On-Waves
  * All Rights Reserved
  *
  * This program is free software; you can redistribute it and/or modify
@@ -28,6 +28,7 @@
 #include <snmp_mtp.h>
 #include <cellmgr_debug.h>
 #include <sctp_m2ua.h>
+#include <sccp_lite.h>
 #include <ss7_application.h>
 
 #include <osmocom/m2ua/m2ua_msg.h>
@@ -251,6 +252,12 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
+	bsc->lite_trans = sccp_lite_transp_create(bsc);
+	if (!bsc->lite_trans) {
+		LOGP(DINP, LOGL_ERROR, "Failed to create SCCP lite transport.\n");
+		return -1;
+	}
+
 	if (vty_read_config_file(config, NULL) < 0) {
 		fprintf(stderr, "Failed to read the VTY config.\n");
 		return -1;
@@ -264,6 +271,15 @@ int main(int argc, char **argv)
 	if (sctp_m2ua_transport_bind(bsc->m2ua_trans, "0.0.0.0", bsc->m2ua_src_port) != 0) {
 		LOGP(DINP, LOGL_ERROR,
 		     "Failed to bind on port %d\n", bsc->m2ua_src_port);
+		return -1;
+	}
+
+	/* initialize only if there is a user */
+	if (bsc->lite_src_port != 0
+		&& sccp_lite_transp_bind(bsc->lite_trans, "0.0.0.0",
+			bsc->lite_src_port) != 0) {
+		LOGP(DINP, LOGL_ERROR,
+			"Failed to bind on port %d\n", bsc->lite_src_port);
 		return -1;
 	}
 

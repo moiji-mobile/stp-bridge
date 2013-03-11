@@ -759,62 +759,14 @@ static int sctp_m2ua_reset(struct mtp_link *_link)
 
 struct mtp_transport *sctp_m2ua_transp_create(struct bsc_data *bsc)
 {
-	struct mtp_transport *trans;
-
-	trans = talloc_zero(bsc, struct mtp_transport);
-	if (!trans) {
-		LOGP(DINP, LOGL_ERROR, "Remove the talloc.\n");
-		return NULL;
-	}
-
-	INIT_LLIST_HEAD(&trans->conns);
-	INIT_LLIST_HEAD(&trans->links);
-
-
-	return trans;
+	return mtp_transport_create(bsc);
 }
 
 int sctp_m2ua_transport_bind(struct mtp_transport *trans,
 			     const char *ip, int port)
 {
-	int sctp;
-	struct sockaddr_in addr;
-
-	sctp = socket(PF_INET, SOCK_STREAM, IPPROTO_SCTP);
-	if (!sctp) {
-		LOGP(DINP, LOGL_ERROR, "Failed to create socket.\n");
-		return -1;
-	}
-
-	memset(&addr, 0, sizeof(addr));
-	addr.sin_family = AF_INET;
-	addr.sin_port = htons(port);
-	addr.sin_addr.s_addr = inet_addr(ip);
-
-	if (bind(sctp, (struct sockaddr *) &addr, sizeof(addr)) != 0) {
-		LOGP(DINP, LOGL_ERROR, "Failed to bind.\n");
-		close(sctp);
-		return -2;
-	}
-
-	if (listen(sctp, 1) != 0) {
-		LOGP(DINP, LOGL_ERROR, "Failed to listen.\n");
-		close(sctp);
-		return -3;
-	}
-
-	trans->bsc.fd = sctp;
-	trans->bsc.data = trans;
 	trans->bsc.cb = sctp_trans_accept;
-	trans->bsc.when = BSC_FD_READ;
-
-	if (osmo_fd_register(&trans->bsc) != 0) {
-		LOGP(DINP, LOGL_ERROR, "Failed to register the fd.\n");
-		close(sctp);
-		return -4;
-	}
-
-	return 0;
+	return mtp_transport_bind(trans, IPPROTO_SCTP, ip, port);
 }
 
 struct mtp_m2ua_link *mtp_m2ua_link_init(struct mtp_link *blnk)

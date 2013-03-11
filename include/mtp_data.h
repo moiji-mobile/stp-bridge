@@ -202,4 +202,9 @@ struct mtp_link_set *mtp_link_set_num(struct bsc_data *bsc, int num);
 struct mtp_link *mtp_link_alloc(struct mtp_link_set *set);
 struct mtp_link *mtp_link_num(struct mtp_link_set *set, int num);
 
+/* transport management */
+struct mtp_transport *mtp_transport_create(struct bsc_data *trans);
+int mtp_transport_bind(struct mtp_transport *, int proto, const char *ip, int port);
+
+
 #endif

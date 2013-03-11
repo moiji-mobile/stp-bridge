@@ -1,7 +1,7 @@
 /* MTP layer3 main handling code */
 /*
- * (C) 2010-2011 by Holger Hans Peter Freyther <zecke@selfish.org>
- * (C) 2010-2011 by On-Waves
+ * (C) 2010-2013 by Holger Hans Peter Freyther <zecke@selfish.org>
+ * (C) 2010-2013 by On-Waves
  * All Rights Reserved
  *
  * This program is free software: you can redistribute it and/or modify
@@ -32,6 +32,7 @@
 #include <arpa/inet.h>
 
 #include <string.h>
+#include <unistd.h>
 
 static int mtp_int_submit(struct mtp_link_set *set, int opc, int dpc, int sls, int type, const uint8_t *data, unsigned int length);
 
@@ -679,4 +680,62 @@ struct mtp_link_set *mtp_link_set_num(struct bsc_data *bsc, int num)
 			return set;
 
 	return NULL;
+}
+
+struct mtp_transport *mtp_transport_create(struct bsc_data *bsc)
+{
+	struct mtp_transport *trans;
+
+	trans = talloc_zero(bsc, struct mtp_transport);
+	if (!trans) {
+		LOGP(DINP, LOGL_ERROR, "Allocation failure.\n");
+		return NULL;
+	}
+
+	INIT_LLIST_HEAD(&trans->conns);
+	INIT_LLIST_HEAD(&trans->links);
+
+	return trans;
+}
+
+int mtp_transport_bind(struct mtp_transport *transp, int proto,
+			const char *ip, int port)
+{
+	int fd;
+	struct sockaddr_in addr;
+
+	fd = socket(PF_INET, SOCK_STREAM, proto);
+	if (!fd) {
+		LOGP(DINP, LOGL_ERROR, "Failed to create socket.\n");
+		return -1;
+	}
+
+	memset(&addr, 0, sizeof(addr));
+	addr.sin_family = AF_INET;
+	addr.sin_port = htons(port);
+	addr.sin_addr.s_addr = inet_addr(ip);
+
+	if (bind(fd, (struct sockaddr *) &addr, sizeof(addr)) != 0) {
+		LOGP(DINP, LOGL_ERROR, "Failed to bind.\n");
+		close(fd);
+		return -2;
+	}
+
+	if (listen(fd, 1) != 0) {
+		LOGP(DINP, LOGL_ERROR, "Failed to listen.\n");
+		close(fd);
+		return -3;
+	}
+
+	transp->bsc.fd = fd;
+	transp->bsc.data = transp;
+	transp->bsc.when = BSC_FD_READ;
+
+	if (osmo_fd_register(&transp->bsc) != 0) {
+		LOGP(DINP, LOGL_ERROR, "Failed to register the fd.\n");
+		close(fd);
+		return -4;
+	}
+
+	return 0;
 }
