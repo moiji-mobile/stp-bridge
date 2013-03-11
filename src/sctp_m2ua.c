@@ -33,7 +33,7 @@
 #define SCTP_PPID_M2UA 2
 
 
-int sctp_m2ua_conn_count(struct sctp_m2ua_transport *trans)
+int sctp_m2ua_conn_count(struct mtp_transport *trans)
 {
 	int count = 0;
 	struct sctp_m2ua_conn *conn;
@@ -44,7 +44,7 @@ int sctp_m2ua_conn_count(struct sctp_m2ua_transport *trans)
 	return count;
 }
 
-static struct mtp_m2ua_link *find_m2ua_link(struct sctp_m2ua_transport *trans, int link_index)
+static struct mtp_m2ua_link *find_m2ua_link(struct mtp_transport *trans, int link_index)
 {
 	struct mtp_m2ua_link *link;
 
@@ -150,7 +150,7 @@ static int m2ua_handle_asp_ack(struct sctp_m2ua_conn *conn,
 			       struct m2ua_msg *m2ua,
 			       struct sctp_sndrcvinfo *info)
 {
-	struct sctp_m2ua_transport *trans = conn->trans;
+	struct mtp_transport *trans = conn->trans;
 	struct sctp_m2ua_conn *tmp;
 	struct m2ua_msg_part *asp_ident;
 	struct m2ua_msg *ack;
@@ -665,7 +665,7 @@ static int m2ua_conn_write(struct osmo_fd *fd, struct msgb *msg)
 static int sctp_trans_accept(struct osmo_fd *fd, unsigned int what)
 {
 	struct sctp_event_subscribe events;
-	struct sctp_m2ua_transport *trans;
+	struct mtp_transport *trans;
 	struct sctp_m2ua_conn *conn;
 	struct sockaddr_in addr;
 	socklen_t len;
@@ -757,11 +757,11 @@ static int sctp_m2ua_reset(struct mtp_link *_link)
 	return 0;
 }
 
-struct sctp_m2ua_transport *sctp_m2ua_transp_create(struct bsc_data *bsc)
+struct mtp_transport *sctp_m2ua_transp_create(struct bsc_data *bsc)
 {
-	struct sctp_m2ua_transport *trans;
+	struct mtp_transport *trans;
 
-	trans = talloc_zero(bsc, struct sctp_m2ua_transport);
+	trans = talloc_zero(bsc, struct mtp_transport);
 	if (!trans) {
 		LOGP(DINP, LOGL_ERROR, "Remove the talloc.\n");
 		return NULL;
@@ -774,7 +774,7 @@ struct sctp_m2ua_transport *sctp_m2ua_transp_create(struct bsc_data *bsc)
 	return trans;
 }
 
-int sctp_m2ua_transport_bind(struct sctp_m2ua_transport *trans,
+int sctp_m2ua_transport_bind(struct mtp_transport *trans,
 			     const char *ip, int port)
 {
 	int sctp;
@@ -819,7 +819,7 @@ int sctp_m2ua_transport_bind(struct sctp_m2ua_transport *trans,
 
 struct mtp_m2ua_link *mtp_m2ua_link_init(struct mtp_link *blnk)
 {
-	struct sctp_m2ua_transport *trans;
+	struct mtp_transport *trans;
 	struct mtp_m2ua_link *lnk;
 
 	lnk = talloc_zero(blnk, struct mtp_m2ua_link);

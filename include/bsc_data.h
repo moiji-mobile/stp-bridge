@@ -36,7 +36,6 @@
 struct bsc_data;
 struct snmp_mtp_session;
 struct msc_connection;
-struct mtp_m2ua_transport;
 
 struct mtp_udp_data {
 	struct osmo_wqueue write_queue;
@@ -76,8 +75,6 @@ struct bsc_data {
 	char *udp_ip;
 	int udp_nr_links;
 
-	int m2ua_src_port;
-
 	/* MTP Links */
 	struct llist_head linksets;
 	int num_linksets;
@@ -87,7 +84,8 @@ struct bsc_data {
 	struct osmo_fd inject_fd;
 
 	/* m2ua code */
-	struct sctp_m2ua_transport *m2ua_trans;
+	struct mtp_transport *m2ua_trans;
+	int m2ua_src_port;
 
 	/* MSCs */
 	struct llist_head mscs;

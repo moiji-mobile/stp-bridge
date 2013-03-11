@@ -23,6 +23,7 @@
 #include <osmocom/core/msgb.h>
 #include <osmocom/core/timer.h>
 #include <osmocom/core/utils.h>
+#include <osmocom/core/select.h>
 
 struct bsc_data;
 struct mtp_link;
@@ -150,6 +151,16 @@ struct mtp_link {
 	void *data;
 };
 
+/**
+ * @brief Base structure shared by SCTP/M2UA and SCCP-lite
+ */
+struct mtp_transport {
+	int started;
+	struct llist_head conns;
+	struct osmo_fd bsc;
+
+	struct llist_head links;
+};
 
 void mtp_link_set_stop(struct mtp_link_set *set);
 void mtp_link_set_reset(struct mtp_link_set *set);

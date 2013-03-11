@@ -33,14 +33,6 @@ struct mtp_link;
  * Drive M2UA over a SCTP link. Right now we have no
  * real concept for failover and such for the link.
  */
-struct sctp_m2ua_transport {
-	int started;
-	struct llist_head conns;
-	struct osmo_fd bsc;
-
-	struct llist_head links;
-};
-
 struct mtp_m2ua_link {
 	struct mtp_link *base;
 
@@ -56,7 +48,7 @@ struct mtp_m2ua_link {
 
 	int link_index;
 	struct llist_head entry;
-	struct sctp_m2ua_transport *transport;
+	struct mtp_transport *transport;
 
 	char *as;
 };
@@ -70,16 +62,16 @@ struct sctp_m2ua_conn {
 	int asp_up;
 
 	struct osmo_wqueue queue;
-	struct sctp_m2ua_transport *trans;
+	struct mtp_transport *trans;
 };
 
-struct sctp_m2ua_transport *sctp_m2ua_transp_create(struct bsc_data *bsc);
-int sctp_m2ua_transport_bind(struct sctp_m2ua_transport *, const char *ip, int port);
-struct mtp_m2ua_link *mtp_m2ua_link_create(struct sctp_m2ua_transport *transport,
+struct mtp_transport *sctp_m2ua_transp_create(struct bsc_data *bsc);
+int sctp_m2ua_transport_bind(struct mtp_transport *, const char *ip, int port);
+struct mtp_m2ua_link *mtp_m2ua_link_create(struct mtp_transport *transport,
 					   struct mtp_link_set *);
 
 struct mtp_m2ua_link *mtp_m2ua_link_init(struct mtp_link *link);
 
-int sctp_m2ua_conn_count(struct sctp_m2ua_transport *tran);
+int sctp_m2ua_conn_count(struct mtp_transport *tran);
 
 #endif
