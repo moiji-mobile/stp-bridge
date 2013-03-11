@@ -47,7 +47,6 @@ int sctp_m2ua_conn_count(struct sctp_m2ua_transport *trans)
 static struct mtp_m2ua_link *find_m2ua_link(struct sctp_m2ua_transport *trans, int link_index)
 {
 	struct mtp_m2ua_link *link;
-	link_index = link_index;
 
 	llist_for_each_entry(link, &trans->links, entry) {
 		if (link->link_index == link_index)

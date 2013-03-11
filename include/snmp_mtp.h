@@ -20,6 +20,8 @@
 #ifndef snmp_mtp_h
 #define snmp_mtp_h
 
+#include <stdlib.h>
+
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/utilities.h>
 #include <net-snmp/net-snmp-includes.h>
