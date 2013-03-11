@@ -149,6 +149,9 @@ static int config_write_ss7(struct vty *vty)
 	vty_out(vty, "ss7%s", VTY_NEWLINE);
 	vty_out(vty, " udp src-port %d%s", bsc->udp_src_port, VTY_NEWLINE);
 	vty_out(vty, " m2ua src-port %d%s", bsc->m2ua_src_port, VTY_NEWLINE);
+	if (bsc->lite_src_port > 0)
+		vty_out(vty, " sccp-lite src-port %d%s",
+			bsc->lite_src_port, VTY_NEWLINE);
 	return CMD_SUCCESS;
 }
 
@@ -350,6 +353,25 @@ DEFUN(cfg_ss7_m2ua_src_port, cfg_ss7_m2ua_src_port_cmd,
       "Port to bind to\n")
 {
 	bsc->m2ua_src_port = atoi(argv[0]);
+	return CMD_SUCCESS;
+}
+
+DEFUN(cfg_ss7_sccp_lite_src_port, cfg_ss7_sccp_lite_src_port_cmd,
+      "sccp-lite src-port <1-65535>",
+      "SCCP-lite/MAP-lite related commands\n"
+      "Source port for SS7 via SCCP-lite/MAP-lite\n"
+      "Port to bind to\n")
+{
+	bsc->lite_src_port = atoi(argv[0]);
+	return CMD_SUCCESS;
+}
+
+DEFUN(cfg_ss7_no_sccp_lite_src_port, cfg_ss7_no_sccp_lite_src_port_cmd,
+      "no sccp-lite src-port",
+      NO_STR "SCCP-lite/MAP-lite related commands\n"
+      "Source port for SS7 via SCCP-lite/MAP-lite\n")
+{
+	bsc->lite_src_port = 0;
 	return CMD_SUCCESS;
 }
 
@@ -1050,6 +1072,8 @@ void cell_vty_init(void)
 	install_defaults(SS7_NODE);
 	install_element(SS7_NODE, &cfg_ss7_udp_src_port_cmd);
 	install_element(SS7_NODE, &cfg_ss7_m2ua_src_port_cmd);
+	install_element(SS7_NODE, &cfg_ss7_sccp_lite_src_port_cmd);
+	install_element(SS7_NODE, &cfg_ss7_no_sccp_lite_src_port_cmd);
 
 	install_element(SS7_NODE, &cfg_ss7_linkset_cmd);
 	install_node(&linkset_node, config_write_linkset);
