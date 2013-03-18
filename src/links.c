@@ -26,9 +26,6 @@
 #include <mtp_data.h>
 #include <mtp_level3.h>
 #include <mtp_pcap.h>
-#include <snmp_mtp.h>
-
-#include <osmocom/core/talloc.h>
 
 extern struct bsc_data *bsc;
 
@@ -86,89 +83,6 @@ void mtp_link_restart(struct mtp_link *link)
 {
 	LOGP(DINP, LOGL_ERROR, "Need to restart the SS7 link.\n");
 	link->reset(link);
-}
-
-struct mtp_link_set *link_set_create(struct bsc_data *bsc)
-{
-	struct mtp_link_set *set;
-
-	set = mtp_link_set_alloc(bsc);
-	set->name = talloc_strdup(set, "MTP");
-
-	set->ni = MTP_NI_NATION_NET;
-	set->spare = 0;
-
-	set->supported_ssn[1] = 1;
-	set->supported_ssn[7] = 1;
-	set->supported_ssn[8] = 1;
-	set->supported_ssn[146] = 1;
-	set->supported_ssn[254] = 1;
-
-	return set;
-}
-
-int link_set_init_links(struct bsc_data *bsc, struct mtp_link_set *set)
-{
-	int i;
-	struct mtp_udp_link *lnk;
-	struct mtp_link *blnk;
-
-
-	if (!bsc->udp_src_port) {
-		LOGP(DINP, LOGL_ERROR, "You need to set a UDP address.\n");
-		return -1;
-	}
-
-	LOGP(DINP, LOGL_NOTICE, "Using UDP MTP mode.\n");
-
-	if (link_global_init(&bsc->udp_data) != 0)
-		return -1;
-
-	if (link_global_bind(&bsc->udp_data, bsc->udp_src_port) != 0)
-		return -1;
-
-	for (i = 1; i <= bsc->udp_nr_links; ++i) {
-		blnk = mtp_link_alloc(set);
-		lnk = mtp_udp_link_init(blnk);
-
-		lnk->link_index = i;
-
-		/* now connect to the transport */
-		if (snmp_mtp_peer_name(lnk->session, bsc->udp_ip) != 0)
-			return -1;
-
-		if (link_udp_init(lnk, bsc->udp_ip, bsc->udp_port) != 0)
-			return -1;
-	}
-
-	return 0;
-}
-
-int link_set_shutdown_links(struct mtp_link_set *set)
-{
-	struct mtp_link *lnk;
-
-	llist_for_each_entry(lnk, &set->links, entry)
-		lnk->shutdown(lnk);
-	return 0;
-}
-
-int link_set_reset_links(struct mtp_link_set *set)
-{
-	struct mtp_link *lnk;
-
-	llist_for_each_entry(lnk, &set->links, entry)
-		lnk->reset(lnk);
-	return 0;
-}
-
-int link_set_clear_links(struct mtp_link_set *set)
-{
-	struct mtp_link *lnk;
-
-	llist_for_each_entry(lnk, &set->links, entry)
-		lnk->clear_queue(lnk);
-	return 0;
 }
 
 int mtp_handle_pcap(struct mtp_link *link, int dir, const uint8_t *data, int len)
