@@ -20,12 +20,8 @@
 
 #include "mtp_data.h"
 
-struct sccp_lite_link {
+struct mtp_sccp_lite_link {
 	struct mtp_link *base;
-
-	int active;
-	int established;
-	struct sccp_lite_conn *conn;
 
 	/* token handling for pseudo-authentication */
 	char *token;
@@ -36,5 +32,7 @@ struct sccp_lite_link {
 
 struct mtp_transport *sccp_lite_transp_create(struct bsc_data *bsc);
 int sccp_lite_transp_bind(struct mtp_transport *trans, const char *ip, int port);
+
+struct mtp_sccp_lite_link *mtp_sccp_lite_link_init(struct mtp_link *);
 
 #endif

@@ -4,3 +4,12 @@ Implement proper routing as in Q.704. The 'applications' need to describe
 which PCs can be reached by the application (insert items in the routing
 table), during the MTP Restart one needs to collect the TRA and TFA for
 rachable points, then TFA for the reachable points to all adjacent links..
+
+== Handling of Link Types ==
+
+The support for the SCCPlite but also M3UA is difficult. Everything is going
+through MTP and we would need a linkset base class and have a stub one and a
+mtp one. Right now this is a a big hack.
+
+This should be done in the SS7_Application code. Like there are multiple
+link types.. there should be multiple linksets types.

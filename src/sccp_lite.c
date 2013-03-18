@@ -41,6 +41,10 @@ static int sccp_lite_transp_accept(struct osmo_fd *fd, unsigned int what)
 	return 0;
 }
 
+struct mtp_sccp_lite_link *mtp_sccp_lite_link_init(struct mtp_link *lnk)
+{
+}
+
 struct mtp_transport *sccp_lite_transp_create(struct bsc_data *bsc)
 {
 	return mtp_transport_create(bsc);

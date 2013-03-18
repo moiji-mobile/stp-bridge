@@ -23,6 +23,7 @@
 #include <mtp_pcap.h>
 #include <msc_connection.h>
 #include <sctp_m2ua.h>
+#include <sccp_lite.h>
 #include <ss7_application.h>
 #include <ss7_vty.h>
 #include <cellmgr_debug.h>
@@ -160,6 +161,7 @@ static void write_link(struct vty *vty, struct mtp_link *link)
 	const char *name = link->name ? link->name : "";
 	struct mtp_udp_link *ulnk;
 	struct mtp_m2ua_link *m2ua;
+	struct mtp_sccp_lite_link *lite;
 
 	vty_out(vty, "  link %d%s", link->nr, VTY_NEWLINE);
 	vty_out(vty, "   description %s%s", name, VTY_NEWLINE);
@@ -186,6 +188,13 @@ static void write_link(struct vty *vty, struct mtp_link *link)
 				m2ua->as, VTY_NEWLINE);
 		vty_out(vty, "   m2ua link-index %d%s",
 			m2ua->link_index, VTY_NEWLINE);
+		break;
+	case SS7_LTYPE_SCCP_LITE:
+		lite = (struct mtp_sccp_lite_link *) link->data;
+		vty_out(vty, "  ss7-transport sccp-lite%s", VTY_NEWLINE);
+		if (lite->token)
+			vty_out(vty, "   sccp-lite token %s%s",
+				lite->token, VTY_NEWLINE);
 		break;
 	case SS7_LTYPE_NONE:
 		break;
@@ -590,7 +599,7 @@ DEFUN(cfg_linkset_link, cfg_linkset_link_cmd,
 }
 
 DEFUN(cfg_link_ss7_transport, cfg_link_ss7_transport_cmd,
-      "ss7-transport (none|udp|m2ua)",
+      "ss7-transport (none|udp|m2ua|sccp-lite)",
       "SS7 transport for the link\n"
       "No transport\n" "MTP over UDP\n" "SCTP M2UA\n")
 {
@@ -603,9 +612,16 @@ DEFUN(cfg_link_ss7_transport, cfg_link_ss7_transport_cmd,
 		wanted = SS7_LTYPE_UDP;
 	else if (strcmp("m2ua", argv[0]) == 0)
 		wanted = SS7_LTYPE_M2UA;
+	else if (strcmp("sccp-lite", argv[0]) == 0)
+		wanted = SS7_LTYPE_SCCP_LITE;
 
 	if (link->type != wanted && link->type != SS7_LTYPE_NONE) {
 		vty_out(vty, "%%Can not change the type of a link.\n");
+		return CMD_WARNING;
+	}
+
+	if (link->nr > 0 && wanted == SS7_LTYPE_SCCP_LITE) {
+		vty_out(vty, "%%Can only have SCCP-lite as 0.\n");
 		return CMD_WARNING;
 	}
 
@@ -615,6 +631,9 @@ DEFUN(cfg_link_ss7_transport, cfg_link_ss7_transport_cmd,
 		break;
 	case SS7_LTYPE_M2UA:
 		link->data = mtp_m2ua_link_init(link);
+		break;
+	case SS7_LTYPE_SCCP_LITE:
+		link->data = mtp_sccp_lite_link_init(link);
 		break;
 	case SS7_LTYPE_NONE:
 		/* nothing */
@@ -749,6 +768,25 @@ DEFUN(cfg_link_m2ua_link_index, cfg_link_m2ua_link_index_cmd,
 
 	m2ua = link->data;
 	m2ua->link_index = atoi(argv[0]);
+	return CMD_SUCCESS;
+}
+
+DEFUN(cfg_link_sccp_lite_token, cfg_link_sccp_lite_token_cmd,
+      "sccp-lite token TOKEN",
+      "SCCP-lite/MAP-lite related\n" "Token for pseudo-auth\n" "Token\n")
+{
+	struct mtp_link *link = vty->index;
+	struct mtp_sccp_lite_link *lite;
+
+	if (link->type != SS7_LTYPE_SCCP_LITE) {
+		vty_out(vty, "%%This only applies to SCCP-lite links.%s", VTY_NEWLINE);
+		return CMD_WARNING;
+	}
+
+ 	lite = link->data;
+	if (lite->token)
+		talloc_free(lite->token);
+	lite->token = talloc_strdup(lite, argv[0]);
 	return CMD_SUCCESS;
 }
 
@@ -1106,6 +1144,7 @@ void cell_vty_init(void)
 	install_element(LINK_NODE, &cfg_link_udp_link_index_cmd);
 	install_element(LINK_NODE, &cfg_link_m2ua_as_cmd);
 	install_element(LINK_NODE, &cfg_link_m2ua_link_index_cmd);
+	install_element(LINK_NODE, &cfg_link_sccp_lite_token_cmd);
 
 	install_element(SS7_NODE, &cfg_ss7_msc_cmd);
 	install_node(&msc_node, config_write_msc);
