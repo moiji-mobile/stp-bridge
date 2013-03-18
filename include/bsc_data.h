@@ -114,10 +114,12 @@ struct mtp_link_set *link_set_create(struct bsc_data *bsc);
 int link_global_init(struct mtp_udp_data *data);
 int link_global_bind(struct mtp_udp_data *data, int src_port);
 int link_udp_init(struct mtp_udp_link *data, char *dest_ip, int port);
-int link_init(struct bsc_data *bsc, struct mtp_link_set *set);
-int link_shutdown_all(struct mtp_link_set *);
-int link_reset_all(struct mtp_link_set *);
-int link_clear_all(struct mtp_link_set *);
+
+/* link handling */
+int link_set_init_links(struct bsc_data *bsc, struct mtp_link_set *set);
+int link_set_shutdown_links(struct mtp_link_set *);
+int link_set_reset_links(struct mtp_link_set *);
+int link_set_clear_links(struct mtp_link_set *);
 
 /* pcap */
 enum {

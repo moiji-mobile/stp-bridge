@@ -118,7 +118,7 @@ int main(int argc, char **argv)
 		return rc;
 
 	/* create the links and start */
-	if (link_init(bsc, set) != 0)
+	if (link_set_init_links(bsc, set) != 0)
 		return -1;
 
 	ss7_application_setup(app, APP_CELLMGR,

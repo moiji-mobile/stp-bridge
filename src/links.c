@@ -107,7 +107,7 @@ struct mtp_link_set *link_set_create(struct bsc_data *bsc)
 	return set;
 }
 
-int link_init(struct bsc_data *bsc, struct mtp_link_set *set)
+int link_set_init_links(struct bsc_data *bsc, struct mtp_link_set *set)
 {
 	int i;
 	struct mtp_udp_link *lnk;
@@ -144,7 +144,7 @@ int link_init(struct bsc_data *bsc, struct mtp_link_set *set)
 	return 0;
 }
 
-int link_shutdown_all(struct mtp_link_set *set)
+int link_set_shutdown_links(struct mtp_link_set *set)
 {
 	struct mtp_link *lnk;
 
@@ -153,7 +153,7 @@ int link_shutdown_all(struct mtp_link_set *set)
 	return 0;
 }
 
-int link_reset_all(struct mtp_link_set *set)
+int link_set_reset_links(struct mtp_link_set *set)
 {
 	struct mtp_link *lnk;
 
@@ -162,7 +162,7 @@ int link_reset_all(struct mtp_link_set *set)
 	return 0;
 }
 
-int link_clear_all(struct mtp_link_set *set)
+int link_set_clear_links(struct mtp_link_set *set)
 {
 	struct mtp_link *lnk;
 

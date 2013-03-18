@@ -98,7 +98,7 @@ static void sigint()
 	handled = 1;
 	if (bsc) {
 		llist_for_each_entry(set, &bsc->linksets, entry)
-			link_shutdown_all(set);
+			link_set_shutdown_links(set);
 	}
 
 	exit(0);

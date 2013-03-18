@@ -186,7 +186,7 @@ void app_clear_connections(struct ss7_application *app)
 		free_con(con);
 	}
 
-	link_clear_all(app->route_src.set);
+	link_set_clear_links(app->route_src.set);
 }
 
 void app_resources_released(struct ss7_application *app)
@@ -205,7 +205,7 @@ static void bsc_reset_timeout(void *_app)
 		LOGP(DINP, LOGL_ERROR, "The BSC did not answer the GSM08.08 reset. Restart MTP\n");
 		mtp_link_set_stop(app->route_src.set);
 		app_clear_connections(app);
-		link_reset_all(app->route_src.set);
+		link_set_reset_links(app->route_src.set);
 		app_resources_released(app);
 		return;
 	}
