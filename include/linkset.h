@@ -45,6 +45,11 @@ struct mtp_link_set {
 	void (*on_sccp) (struct mtp_link_set *set, struct msgb *msg, int sls);
 	void (*on_isup) (struct mtp_link_set *set, struct msgb *msg, int sls);
 
+	/*
+	 * Sending routines
+	 */
+	int (*submit_sccp) (struct mtp_link_set *set, int sls, const uint8_t *data, unsigned int len);
+	int (*submit_isup) (struct mtp_link_set *set, int sls, const uint8_t *data, unsigned int len);
 
 	/**
 	 * Routing is very limited. We can only forward to one
@@ -102,8 +107,6 @@ void mtp_link_set_stop(struct mtp_link_set *set);
 void mtp_link_set_reset(struct mtp_link_set *set);
 int mtp_link_set_data(struct mtp_link *link, struct msgb *msg);
 int mtp_link_handle_data(struct mtp_link *link, struct msgb *msg);
-int mtp_link_set_submit_sccp_data(struct mtp_link_set *set, int sls, const uint8_t *data, unsigned int length);
-int mtp_link_set_submit_isup_data(struct mtp_link_set *set, int sls, const uint8_t *data, unsigned int length);
 
 void mtp_link_set_init_slc(struct mtp_link_set *set);
 

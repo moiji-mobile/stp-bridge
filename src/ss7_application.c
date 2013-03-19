@@ -38,7 +38,7 @@ static void forward_sccp_stp(struct mtp_link_set *set, struct msgb *_msg, int sl
 	struct mtp_link_set *other;
 	other = set->app->route_src.set == set ?
 			set->app->route_dst.set : set->app->route_src.set;
-	mtp_link_set_submit_sccp_data(other, sls, _msg->l2h, msgb_l2len(_msg));
+	set->submit_sccp(other, sls, _msg->l2h, msgb_l2len(_msg));
 }
 
 static void forward_isup_stp(struct mtp_link_set *set, struct msgb *msg, int sls)
@@ -47,7 +47,7 @@ static void forward_isup_stp(struct mtp_link_set *set, struct msgb *msg, int sls
 	other = set->app->route_src.set == set ?
 			set->app->route_dst.set : set->app->route_src.set;
 	isup_scan_for_reset(set->app, msg);
-	mtp_link_set_submit_isup_data(other, sls, msg->l3h, msgb_l3len(msg));
+	set->submit_isup(other, sls, msg->l3h, msgb_l3len(msg));
 }
 
 static void on_link_set_sccp(struct mtp_link_set *set, struct msgb *_msg, int sls)

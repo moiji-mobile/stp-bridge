@@ -133,7 +133,7 @@ static void handle_local_sccp(struct mtp_link_set *set, struct msgb *inpt, struc
 		cr = (struct sccp_connection_request *) inpt->l2h;
 		msg = create_sccp_refuse(&cr->source_local_reference);
 		if (msg) {
-			mtp_link_set_submit_sccp_data(set, sls, msg->l2h, msgb_l2len(msg));
+			set->submit_sccp(set, sls, msg->l2h, msgb_l2len(msg));
 			msgb_free(msg);
 		}
 		return;
@@ -153,7 +153,7 @@ static void handle_local_sccp(struct mtp_link_set *set, struct msgb *inpt, struc
 					LOGP(DINP, LOGL_DEBUG, "Sending a release request now.\n");
 					msg = create_sccp_rlsd(&con->dst_ref, &con->src_ref);
 					if (msg) {
-						mtp_link_set_submit_sccp_data(set, con->sls, msg->l2h, msgb_l2len(msg));
+						set->submit_sccp(set, con->sls, msg->l2h, msgb_l2len(msg));
 						msgb_free(msg);
 					}
 					return;
@@ -217,7 +217,7 @@ static void bsc_reset_timeout(void *_app)
 	}
 
 	++app->reset_count;
-	mtp_link_set_submit_sccp_data(set, -1, msg->l2h, msgb_l2len(msg));
+	set->submit_sccp(set, -1, msg->l2h, msgb_l2len(msg));
 	msgb_free(msg);
 	osmo_timer_schedule(&app->reset_timeout, 20, 0);
 }
@@ -276,7 +276,7 @@ void release_bsc_resources(struct msc_connection *fw)
 			continue;
 
 		/* wait for the clear commands */
-		mtp_link_set_submit_sccp_data(set, con->sls, msg->l2h, msgb_l2len(msg));
+		set->submit_sccp(set, con->sls, msg->l2h, msgb_l2len(msg));
 		msgb_free(msg);
 	}
 
@@ -304,7 +304,7 @@ static void send_rlc_to_bsc(struct mtp_link_set *set,
 	if (!msg)
 		return;
 
-	mtp_link_set_submit_sccp_data(set, sls, msg->l2h, msgb_l2len(msg));
+	set->submit_sccp(set, sls, msg->l2h, msgb_l2len(msg));
 	msgb_free(msg);
 }
 
@@ -498,7 +498,7 @@ static void send_local_rlsd_for_con(void *data)
 
 	LOGP(DINP, LOGL_DEBUG, "Sending RLSD for 0x%x the %d time.\n",
 	     sccp_src_ref_to_int(&con->src_ref), con->rls_tries);
-	mtp_link_set_submit_sccp_data(set, con->sls, rlsd->l2h, msgb_l2len(rlsd));
+	set->submit_sccp(set, con->sls, rlsd->l2h, msgb_l2len(rlsd));
 	msgb_free(rlsd);
 }
 
@@ -523,7 +523,7 @@ static void send_reset_ack(struct mtp_link_set *set, int sls)
 		0x00, 0x01, 0x31
 	};
 
-	mtp_link_set_submit_sccp_data(set, sls, reset_ack, sizeof(reset_ack));
+	set->submit_sccp(set, sls, reset_ack, sizeof(reset_ack));
 }
 
 void msc_dispatch_sccp(struct msc_connection *msc, struct msgb *msg)
@@ -543,8 +543,8 @@ void msc_dispatch_sccp(struct msc_connection *msc, struct msgb *msg)
 	if (msc->app->forward_only) {
 		if (!set->sccp_up)
 			return;
-		mtp_link_set_submit_sccp_data(set, -1,
-					      msg->l2h, msgb_l2len(msg));
+		set->submit_sccp(set, -1,
+				      msg->l2h, msgb_l2len(msg));
 	} else {
 		struct sccp_parse_result result;
 		int rc;
@@ -574,8 +574,8 @@ void msc_dispatch_sccp(struct msc_connection *msc, struct msgb *msg)
 			bss_rewrite_header_to_bsc(msg, set->opc, set->dpc);
 
 			/* we can not forward it right now */
-			mtp_link_set_submit_sccp_data(set, sls,
-						      msg->l2h, msgb_l2len(msg));
+			set->submit_sccp(set, sls,
+					      msg->l2h, msgb_l2len(msg));
 		}
 	}
 }

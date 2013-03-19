@@ -511,7 +511,8 @@ int mtp_link_handle_data(struct mtp_link *link, struct msgb *msg)
 	return rc;
 }
 
-int mtp_link_set_submit_sccp_data(struct mtp_link_set *set, int sls, const uint8_t *data, unsigned int length)
+static int mtp_link_set_submit_sccp_data(struct mtp_link_set *set, int sls,
+				const uint8_t *data, unsigned int length)
 {
 
 	if (!set->sccp_up) {
@@ -667,6 +668,10 @@ struct mtp_link_set *mtp_link_set_alloc(struct bsc_data *bsc)
 	set->T20.data = set;
 
 	llist_add_tail(&set->entry, &bsc->linksets);
+
+	/* implemenentation pointers */
+	set->submit_sccp = mtp_link_set_submit_sccp_data;
+	set->submit_isup = mtp_link_set_submit_isup_data;
 
 	return set;
 }

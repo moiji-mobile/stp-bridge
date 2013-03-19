@@ -133,7 +133,7 @@ static int handle_circuit_reset_grs(struct mtp_link_set *set, int sls, int cic,
 	if (!resp)
 		return -1;
 
-	mtp_link_set_submit_isup_data(set, sls, resp->l2h, msgb_l2len(resp));
+	set->submit_isup(set, sls, resp->l2h, msgb_l2len(resp));
 	msgb_free(resp);
 	return 0;
 }
@@ -157,7 +157,7 @@ static int handle_circuit_reset_cgb(struct mtp_link_set *set, int sls, int cic,
 	if (!resp)
 		return -1;
 
-	mtp_link_set_submit_isup_data(set, sls, resp->l2h, msgb_l2len(resp));
+	set->submit_isup(set, sls, resp->l2h, msgb_l2len(resp));
 	msgb_free(resp);
 	return 0;
 }
@@ -172,7 +172,7 @@ static int send_cgu(struct mtp_link_set *set, int sls, int cic, int range)
 	if (!resp)
 		return -1;
 
-	mtp_link_set_submit_isup_data(set, sls, resp->l2h, msgb_l2len(resp));
+	set->submit_isup(set, sls, resp->l2h, msgb_l2len(resp));
 	msgb_free(resp);
 	return 0;
 }
@@ -200,7 +200,7 @@ static int handle_cgu(struct mtp_link_set *set, int sls, int cic,
 	out = msgb_put(resp, size);
 	memcpy(out, data, size);
 
-	mtp_link_set_submit_isup_data(set, sls, resp->l2h, msgb_l2len(resp));
+	set->submit_isup(set, sls, resp->l2h, msgb_l2len(resp));
 	msgb_free(resp);
 	return 0;
 }
@@ -212,7 +212,7 @@ static int handle_simple_resp(struct mtp_link_set *set, int sls, int cic, int ms
 	resp = isup_simple_alloc(cic, msg_type);
 	if (!resp)
 		return -1;
-	mtp_link_set_submit_isup_data(set, sls, resp->l2h, msgb_l2len(resp));
+	set->submit_isup(set, sls, resp->l2h, msgb_l2len(resp));
 	msgb_free(resp);
 	return 0;
 }
