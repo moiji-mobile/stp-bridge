@@ -68,6 +68,7 @@ void msc_close_connection(struct msc_connection *fw)
 	osmo_timer_del(&fw->ping_timeout);
 	osmo_timer_del(&fw->pong_timeout);
 	osmo_timer_del(&fw->msc_timeout);
+	osmo_wqueue_clear(&fw->msc_connection);
 	msc_schedule_reconnect(fw);
 }
 
