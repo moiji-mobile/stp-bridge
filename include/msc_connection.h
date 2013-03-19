@@ -30,14 +30,22 @@
 struct bsc_data;
 struct ss7_application;
 
+enum msc_mode {
+	MSC_MODE_CLIENT,
+	MSC_MODE_SERVER,
+};
+
 struct msc_connection {
 	/* management */
 	struct llist_head entry;
 	int nr;
 	char *name;
+	enum msc_mode mode;
+	int auth;
 
 	/* ip management */
 	int dscp;
+	int port;
 	char *ip;
 	char *token;
 
@@ -62,6 +70,9 @@ struct msc_connection {
 
 	/* application pointer */
 	struct ss7_application *app;
+
+	/* server functions */
+	struct osmo_fd listen_fd;
 };
 
 /* msc related functions */
@@ -80,5 +91,6 @@ void msc_mgcp_reset(struct msc_connection *msc);
 /* Called by the MSC Connection */
 void msc_dispatch_sccp(struct msc_connection *msc, struct msgb *msg);
 
+const char *msc_mode(struct msc_connection *msc);
 
 #endif

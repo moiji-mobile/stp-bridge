@@ -1,7 +1,7 @@
 /* MSC related stuff... */
 /*
- * (C) 2010-2012 by Holger Hans Peter Freyther <zecke@selfish.org>
- * (C) 2010-2012 by On-Waves
+ * (C) 2010-2013 by Holger Hans Peter Freyther <zecke@selfish.org>
+ * (C) 2010-2013 by On-Waves
  * All Rights Reserved
  *
  * This program is free software: you can redistribute it and/or modify
@@ -29,10 +29,11 @@
 #include <ss7_application.h>
 #include <mgcp_patch.h>
 
+#include <osmocom/core/socket.h>
 #include <osmocom/core/talloc.h>
-#include <osmocom/gsm/tlv.h>
 #include <osmocom/core/utils.h>
 #include <osmocom/core/write_queue.h>
+#include <osmocom/gsm/tlv.h>
 
 #include <arpa/inet.h>
 #include <sys/socket.h>
@@ -49,6 +50,8 @@
 static void msc_send_id_response(struct msc_connection *bsc);
 static void msc_send(struct msc_connection *bsc, struct msgb *msg, int proto);
 static void msc_schedule_reconnect(struct msc_connection *bsc);
+static int msc_conn_bind(struct msc_connection *bsc);
+static void msc_handle_id_response(struct msc_connection *bsc, struct msgb *msg);
 
 void msc_close_connection(struct msc_connection *fw)
 {
@@ -157,8 +160,22 @@ static int ipaccess_a_fd_cb(struct osmo_fd *bfd)
 			msc_send_id_response(fw);
 		} else if (msg->l2h[0] == IPAC_MSGT_PONG) {
 			osmo_timer_del(&fw->pong_timeout);
+		} else if (msg->l2h[0] == IPAC_MSGT_ID_RESP) {
+			msc_handle_id_response(fw, msg);
 		}
-	} else if (hh->proto == IPAC_PROTO_SCCP) {
+
+		msgb_free(msg);
+		return 0;
+	}
+
+	if (fw->mode == MSC_MODE_SERVER && !fw->auth) {
+		LOGP(DMSC, LOGL_ERROR,
+			"Ignoring non ipa message for unauth user.\n");
+		msgb_free(msg);
+		return -1;
+	}
+
+	if (hh->proto == IPAC_PROTO_SCCP) {
 		msc_dispatch_sccp(fw, msg);
 	} else if (hh->proto == NAT_MUX) {
 		msg = mgcp_patch(fw->app, msg);
@@ -315,7 +332,7 @@ static void msc_reconnect(void *_data)
 	osmo_timer_del(&fw->reconnect_timer);
 	fw->first_contact = 1;
 
-	rc = connect_to_msc(&fw->msc_connection.bfd, fw->ip, 5000, fw->dscp);
+	rc = connect_to_msc(&fw->msc_connection.bfd, fw->ip, fw->port, fw->dscp);
 	if (rc < 0) {
 		fprintf(stderr, "Opening the MSC connection failed. Trying again\n");
 		osmo_timer_schedule(&fw->reconnect_timer, RECONNECT_TIME);
@@ -329,6 +346,8 @@ static void msc_reconnect(void *_data)
 
 static void msc_schedule_reconnect(struct msc_connection *fw)
 {
+	if (fw->mode == MSC_MODE_SERVER)
+		return;
 	osmo_timer_schedule(&fw->reconnect_timer, RECONNECT_TIME);
 }
 
@@ -399,6 +418,14 @@ void msc_send_reset(struct msc_connection *fw)
 		return;
 	}
 
+	/* start the ping/pong but nothing else */
+	if (fw->mode == MSC_MODE_SERVER) {
+		LOGP(DMSC, LOGL_DEBUG, "Not sending BSSMAP resets in server mode.\n");
+		msc_ping_timeout(fw);
+		return;
+	}
+
+
 	msg = create_reset();
 	if (!msg)
 		return;
@@ -410,6 +437,12 @@ void msc_send_reset(struct msc_connection *fw)
 static void msc_send_id_response(struct msc_connection *fw)
 {
 	struct msgb *msg;
+
+	if (fw->mode == MSC_MODE_SERVER) {
+		LOGP(DMSC, LOGL_DEBUG,
+			"Not sending our token in server mode.\n");
+		return;
+	}
 
 	msg = msgb_alloc_headroom(4096, 128, "id resp");
 	msg->l2h = msgb_v_put(msg, IPAC_MSGT_ID_RESP);
@@ -433,6 +466,9 @@ struct msc_connection *msc_connection_create(struct bsc_data *bsc, int mgcp)
 		LOGP(DMSC, LOGL_ERROR, "Failed to allocate the MSC Connection.\n");
 		return NULL;
 	}
+
+	msc->mode = MSC_MODE_CLIENT;
+	msc->port = 5000;
 
 	osmo_wqueue_init(&msc->msc_connection, 100);
 	msc->reconnect_timer.cb = msc_reconnect;
@@ -482,6 +518,169 @@ int msc_connection_start(struct msc_connection *msc)
 		return -1;
 	}
 
+	/* bind and wait if we are a server */
+	if (msc->mode == MSC_MODE_SERVER)
+		return msc_conn_bind(msc);
+
 	msc_schedule_reconnect(msc);
+	return 0;
+}
+
+const char *msc_mode(struct msc_connection *msc)
+{
+	switch (msc->mode) {
+	case MSC_MODE_CLIENT:
+		return "client";
+	case MSC_MODE_SERVER:
+		return "server";
+	}
+
+	return "invalid";
+}
+
+/* Non-clean MSC server socket abstraction.. bind and accept */
+static int msc_send_auth_req(struct msc_connection *msc)
+{
+	struct msgb *msg;
+
+	static const uint8_t id_req[] = {
+		IPAC_MSGT_ID_GET,
+		0x01, IPAC_IDTAG_UNIT,
+		0x01, IPAC_IDTAG_MACADDR,
+		0x01, IPAC_IDTAG_LOCATION1,
+		0x01, IPAC_IDTAG_LOCATION2,
+		0x01, IPAC_IDTAG_EQUIPVERS,
+		0x01, IPAC_IDTAG_SWVERSION,
+		0x01, IPAC_IDTAG_UNITNAME,
+		0x01, IPAC_IDTAG_SERNR,
+	};
+
+	msg = msgb_alloc_headroom(4096, 128, "auth");
+	if (!msg) {
+		LOGP(DMSC, LOGL_ERROR, "Failed to allocate auth.\n");
+		msc_close_connection(msc);
+		return -1;
+	}
+
+	msg->l2h = msgb_put(msg, ARRAY_SIZE(id_req));
+	memcpy(msg->l2h, id_req, ARRAY_SIZE(id_req));
+
+	msc_send(msc, msg, IPAC_PROTO_IPACCESS);
+	return 0;
+}
+
+static void msc_handle_id_response(struct msc_connection *msc, struct msgb *msg)
+{
+	unsigned int len;
+	const char *token;
+
+	/* only for the server */
+	if (msc->mode != MSC_MODE_SERVER) {
+		LOGP(DMSC, LOGL_ERROR, "Unexpected ID response for client.\n");
+		return;
+	}
+
+	if (!msc->token) {
+		LOGP(DMSC, LOGL_ERROR, "No token defined. Giving up.\n");
+		goto clean;
+	}
+
+	if (msgb_l2len(msg) < 4) {
+		LOGP(DMSC, LOGL_ERROR, "Too short message...%u\n",
+				msgb_l2len(msg));
+		goto clean;
+	}
+
+	/* in lack of ipaccess_idtag_parse we have a very basic method */
+	if (msg->l2h[3] != IPAC_IDTAG_UNITNAME) {
+		LOGP(DMSC, LOGL_ERROR, "Expected unitname tag got %d\n",
+			msg->l2h[3]);
+		goto clean;
+	}
+
+	token = (const char *) &msg->l2h[4];
+	len = msgb_l2len(msg) - 4;
+
+	if (len != strlen(msc->token)) {
+		LOGP(DMSC, LOGL_ERROR, "Wrong length %u vs. %u\n",
+			len, strlen(msc->token));
+		goto clean;
+	}
+
+	if (memcmp(msc->token, token, len) != 0) {
+		LOGP(DMSC, LOGL_ERROR, "Token has the wrong size.\n");
+		goto clean;
+	}
+
+	LOGP(DMSC, LOGL_NOTICE, "Authenticated the connection.\n");
+	msc->auth = 1;
+	return;
+clean:
+	msc_close_connection(msc);
+}
+
+static int msc_conn_accept(struct osmo_fd *bsc_fd, unsigned int what)
+{
+	struct sockaddr_in addr;
+	socklen_t len = sizeof(addr);
+	struct msc_connection *msc = bsc_fd->data;
+	int ret;
+
+	LOGP(DMSC, LOGL_NOTICE, "Going to accept a connection.\n");
+
+	ret = accept(bsc_fd->fd, (struct sockaddr *) &addr, &len);
+	if (ret < 0) {
+		LOGP(DMSC, LOGL_ERROR, "Accept failed with fd(%d) errno(%d)\n",
+			ret, errno);
+		return -1;
+	}
+
+	/*
+	 * Close the previous/current connection.
+	 * TODO: switch only once we know it is a valid connection
+	 */
+	msc_close_connection(msc);
+
+	/* re-set the internal state */
+	msc->auth = 0;
+
+	/* adopt the connection */
+	msc->msc_connection.bfd.fd = ret;
+	msc->msc_connection.bfd.when = BSC_FD_READ;
+	ret = osmo_fd_register(&msc->msc_connection.bfd);
+	if (ret < 0) {
+		LOGP(DMSC, LOGL_ERROR, "Failed to register fd.\n");
+		close(msc->msc_connection.bfd.fd);
+		msc->msc_connection.bfd.fd = -1;
+		return -1;
+	}
+
+	/* consider it up and running */
+	msc->msc_link_down = 0;
+
+	/* msc send auth request */
+	msc_send_auth_req(msc);
+	LOGP(DMSC, LOGL_ERROR, "Registered fd %d and waiting for data.\n",
+		msc->msc_connection.bfd.fd);
+
+	return 0;
+}
+
+static int msc_conn_bind(struct msc_connection *msc)
+{
+	int rc;
+
+	LOGP(DMSC, LOGL_NOTICE, "Going to bind and wait for connections.\n");
+
+	rc = osmo_sock_init_ofd(&msc->listen_fd, AF_UNSPEC, SOCK_STREAM,
+			IPPROTO_TCP, "127.0.0.1", msc->port, OSMO_SOCK_F_BIND);
+	if (rc < 0) {
+		LOGP(DMSC, LOGL_NOTICE, "Failed to bind the socket.\n");
+		return rc;
+	}
+
+	msc->listen_fd.data = msc;
+	msc->listen_fd.cb = msc_conn_accept;
+
 	return 0;
 }

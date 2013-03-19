@@ -241,7 +241,9 @@ static void write_msc(struct vty *vty, struct msc_connection *msc)
 
 	vty_out(vty, " msc %d%s", msc->nr, VTY_NEWLINE);
 	vty_out(vty, "  description %s%s", name, VTY_NEWLINE);
+	vty_out(vty, "  mode %s%s", msc_mode(msc), VTY_NEWLINE);
 	vty_out(vty, "  ip %s%s", msc->ip, VTY_NEWLINE);
+	vty_out(vty, "  port %d%s", msc->port, VTY_NEWLINE);
 	vty_out(vty, "  token %s%s", msc->token, VTY_NEWLINE);
 	vty_out(vty, "  dscp %d%s", msc->dscp, VTY_NEWLINE);
 	vty_out(vty, "  timeout ping %d%s", msc->ping_time, VTY_NEWLINE);
@@ -759,6 +761,25 @@ DEFUN(cfg_ss7_msc, cfg_ss7_msc_cmd,
 	return CMD_SUCCESS;
 }
 
+DEFUN(cfg_msc_mode, cfg_msc_mode_cmd,
+      "mode (server|client)",
+      "Change the mode of the A-link\n"
+      "Accept incoming connection\n" "Open outgoing connection\n")
+{
+	struct msc_connection *msc = vty->index;
+
+	switch (argv[0][0]) {
+	case 's':
+		msc->mode = MSC_MODE_SERVER;
+		break;
+	case 'c':
+		msc->mode = MSC_MODE_CLIENT;
+		break;
+	}
+
+	return CMD_SUCCESS;
+}
+
 DEFUN(cfg_msc_ip, cfg_msc_ip_cmd,
       "ip ADDR",
       "IP Address of the MSC\n" "Address\n")
@@ -778,6 +799,15 @@ DEFUN(cfg_msc_ip, cfg_msc_ip_cmd,
 
 	msc->ip = talloc_strdup(msc,
 			inet_ntoa(*((struct in_addr *) hosts->h_addr_list[0])));
+	return CMD_SUCCESS;
+}
+
+DEFUN(cfg_msc_port, cfg_msc_port_cmd,
+      "port <1-65535>",
+      "Port for the TCP connection\n" "Port Number\n")
+{
+	struct msc_connection *msc = vty->index;
+	msc->port = atoi(argv[0]);
 	return CMD_SUCCESS;
 }
 
@@ -1086,7 +1116,9 @@ void cell_vty_init(void)
 	install_element(SS7_NODE, &cfg_ss7_msc_cmd);
 	install_node(&msc_node, config_write_msc);
 	install_defaults(MSC_NODE);
+	install_element(MSC_NODE, &cfg_msc_mode_cmd);
 	install_element(MSC_NODE, &cfg_msc_ip_cmd);
+	install_element(MSC_NODE, &cfg_msc_port_cmd);
 	install_element(MSC_NODE, &cfg_msc_token_cmd);
 	install_element(MSC_NODE, &cfg_msc_dscp_cmd);
 	install_element(MSC_NODE, &cfg_msc_timeout_ping_cmd);
