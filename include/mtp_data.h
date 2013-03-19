@@ -20,6 +20,8 @@
 #ifndef mtp_data_h
 #define mtp_data_h
 
+#include "linkset.h"
+
 #include <osmocom/core/msgb.h>
 #include <osmocom/core/timer.h>
 #include <osmocom/core/utils.h>
@@ -41,75 +43,6 @@ enum ss7_link_type {
 	SS7_LTYPE_NONE,
 	SS7_LTYPE_UDP,
 	SS7_LTYPE_M2UA,
-};
-
-/**
- * The state of the mtp_link in terms of layer3 and upwards
- */
-struct mtp_link_set {
-	struct llist_head entry;
-	int nr;
-	char *name;
-
-	/*
-	 * Callbacks for the SS7 application
-	 */
-	void (*on_down) (struct mtp_link_set *set);
-	void (*on_up) (struct mtp_link_set *set);
-	void (*on_sccp) (struct mtp_link_set *set, struct msgb *msg, int sls);
-	void (*on_isup) (struct mtp_link_set *set, struct msgb *msg, int sls);
-
-
-	/**
-	 * Routing is very limited. We can only forward to one
-	 * other STP/Endpoint. For ISUP and SCCP we can statically
-	 * send it to another destination. We need to follow Q.704
-	 * more properly here.
-	 * DPC/OPC are the ones for the linkset,
-	 * sccp_dpc/isup_dpc are where we will send SCCP/ISUP messages
-	 * sccp_opc/isup_opc are what we announce in the TFP
-	 */
-	int dpc, opc;
-	int sccp_dpc, isup_dpc;
-	int sccp_opc, isup_opc;
-	int ni;
-	int spare;
-
-
-	/* internal state */
-	/* the MTP1 link is up */
-	int available;
-	int running;
-	int sccp_up;
-	int linkset_up;
-
-	int last_sls;
-
-	struct llist_head links;
-	int nr_links;
-	struct mtp_link *slc[16];
-	int sltm_once;
-
-	/* ssn map */
-	int supported_ssn[256];
-
-	int pcap_fd;
-
-	/* special handling */
-	int pass_all_isup;
-
-	/* statistics */
-	struct rate_ctr_group *ctrg;
-
-	/* statistics for routing */
-	int timeout_t18;
-	int timeout_t20;
-	struct osmo_timer_list T18;
-	struct osmo_timer_list T20;
-
-	/* custom data */
-	struct bsc_data *bsc;
-	struct ss7_application *app;
 };
 
 /**
@@ -159,15 +92,6 @@ struct mtp_link {
 };
 
 
-void mtp_link_set_stop(struct mtp_link_set *set);
-void mtp_link_set_reset(struct mtp_link_set *set);
-int mtp_link_set_data(struct mtp_link *link, struct msgb *msg);
-int mtp_link_handle_data(struct mtp_link *link, struct msgb *msg);
-int mtp_link_set_submit_sccp_data(struct mtp_link_set *set, int sls, const uint8_t *data, unsigned int length);
-int mtp_link_set_submit_isup_data(struct mtp_link_set *set, int sls, const uint8_t *data, unsigned int length);
-
-void mtp_link_set_init_slc(struct mtp_link_set *set);
-
 void mtp_link_block(struct mtp_link *link);
 void mtp_link_unblock(struct mtp_link *link);
 
@@ -175,7 +99,6 @@ void mtp_link_unblock(struct mtp_link *link);
 /* to be implemented for MSU sending */
 void mtp_link_submit(struct mtp_link *link, struct msgb *msg);
 void mtp_link_restart(struct mtp_link *link);
-int mtp_link_set_send(struct mtp_link_set *set, struct msgb *msg);
 
 /* link related routines */
 void mtp_link_down(struct mtp_link *data);
@@ -187,13 +110,7 @@ int mtp_link_slta(struct mtp_link *link, uint16_t l3_len, struct mtp_level_3_mng
 
 void mtp_link_failure(struct mtp_link *fail);
 
-/* internal routines */
-struct msgb *mtp_msg_alloc(struct mtp_link_set *set);
-
 /* link management */
-struct mtp_link_set *mtp_link_set_alloc(struct bsc_data *bsc);
-struct mtp_link_set *mtp_link_set_num(struct bsc_data *bsc, int num);
-
 struct mtp_link *mtp_link_alloc(struct mtp_link_set *set);
 struct mtp_link *mtp_link_num(struct mtp_link_set *set, int num);
 
