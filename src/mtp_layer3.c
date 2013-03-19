@@ -461,7 +461,8 @@ static int mtp_link_sccp_data(struct mtp_link_set *set, struct mtp_level_3_hdr *
 	}
 
 	rate_ctr_inc(&set->ctrg->ctr[MTP_LSET_SCCP_IN_MSG]);
-	mtp_link_set_forward_sccp(set, msg, MTP_LINK_SLS(hdr->addr));
+	if (set->on_sccp)
+		set->on_sccp(set, msg, MTP_LINK_SLS(hdr->addr));
 	return 0;
 }
 

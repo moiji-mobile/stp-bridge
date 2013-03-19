@@ -1,7 +1,7 @@
 /* Everything related to the BSC connection */
 /*
- * (C) 2010-2012 by Holger Hans Peter Freyther <zecke@selfish.org>
- * (C) 2010-2012 by On-Waves
+ * (C) 2010-2013 by Holger Hans Peter Freyther <zecke@selfish.org>
+ * (C) 2010-2013 by On-Waves
  * All Rights Reserved
  *
  * This program is free software: you can redistribute it and/or modify
@@ -120,6 +120,10 @@ int link_set_init_links(struct bsc_data *bsc, struct mtp_link_set *set);
 int link_set_shutdown_links(struct mtp_link_set *);
 int link_set_reset_links(struct mtp_link_set *);
 int link_set_clear_links(struct mtp_link_set *);
+
+/* called by the link */
+int link_set_down(struct mtp_link_set *);
+int link_set_up(struct mtp_link_set *);
 
 /* pcap */
 enum {

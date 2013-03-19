@@ -111,3 +111,16 @@ int link_set_clear_links(struct mtp_link_set *set)
 	return 0;
 }
 
+int link_set_down(struct mtp_link_set *set)
+{
+	if (set->on_down)
+		set->on_down(set);
+	return 0;
+}
+
+int link_set_up(struct mtp_link_set *set)
+{
+	if (set->on_up)
+		set->on_up(set);
+	return 0;
+}

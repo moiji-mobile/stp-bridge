@@ -51,6 +51,14 @@ struct mtp_link_set {
 	int nr;
 	char *name;
 
+	/*
+	 * Callbacks for the SS7 application
+	 */
+	void (*on_down) (struct mtp_link_set *set);
+	void (*on_up) (struct mtp_link_set *set);
+	void (*on_sccp) (struct mtp_link_set *set, struct msgb *msg, int sls);
+	void (*on_isup) (struct mtp_link_set *set, struct msgb *msg, int sls);
+
 
 	/**
 	 * Routing is very limited. We can only forward to one
@@ -166,8 +174,6 @@ void mtp_link_unblock(struct mtp_link *link);
 
 /* to be implemented for MSU sending */
 void mtp_link_submit(struct mtp_link *link, struct msgb *msg);
-void mtp_link_set_forward_sccp(struct mtp_link_set *set, struct msgb *msg, int sls);
-void mtp_link_set_forward_isup(struct mtp_link_set *set, struct msgb *msg, int sls);
 void mtp_link_restart(struct mtp_link *link);
 int mtp_link_set_send(struct mtp_link_set *set, struct msgb *msg);
 

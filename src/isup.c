@@ -229,7 +229,8 @@ int mtp_link_set_isup(struct mtp_link_set *set, struct msgb *msg, int sls)
 	}
 
 	if (set->pass_all_isup) {
-		mtp_link_set_forward_isup(set, msg, sls);
+		if (set->on_isup)
+			set->on_isup(set, msg, sls);
 		return 0;
 	}
 
@@ -256,7 +257,8 @@ int mtp_link_set_isup(struct mtp_link_set *set, struct msgb *msg, int sls)
 		rc = handle_simple_resp(set, sls, hdr->cic, ISUP_MSG_RLC);
 		break;
 	default:
-		mtp_link_set_forward_isup(set, msg, sls);
+		if (set->on_isup)
+			set->on_isup(set, msg, sls);
 		rc = 0;
 		break;
 	}

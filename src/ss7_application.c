@@ -50,7 +50,7 @@ static void forward_isup_stp(struct mtp_link_set *set, struct msgb *msg, int sls
 	mtp_link_set_submit_isup_data(other, sls, msg->l3h, msgb_l3len(msg));
 }
 
-void mtp_link_set_forward_sccp(struct mtp_link_set *set, struct msgb *_msg, int sls)
+static void on_link_set_sccp(struct mtp_link_set *set, struct msgb *_msg, int sls)
 {
 	if (!set->app) {
 		LOGP(DINP, LOGL_ERROR, "Linkset %d/%s has no application.\n",
@@ -69,7 +69,7 @@ void mtp_link_set_forward_sccp(struct mtp_link_set *set, struct msgb *_msg, int 
 	}
 }
 
-void mtp_link_set_forward_isup(struct mtp_link_set *set, struct msgb *msg, int sls)
+static void on_link_set_isup(struct mtp_link_set *set, struct msgb *msg, int sls)
 {
 	if (!set->app) {
 		LOGP(DINP, LOGL_ERROR, "Linkset %d/%s has no application.\n",
@@ -89,7 +89,7 @@ void mtp_link_set_forward_isup(struct mtp_link_set *set, struct msgb *msg, int s
 	}
 }
 
-void mtp_linkset_down(struct mtp_link_set *set)
+static void on_link_set_down(struct mtp_link_set *set)
 {
 	set->available = 0;
 	mtp_link_set_stop(set);
@@ -111,7 +111,7 @@ void mtp_linkset_down(struct mtp_link_set *set)
 	}
 }
 
-void mtp_linkset_up(struct mtp_link_set *set)
+static void on_link_set_up(struct mtp_link_set *set)
 {
 	set->available = 1;
 
@@ -131,7 +131,6 @@ void mtp_linkset_up(struct mtp_link_set *set)
 
 	mtp_link_set_reset(set);
 }
-
 
 struct ss7_application *ss7_application_alloc(struct bsc_data *bsc)
 {
@@ -348,6 +347,11 @@ static void start_set(struct ss7_application *app, struct mtp_link_set *set)
 {
 	if (!set)
 		return;
+
+	set->on_down = on_link_set_down;
+	set->on_up = on_link_set_up;
+	set->on_sccp = on_link_set_sccp;
+	set->on_isup = on_link_set_isup;
 
 	set->isup_opc = set->isup_opc >= 0 ? set->isup_opc : set->opc;
 	set->sccp_opc = set->sccp_opc >= 0 ? set->sccp_opc : set->opc;
