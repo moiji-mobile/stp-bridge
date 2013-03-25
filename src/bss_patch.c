@@ -80,22 +80,22 @@ static void patch_ass_cmpl(struct msgb *msg, int length)
 	}
 
 	tlv_parse(&tp, gsm0808_att_tlvdef(), msg->l3h + 1, length - 1, 0, 0);
-	if (!TLVP_PRESENT(&tp, GSM0808_IE_CHOSEN_CHANNEL)) {
+
+	/* Now patch chosen channel and speech version */
+
+	if (TLVP_PRESENT(&tp, GSM0808_IE_CHOSEN_CHANNEL)) {
+		data = (uint8_t *) TLVP_VAL(&tp, GSM0808_IE_CHOSEN_CHANNEL);
+		data[0] = 0x09;
+	} else {
 		LOGP(DMSC, LOGL_ERROR, "Chosen Channel not in the MSG.\n");
-		return;
 	}
 
-	if (!TLVP_PRESENT(&tp, GSM0808_IE_SPEECH_VERSION)) {
+	if (TLVP_PRESENT(&tp, GSM0808_IE_SPEECH_VERSION)) {
+		data = (uint8_t *) TLVP_VAL(&tp, GSM0808_IE_SPEECH_VERSION);
+		data[0] = GSM0808_PERM_HR3;
+	} else {
 		LOGP(DMSC, LOGL_ERROR, "Speech version not in the MSG.\n");
-		return;
 	}
-
-	/* claim to have a TCH/H with no mode indication */
-	data = (uint8_t *) TLVP_VAL(&tp, GSM0808_IE_CHOSEN_CHANNEL);
-	data[0] = 0x09;
-
-	data = (uint8_t *) TLVP_VAL(&tp, GSM0808_IE_SPEECH_VERSION);
-	data[0] = GSM0808_PERM_HR3;
 }
 
 int bss_patch_filter_msg(struct msgb *msg, struct sccp_parse_result *sccp, int dir)
