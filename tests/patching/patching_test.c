@@ -2,6 +2,7 @@
 
 #include <cellmgr_debug.h>
 
+#include <osmocom/core/application.h>
 #include <osmocom/core/utils.h>
 
 #include <stdio.h>
@@ -34,6 +35,18 @@ static const uint8_t reset_ack[] = {
 static const uint8_t cc[] = {
 0x02, 0x01, 0x04, 
 0x00, 0x01, 0x01, 0xb4, 0x02, 0x01, 0x00 };
+
+static const uint8_t ass_rewrite[] = {
+	0x06, 0xe5, 0xe2, 0x0e, 0x00, 0x01, 0x0c, 0x00,
+	0x0a, 0x01, 0x0b, 0x04, 0x01, 0x0b, 0xa1, 0x25,
+	0x01, 0x00, 0x08
+};
+
+static const uint8_t ass_rewrite_patched[] = {
+	0x06, 0xe5, 0xe2, 0x0e, 0x00, 0x01, 0x0c, 0x00,
+	0x0a, 0x01, 0x0b, 0x04, 0x01, 0x0a, 0x91, 0x25,
+	0x01, 0x00, 0x08
+};
 
 
 struct result {
@@ -74,6 +87,12 @@ static struct result results[] = {
 		.expected = cc,
 		.exp_len = sizeof(cc),
 		.result = 0,
+	},
+	{
+		.input = ass_rewrite,
+		.inp_len = sizeof(ass_rewrite),
+		.expected = ass_rewrite_patched,
+		.exp_len = sizeof(ass_rewrite_patched),
 	},
 };
 
@@ -135,6 +154,21 @@ static const uint8_t dt1_cc_setup[] = {
 0x99, 0x13, 0x28, 0x77, 0x77
 };
 
+static const uint8_t dt1_ass_compl_norewrite[] = {
+	0x06, 0x01, 0x09, 0xaf, 0x00, 0x01, 0x09, 0x00,
+	0x07, 0x02, 0x21, 0x09, 0x2c, 0x02, 0x40, 0x25,
+};
+
+static const uint8_t dt1_ass_compl[] = {
+	0x06, 0x01, 0x02, 0x47, 0x00, 0x01, 0x05, 0x00,
+	0x03, 0x02, 0x40, 0x01,
+};
+
+static const uint8_t dt1_ass_compl_patched[] = {
+	0x06, 0x01, 0x02, 0x47, 0x00, 0x01, 0x05, 0x00,
+	0x03, 0x02, 0x40, 0x25,
+};
+
 static struct result rewrite_results_to_msc[] = {
 	{
 		.input = udt_with_poi,
@@ -169,6 +203,18 @@ static struct result rewrite_results_to_msc[] = {
 		.inp_len = sizeof(dt1_cc_setup),
 		.expected = dt1_cc_setup,
 		.exp_len = sizeof(dt1_cc_setup),
+	},
+	{
+		.input = dt1_ass_compl_norewrite,
+		.inp_len = sizeof(dt1_ass_compl_norewrite),
+		.expected = dt1_ass_compl_norewrite,
+		.exp_len = sizeof(dt1_ass_compl_norewrite),
+	},
+	{
+		.input = dt1_ass_compl,
+		.inp_len = sizeof(dt1_ass_compl),
+		.expected = dt1_ass_compl_patched,
+		.exp_len = sizeof(dt1_ass_compl_patched),
 	},
 };
 
@@ -304,6 +350,8 @@ static void test_rewrite_bsc(void)
 
 int main(int argc, char **argv)
 {
+	osmo_init_logging(&log_info);
+
 	test_patch_filter();
 	test_rewrite_msc();
 	test_rewrite_bsc();
