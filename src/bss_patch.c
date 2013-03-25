@@ -40,8 +40,9 @@ static int handle_bss_dtap(struct msgb *msg, struct sccp_parse_result *sccp, int
 static void patch_ass_rqst(struct msgb *msg, int length)
 {
 	struct tlv_parsed tp;
-	uint8_t *data, audio;
+	uint8_t *data;
 	int len;
+	int i;
 
 	tlv_parse(&tp, gsm0808_att_tlvdef(), msg->l3h + 1, length - 1, 0, 0);
 	len = TLVP_LEN(&tp, GSM0808_IE_CHANNEL_TYPE);
@@ -53,12 +54,17 @@ static void patch_ass_rqst(struct msgb *msg, int length)
 	if ((data[0] & 0xf) != 0x1)
 		return;
 
-	/* blindly assign */
+	/* blindly assign FR2 on all slots */
 	data[1] = GSM0808_SPEECH_FULL_PREF;
-	audio = GSM0808_PERM_FR2;
-	if (len > 3)
-		audio |= 0x80;
-	data[2] = audio;
+	for (i = 0; i < len - 2; ++i) {
+		uint8_t audio = GSM0808_PERM_FR2;
+
+		/* at the end? */
+		if (i + 1 != len - 2)
+			audio |= 0x80;
+		data[2 + i] = audio;
+		printf("PATCHED %d\n", i);
+	}
 }
 
 static void patch_ass_cmpl(struct msgb *msg, int length)
