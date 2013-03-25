@@ -63,7 +63,6 @@ static void patch_ass_rqst(struct msgb *msg, int length)
 		if (i + 1 != len - 2)
 			audio |= 0x80;
 		data[2 + i] = audio;
-		printf("PATCHED %d\n", i);
 	}
 }
 
