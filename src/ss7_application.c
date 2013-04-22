@@ -306,6 +306,7 @@ static int ss7_app_setup_relay(struct ss7_application *app, int type,
 	app->route_dst.msc = msc;
 
 	app->type = type;
+	app->bsc->m2ua_trans->started = 1;
 	app->route_is_set = 1;
 
 	return 0;
