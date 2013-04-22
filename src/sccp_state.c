@@ -51,6 +51,19 @@ static void handle_local_sccp(struct mtp_link_set *set, struct msgb *inp, struct
 static void send_local_rlsd(struct mtp_link_set *set, struct sccp_parse_result *res);
 static void update_con_state(struct ss7_application *ss7, int rc, struct sccp_parse_result *result, struct msgb *msg, int from_msc, int sls);
 
+static void send_direct(struct msc_connection *msc, struct msgb *_msg)
+{
+	struct msgb *msg = msgb_alloc_headroom(4096, 128, "SCCP to MSC");
+	if (!msg) {
+		LOGP(DMSC, LOGL_ERROR, "Failed to alloc MSC msg.\n");
+		return;
+	}
+
+	msg->l2h = msgb_put(msg, msgb_l2len(_msg));
+	memcpy(msg->l2h, _msg->l2h, msgb_l2len(_msg));
+	msc_send_direct(msc, msg);
+}
+
 /*
  * methods called from the MTP Level3 part
  */
@@ -67,7 +80,7 @@ void app_forward_sccp(struct ss7_application *app, struct msgb *_msg, int sls)
 	msc = app->route_dst.msc;
 
 	if (app->forward_only) {
-		msc_send_direct(msc, _msg);
+		send_direct(msc, _msg);
 		return;
 	}
 
