@@ -1059,6 +1059,24 @@ DEFUN(cfg_app_no_trunk_name, cfg_app_no_trunk_name_cmd,
 	return CMD_SUCCESS;
 }
 
+DEFUN(cfg_app_forward_only, cfg_app_forward_only_cmd,
+      "forward-only",
+      "Forward SCCP messages untouched to/from a IPA/SCCP connection\n")
+{
+	struct ss7_application *app = vty->index;
+	app->forward_only = 1;
+	return CMD_SUCCESS;
+}
+
+DEFUN(cfg_app_no_forward_only, cfg_app_no_forward_only_cmd,
+      "no forward-only",
+      NO_STR "Forward SCCP messages untouched to/from a IPA/SCCP connection\n")
+{
+	struct ss7_application *app = vty->index;
+	app->forward_only = 0;
+	return CMD_SUCCESS;
+}
+
 static void install_defaults(int node)
 {
 	install_default(node);
@@ -1136,6 +1154,8 @@ void cell_vty_init(void)
 	install_element(APP_NODE, &cfg_app_no_domain_name_cmd);
 	install_element(APP_NODE, &cfg_app_trunk_name_cmd);
 	install_element(APP_NODE, &cfg_app_no_trunk_name_cmd);
+	install_element(APP_NODE, &cfg_app_forward_only_cmd);
+	install_element(APP_NODE, &cfg_app_no_forward_only_cmd);
 
 	cell_vty_init_cmds();
 }
