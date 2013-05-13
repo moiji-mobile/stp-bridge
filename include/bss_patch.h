@@ -36,6 +36,8 @@
 #define BSS_DIR_MSC		2
 #define BSS_DIR_ANY		(BSS_DIR_MSC | BSS_DIR_BSC)
 
+struct ss7_application;
+
 /**
  * Error is < 0
  * Success is == 0
@@ -43,7 +45,7 @@
  *
  * Direction...
  */
-int bss_patch_filter_msg(struct msgb *msg, struct sccp_parse_result *result, int dir);
+int bss_patch_filter_msg(struct ss7_application *app, struct msgb *msg, struct sccp_parse_result *result, int dir);
 
 /*
  * Copy inpt->l2h to target->l2h but rewrite the SCCP header on the way
