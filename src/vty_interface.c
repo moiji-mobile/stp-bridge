@@ -1,7 +1,7 @@
 /* VTY code for the osmo-stp */
 /*
- * (C) 2010-2012 by Holger Hans Peter Freyther <zecke@selfish.org>
- * (C) 2010-2012 by On-Waves
+ * (C) 2010-2013 by Holger Hans Peter Freyther <zecke@selfish.org>
+ * (C) 2010-2013 by On-Waves
  * All Rights Reserved
  *
  * This program is free software: you can redistribute it and/or modify
@@ -295,6 +295,9 @@ static void write_application(struct vty *vty, struct ss7_application *app)
 	vty_out(vty, " application %d%s", app->nr, VTY_NEWLINE);
 	vty_out(vty, "  description %s%s", name, VTY_NEWLINE);
 	vty_out(vty, "  type %s%s", app_type(app->type), VTY_NEWLINE);
+
+	if (app->fixed_ass_cmpl_reply)
+		vty_out(vty, "  hardcode-assignment-complete%s", VTY_NEWLINE);
 
 	if (app->type == APP_STP) {
 		vty_out(vty, "  isup-pass-through %d%s", app->isup_pass, VTY_NEWLINE);
@@ -1029,6 +1032,24 @@ DEFUN(cfg_app_no_trunk_name, cfg_app_no_trunk_name_cmd,
 	return CMD_SUCCESS;
 }
 
+DEFUN(cfg_app_hardcode_ass, cfg_app_hardcode_ass_cmd,
+      "hardcode-assignment-complete",
+      "Hardcode the assignment complete message to HR3\n")
+{
+	struct ss7_application *app = vty->index;
+	app->fixed_ass_cmpl_reply = 1;
+	return CMD_SUCCESS;
+}
+
+DEFUN(cfg_app_no_hardcode_ass, cfg_app_no_hardcode_ass_cmd,
+      "no hardcode-assignment-complete",
+      "Hardcode the assignment complete message to HR3\n")
+{
+	struct ss7_application *app = vty->index;
+	app->fixed_ass_cmpl_reply = 0;
+	return CMD_SUCCESS;
+}
+
 static void install_defaults(int node)
 {
 	install_default(node);
@@ -1104,6 +1125,8 @@ void cell_vty_init(void)
 	install_element(APP_NODE, &cfg_app_no_domain_name_cmd);
 	install_element(APP_NODE, &cfg_app_trunk_name_cmd);
 	install_element(APP_NODE, &cfg_app_no_trunk_name_cmd);
+	install_element(APP_NODE, &cfg_app_hardcode_ass_cmd);
+	install_element(APP_NODE, &cfg_app_no_hardcode_ass_cmd);
 
 	cell_vty_init_cmds();
 }

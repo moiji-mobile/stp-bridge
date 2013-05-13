@@ -170,6 +170,11 @@ static const uint8_t dt1_ass_compl_patched[] = {
 	0x03, 0x02, 0x40, 0x25,
 };
 
+static const uint8_t dt1_ass_compl_hardcoded[] = {
+	0x06, 0x01, 0x02, 0x47, 0x00, 0x01, 0x09, 0x00,
+	0x07, 0x02, 0x21, 0x09, 0x2c, 0x02, 0x40, 0x25,
+};
+
 static struct result rewrite_results_to_msc[] = {
 	{
 		.input = udt_with_poi,
@@ -327,6 +332,58 @@ static void test_rewrite_msc(void)
 	}
 }
 
+static void test_rewrite_msc_fixed_ass_cmpl(void)
+{
+	struct sccp_parse_result result;
+	struct msgb *inp;
+	struct msgb *outp;
+	int rc;
+
+	struct ss7_application app;
+	memset(&app, 0, sizeof(app));
+	app.fixed_ass_cmpl_reply = 1;
+
+	printf("Testing fixed response\n");
+
+	outp = msgb_alloc_headroom(256, 8, "test2");
+	inp = msgb_alloc_headroom(256, 8, "test1");
+	msgb_put(inp, 1);
+	inp->l2h = msgb_put(inp, sizeof(dt1_ass_compl));
+	memcpy(inp->l2h, dt1_ass_compl, msgb_l2len(inp));
+
+	rc = bss_patch_filter_msg(&app, inp, &result, BSS_DIR_MSC);
+	if (rc < 0) {
+		printf("Failed to parse header msg\n");
+		abort();
+	}
+
+	bss_rewrite_header_for_msc(rc, outp, inp, &result);
+
+	memset(&result, 0, sizeof(result));
+	rc = bss_patch_filter_msg(&app, outp, &result, BSS_DIR_MSC);
+	if (rc < 0) {
+		printf("Patched message doesn't work\n");
+		printf("hex: %s\n", osmo_hexdump(outp->l2h, msgb_l2len(outp)));
+		abort();
+	}
+
+	if (msgb_l2len(outp) != sizeof(dt1_ass_compl_hardcoded)) {
+		printf("The length's don't match on %u != %u\n",
+			msgb_l2len(outp), sizeof(dt1_ass_compl_hardcoded));
+		printf("hex: %s\n", osmo_hexdump(outp->l2h, msgb_l2len(outp)));
+		abort();
+	}
+
+	if (memcmp(outp->l2h, dt1_ass_compl_hardcoded, msgb_l2len(outp)) != 0) {
+		printf("Expected results don't match\n");
+		printf("hex: %s\n", osmo_hexdump(outp->l2h, msgb_l2len(outp)));
+		abort();
+	}
+
+	msgb_free(outp);
+	msgb_free(inp);
+}
+
 static void test_rewrite_bsc(void)
 {
 	int i;
@@ -361,6 +418,7 @@ int main(int argc, char **argv)
 
 	test_patch_filter();
 	test_rewrite_msc();
+	test_rewrite_msc_fixed_ass_cmpl();
 	test_rewrite_bsc();
 	printf("All tests passed.\n");
 	return 0;

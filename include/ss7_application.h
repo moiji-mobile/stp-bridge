@@ -81,6 +81,13 @@ struct ss7_application {
 	/* mgcp handling for the cellmgr and stp */
 	char *mgcp_domain_name;
 	char *trunk_name;
+
+	/* various hacks/quirks to deal with broken equipment */
+	/*
+	 * Some equipments do not look into the codec list but only the
+	 * size of it.
+	 */
+	unsigned fixed_ass_cmpl_reply : 1;
 };
 
 

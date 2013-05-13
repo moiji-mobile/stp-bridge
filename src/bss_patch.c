@@ -1,7 +1,7 @@
 /* Patch GSM 08.08 messages for the network and BS */
 /*
- * (C) 2010-2011 by Holger Hans Peter Freyther <zecke@selfish.org>
- * (C) 2010-2011 by On-Waves
+ * (C) 2010-2013 by Holger Hans Peter Freyther <zecke@selfish.org>
+ * (C) 2010-2013 by On-Waves
  * All Rights Reserved
  *
  * This program is free software: you can redistribute it and/or modify
@@ -21,6 +21,7 @@
 
 #include <bss_patch.h>
 #include <cellmgr_debug.h>
+#include <ss7_application.h>
 
 #include <string.h>
 
@@ -71,7 +72,14 @@ static void patch_ass_cmpl(struct ss7_application *app, struct msgb *msg, int le
 	struct tlv_parsed tp;
 	uint8_t *data;
 
-	if (length == 1) {
+	if (length == 1 || app->fixed_ass_cmpl_reply) {
+		/* We need to truncate the message to only include the codec */
+		if (length > 1 && app->fixed_ass_cmpl_reply) {
+			uint8_t *old = msg->tail;
+			msg->tail = &msg->l3h[1];
+			msg->len = old - msg->tail;
+		}
+
 		LOGP(DMSC, LOGL_ERROR, "Hacking the Assignment Complete.\n");
 		msgb_v_put(msg, 0x21);
 		msgb_v_put(msg, 0x09);
