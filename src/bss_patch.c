@@ -34,7 +34,7 @@
 
 #include <arpa/inet.h>
 
-static int handle_bss_mgmt(struct msgb *msg, struct sccp_parse_result *sccp);
+static int handle_bss_mgmt(struct ss7_application *, struct msgb *msg, struct sccp_parse_result *sccp);
 static int handle_bss_dtap(struct msgb *msg, struct sccp_parse_result *sccp, int dir);
 
 static void patch_ass_rqst(struct msgb *msg, int length)
@@ -66,7 +66,7 @@ static void patch_ass_rqst(struct msgb *msg, int length)
 	}
 }
 
-static void patch_ass_cmpl(struct msgb *msg, int length)
+static void patch_ass_cmpl(struct ss7_application *app, struct msgb *msg, int length)
 {
 	struct tlv_parsed tp;
 	uint8_t *data;
@@ -103,7 +103,8 @@ static void patch_ass_cmpl(struct msgb *msg, int length)
 	}
 }
 
-int bss_patch_filter_msg(struct msgb *msg, struct sccp_parse_result *sccp, int dir)
+int bss_patch_filter_msg(struct ss7_application *app, struct msgb *msg,
+				struct sccp_parse_result *sccp, int dir)
 {
 	int type;
 	memset(sccp, 0, sizeof(*sccp));
@@ -145,7 +146,7 @@ int bss_patch_filter_msg(struct msgb *msg, struct sccp_parse_result *sccp, int d
 	}
 
 	if (msg->l3h[0] == BSSAP_MSG_BSS_MANAGEMENT)
-		return handle_bss_mgmt(msg, sccp);
+		return handle_bss_mgmt(app, msg, sccp);
 	if (msg->l3h[0] == BSSAP_MSG_DTAP)
 		return handle_bss_dtap(msg, sccp, dir);
 
@@ -153,7 +154,8 @@ int bss_patch_filter_msg(struct msgb *msg, struct sccp_parse_result *sccp, int d
 	return -1;
 }
 
-static int handle_bss_mgmt(struct msgb *msg, struct sccp_parse_result *sccp)
+static int handle_bss_mgmt(struct ss7_application *app, struct msgb *msg,
+				struct sccp_parse_result *sccp)
 {
 	switch (msg->l3h[2]) {
 	case BSS_MAP_MSG_ASSIGMENT_RQST:
@@ -162,7 +164,7 @@ static int handle_bss_mgmt(struct msgb *msg, struct sccp_parse_result *sccp)
 		break;
 	case BSS_MAP_MSG_ASSIGMENT_COMPLETE:
 		msg->l3h = &msg->l3h[2];
-		patch_ass_cmpl(msg, sccp->data_len - 2);
+		patch_ass_cmpl(app, msg, sccp->data_len - 2);
 		break;
 	case BSS_MAP_MSG_RESET:
 		return BSS_FILTER_RESET;

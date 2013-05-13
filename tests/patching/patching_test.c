@@ -1,6 +1,7 @@
 #include <bss_patch.h>
 
 #include <cellmgr_debug.h>
+#include <ss7_application.h>
 
 #include <osmocom/core/application.h>
 #include <osmocom/core/utils.h>
@@ -243,6 +244,9 @@ static void test_patch_filter(void)
 {
 	int i;
 
+	struct ss7_application app;
+	memset(&app, 0, sizeof(app));
+
 	printf("Testing patching of GSM messages to the MSC.\n");
 
 	for (i = 0; i < sizeof(results)/sizeof(results[0]); ++i) {
@@ -254,7 +258,7 @@ static void test_patch_filter(void)
 		msgb_put(msg, 1);
 		msg->l2h = msgb_put(msg, results[i].inp_len);
 		memcpy(msg->l2h, results[i].input, msgb_l2len(msg));
-		rc = bss_patch_filter_msg(msg, &result, BSS_DIR_ANY);
+		rc = bss_patch_filter_msg(&app, msg, &result, BSS_DIR_ANY);
 
 		if (memcmp(msg->l2h, results[i].expected, results[i].exp_len) != 0) {
 			printf("Failed to patch the packet.\n");
@@ -273,6 +277,9 @@ static void test_rewrite_msc(void)
 {
 	int i;
 
+	struct ss7_application app;
+	memset(&app, 0, sizeof(app));
+
 	printf("Testing rewriting the SCCP header.\n");
 	for (i = 0; i < sizeof(rewrite_results_to_msc)/sizeof(rewrite_results_to_msc[0]); ++i) {
 		struct sccp_parse_result result;
@@ -286,7 +293,7 @@ static void test_rewrite_msc(void)
 		inp->l2h = msgb_put(inp, rewrite_results_to_msc[i].inp_len);
 		memcpy(inp->l2h, rewrite_results_to_msc[i].input, msgb_l2len(inp));
 
-		rc = bss_patch_filter_msg(inp, &result, BSS_DIR_MSC);
+		rc = bss_patch_filter_msg(&app, inp, &result, BSS_DIR_MSC);
 		if (rc < 0) {
 			printf("Failed to parse header msg: %d\n", i);
 			abort();
@@ -295,7 +302,7 @@ static void test_rewrite_msc(void)
 		bss_rewrite_header_for_msc(rc, outp, inp, &result);
 
 		memset(&result, 0, sizeof(result));
-		rc = bss_patch_filter_msg(outp, &result, BSS_DIR_MSC);
+		rc = bss_patch_filter_msg(&app, outp, &result, BSS_DIR_MSC);
 		if (rc < 0) {
 			printf("Patched message doesn't work: %d\n", i);
 			printf("hex: %s\n", osmo_hexdump(outp->l2h, msgb_l2len(outp)));
