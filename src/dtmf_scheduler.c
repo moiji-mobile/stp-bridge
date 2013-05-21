@@ -57,3 +57,8 @@ void dtmf_state_played(struct dtmf_state *state)
 {
 	state->playing = 0;
 }
+
+unsigned int dtmf_tones_queued(struct dtmf_state *state)
+{
+	return state->size;
+}

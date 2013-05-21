@@ -22,4 +22,6 @@ void dtmf_state_get_pending(struct dtmf_state *state, char *tones);
 /* call when the playout is done */
 void dtmf_state_played(struct dtmf_state *state);
 
+unsigned int dtmf_tones_queued(struct dtmf_state *state);
+
 #endif
