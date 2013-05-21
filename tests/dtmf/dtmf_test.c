@@ -35,6 +35,7 @@ static void test_queue_while_play(void)
 {
 	struct dtmf_state state;
 	char tone[sizeof(state.tones) + 1];
+	unsigned int len = 0;
 
 	dtmf_state_init(&state);
 
@@ -42,7 +43,8 @@ static void test_queue_while_play(void)
 	ASSERT(dtmf_state_add(&state, 'b'), 0);
 	ASSERT(dtmf_state_add(&state, 'c'), 0);
 
-	dtmf_state_get_pending(&state, tone);
+	len = dtmf_state_get_pending(&state, tone);
+	ASSERT(len, 3);
 	ASSERT(strlen(tone), 3);
 	ASSERT(state.playing, 1);
 	ASSERT(strcmp(tone, "abc"), 0);
@@ -51,7 +53,8 @@ static void test_queue_while_play(void)
 	dtmf_state_played(&state);
 	ASSERT(state.playing, 0);
 
-	dtmf_state_get_pending(&state, tone);
+	len = dtmf_state_get_pending(&state, tone);
+	ASSERT(len, 1);
 	ASSERT(strlen(tone), 1);
 	ASSERT(state.playing, 1);
 	ASSERT(strcmp(tone, "d"), 0);
@@ -61,7 +64,8 @@ static void test_queue_while_play(void)
 	ASSERT(state.playing, 0);
 
 	/* and check that nothing is played */
-	dtmf_state_get_pending(&state, tone);
+	len = dtmf_state_get_pending(&state, tone);
+	ASSERT(len, 0);
 	ASSERT(strlen(tone), 0);
 	ASSERT(state.playing, 0);
 }
@@ -72,6 +76,7 @@ static void test_queue_over_flow(void)
 	const size_t max_items = sizeof(state.tones);
 	char tone[sizeof(state.tones) + 1];
 	int i;
+	unsigned int len;
 
 	dtmf_state_init(&state);
 
@@ -84,7 +89,8 @@ static void test_queue_over_flow(void)
 	ASSERT(dtmf_state_add(&state, 'Z'), -1);
 
 	/* read all of it */
-	dtmf_state_get_pending(&state, tone);
+	len = dtmf_state_get_pending(&state, tone);
+	ASSERT(len, max_items);
 	ASSERT(strlen(tone), max_items);
 	for (i = 0; i < strlen(tone); ++i)
 		ASSERT(tone[i], 'a' + i);
