@@ -99,11 +99,20 @@ static void test_queue_over_flow(void)
 	ASSERT(state.playing, 0);
 }
 
+static void test_queue_null_byte(void)
+{
+	struct dtmf_state state;
+	dtmf_state_init(&state);
+
+	ASSERT(dtmf_state_add(&state, 0), -2);
+}
+
 
 int main(int argc, char **argv)
 {
 	test_queue_while_play();
 	test_queue_over_flow();
+	test_queue_null_byte();
 	printf("All tests passed.\n");
 	return 0;
 }

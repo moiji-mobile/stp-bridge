@@ -32,6 +32,9 @@ int dtmf_state_add(struct dtmf_state *state, char tone)
 	/* we would override the head */
 	if (state->size == sizeof(state->tones))
 		return -1;
+	/* avoid someone adding a NULL byte */
+	if (tone == 0)
+		return -2;
 
 	state->tones[state->size++] = tone;
 	return 0;
