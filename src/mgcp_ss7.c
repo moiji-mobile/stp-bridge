@@ -97,13 +97,27 @@ static void send_dtmf(struct mgcp_endpoint *mgw_endp, int ascii_tone)
 {
 	int rc;
 	rc = dtmf_state_add(&mgw_endp->dtmf_state, ascii_tone);
-	if (rc != 0) {
+	if (rc == -1) {
 		fprintf(stderr, "DTMF queue too long on 0x%x with %u tones\n",
 			ENDPOINT_NUMBER(mgw_endp),
 			dtmf_tones_queued(&mgw_endp->dtmf_state));
 		syslog(LOG_ERR, "DTMF queue too long on 0x%x with %u tones\n",
 			ENDPOINT_NUMBER(mgw_endp),
 			dtmf_tones_queued(&mgw_endp->dtmf_state));
+		return;
+	}
+	if (rc == -2) {
+		fprintf(stderr, "DTMF illegal tone %d on 0x%x\n",
+			ascii_tone, ENDPOINT_NUMBER(mgw_endp));
+		syslog(LOG_ERR, "DTMF illegal tone %d on 0x%x\n",
+			ascii_tone, ENDPOINT_NUMBER(mgw_endp));
+		return;
+	}
+	if (rc < 0) {
+		fprintf(stderr, "DTMF unknown error %d on 0x%x\n",
+			rc, ENDPOINT_NUMBER(mgw_endp));
+		syslog(LOG_ERR, "DTMF unknown error %d on 0x%x\n",
+			rc, ENDPOINT_NUMBER(mgw_endp));
 		return;
 	}
 
