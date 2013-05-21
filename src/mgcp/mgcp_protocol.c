@@ -586,7 +586,7 @@ static struct msgb *handle_create_con(struct mgcp_parse_data *p)
 		} else {
 			LOGP(DMGCP, LOGL_ERROR, "Endpoint is already used. 0x%x\n",
 			     ENDPOINT_NUMBER(endp));
-			return create_err_response(endp, 400, "CRCX", p->trans);
+			return create_err_response(endp, 502, "CRCX", p->trans);
 		}
 	}
 
