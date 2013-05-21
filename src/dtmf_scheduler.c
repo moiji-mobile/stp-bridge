@@ -1,6 +1,6 @@
 /*
- * (C) 2012 by Holger Hans Peter Freyther
- * (C) 2012 by On-Waves
+ * (C) 2012-2013 by Holger Hans Peter Freyther
+ * (C) 2012-2013 by On-Waves
  * All Rights Reserved
  *
  * This program is free software: you can redistribute it and/or modify
@@ -37,7 +37,7 @@ int dtmf_state_add(struct dtmf_state *state, char tone)
 	return 0;
 }
 
-void dtmf_state_get_pending(struct dtmf_state *state, char *tones)
+unsigned int dtmf_state_get_pending(struct dtmf_state *state, char *tones)
 {
 	int pos;
 
@@ -51,6 +51,7 @@ void dtmf_state_get_pending(struct dtmf_state *state, char *tones)
 	if (pos > 0)
 		state->playing = 1;
 	tones[pos] = '\0';
+	return pos;
 }
 
 void dtmf_state_played(struct dtmf_state *state)

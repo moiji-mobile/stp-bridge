@@ -17,7 +17,7 @@ void dtmf_state_init(struct dtmf_state *state);
 int dtmf_state_add(struct dtmf_state *state, char tone);
 
 /* tones that should be played, playing will be set to 1 */
-void dtmf_state_get_pending(struct dtmf_state *state, char *tones);
+unsigned int dtmf_state_get_pending(struct dtmf_state *state, char *tones);
 
 /* call when the playout is done */
 void dtmf_state_played(struct dtmf_state *state);
