@@ -16,11 +16,15 @@ void dtmf_state_init(struct dtmf_state *state);
 /* add a tone to the list */
 int dtmf_state_add(struct dtmf_state *state, char tone);
 
+/* pop one tone from the last */
+char dtmf_state_pop_tone(struct dtmf_state *state);
+
 /* tones that should be played, playing will be set to 1 */
 unsigned int dtmf_state_get_pending(struct dtmf_state *state, char *tones);
 
 /* call when the playout is done */
 void dtmf_state_played(struct dtmf_state *state);
+void dtmf_state_play(struct dtmf_state *state);
 
 unsigned int dtmf_tones_queued(struct dtmf_state *state);
 

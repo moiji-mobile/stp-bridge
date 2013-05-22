@@ -73,20 +73,19 @@ static struct mgcp_endpoint *s_endpoints[240];
 static void play_pending_tones(struct mgcp_endpoint *endp)
 {
 	ToneGenerationT toneGeneration;
-	char tones[25];
-	size_t len;
+	char tones[2];
 
-	/* Check if we need to play anything? */
-	len = dtmf_state_get_pending(&endp->dtmf_state, tones);
-
-	/* nothing to play? */
-	if (len == 0)
+	if (dtmf_tones_queued(&endp->dtmf_state) == 0)
 		return;
 
+	/* play a single tone */
+	dtmf_state_play(&endp->dtmf_state);
+	tones[0] = dtmf_state_pop_tone(&endp->dtmf_state);
+	tones[1] = '\0';
+
 	/* fill out the data now */
-	osmo_static_assert(sizeof(tones) <= sizeof(toneGeneration.list), Enough_space_for_tones);
 	memset(&toneGeneration, 0, sizeof(toneGeneration));
-	toneGeneration.count = len;
+	toneGeneration.count = 1;
 	strcpy(toneGeneration.list, tones);
 	MtnSaSetMOB(endp->audio_port, ChannelType_PORT,
 		PredefMob_C_TONE_GENERATION, (char *) &toneGeneration,

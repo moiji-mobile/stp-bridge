@@ -21,6 +21,7 @@
 #include "dtmf_scheduler.h"
 #include <string.h>
 #include <stdio.h>
+#include <limits.h>
 
 void dtmf_state_init(struct dtmf_state *state)
 {
@@ -38,6 +39,19 @@ int dtmf_state_add(struct dtmf_state *state, char tone)
 
 	state->tones[state->size++] = tone;
 	return 0;
+}
+
+char dtmf_state_pop_tone(struct dtmf_state *state)
+{
+	char res;
+
+	if (state->size == 0)
+		return CHAR_MAX;
+
+	res = state->tones[0];
+	state->size -= 1;
+	memmove(&state->tones[0], &state->tones[1], state->size);
+	return res;
 }
 
 unsigned int dtmf_state_get_pending(struct dtmf_state *state, char *tones)
@@ -60,6 +74,11 @@ unsigned int dtmf_state_get_pending(struct dtmf_state *state, char *tones)
 void dtmf_state_played(struct dtmf_state *state)
 {
 	state->playing = 0;
+}
+
+void dtmf_state_play(struct dtmf_state *state)
+{
+	state->playing = 1;
 }
 
 unsigned int dtmf_tones_queued(struct dtmf_state *state)

@@ -1,6 +1,6 @@
 /*
- * (C) 2012 by Holger Hans Peter Freyther <zecke@selfish.org>
- * (C) 2012 by On-Waves
+ * (C) 2012-2013 by Holger Hans Peter Freyther <zecke@selfish.org>
+ * (C) 2012-2013 by On-Waves
  * All Rights Reserved
  *
  * This program is free software: you can redistribute it and/or modify
@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <limits.h>
 
 #define ASSERT(got,want) \
 	if (got != want) { \
@@ -107,12 +108,40 @@ static void test_queue_null_byte(void)
 	ASSERT(dtmf_state_add(&state, 0), -2);
 }
 
+static void test_queue_single_pop(void)
+{
+	struct dtmf_state state;
+	dtmf_state_init(&state);
+
+	/* check the empty tone */
+	ASSERT(dtmf_state_pop_tone(&state), CHAR_MAX);
+
+	dtmf_state_add(&state, '0');
+	dtmf_state_add(&state, '1');
+	dtmf_state_add(&state, '2');
+	ASSERT(dtmf_state_pop_tone(&state), '0');
+	ASSERT(dtmf_state_pop_tone(&state), '1');
+	ASSERT(dtmf_state_pop_tone(&state), '2');
+	ASSERT(dtmf_state_pop_tone(&state), CHAR_MAX);
+
+	dtmf_state_add(&state, '3');
+	dtmf_state_add(&state, '4');
+	dtmf_state_add(&state, '5');
+	ASSERT(dtmf_state_pop_tone(&state), '3');
+	ASSERT(dtmf_state_pop_tone(&state), '4');
+	dtmf_state_add(&state, '6');
+	ASSERT(dtmf_state_pop_tone(&state), '5');
+	ASSERT(dtmf_state_pop_tone(&state), '6');
+	ASSERT(dtmf_state_pop_tone(&state), CHAR_MAX);
+}
+
 
 int main(int argc, char **argv)
 {
 	test_queue_while_play();
 	test_queue_over_flow();
 	test_queue_null_byte();
+	test_queue_single_pop();
 	printf("All tests passed.\n");
 	return 0;
 }
