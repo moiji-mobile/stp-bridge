@@ -273,6 +273,10 @@ static int uniporte_events(unsigned long port, EventTypeT event,
       }
       dtmf_state_played(&endp->dtmf_state);
       play_pending_tones(endp);
+    } else if (info->trapId == Trap_TONES_DETECTED) {
+      sprintf(text, "TONE DETECTED on #%ld", port);
+      puts(text);
+      MtnSaGetMOB(port, ChannelType_PORT, PredefMob_S_TONE_DETECTION, 1, 1);
     }
   }
   else if ( event == Event_MANAGED_OBJECT_SET_COMPLETE ) {
@@ -299,6 +303,16 @@ static int uniporte_events(unsigned long port, EventTypeT event,
 		sprintf( text, "Mob ID %d status %d", info->MOBId, info->status );
 		puts(text);
 		check_exit(text, info->status);
+
+		if (info->MOBId == PredefMob_S_TONE_DETECTION) {
+			int i;
+			ToneDetectionPtr tones;
+
+			tones = (ToneDetectionPtr)info->buffer;
+			for (i = 0; i < tones->count; ++i)
+				printf("Port %ld detected tone '%c'\n",
+					port, tones->list[i]);
+		}
    }
    else if (event == Event_CONNECT)
    {
