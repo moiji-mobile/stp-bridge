@@ -246,6 +246,26 @@ DEFUN(cfg_trunk_loop_idle, cfg_trunk_loop_idle_cmd,
 	return CMD_SUCCESS;
 }
 
+DEFUN(cfg_trunk_dtmf_on_off_time, cfg_trunk_dtmf_on_off_time_cmd,
+      "dtmf on-off-time <50-255>",
+      "DTMF related commands\n" "On-Off-Time for tones\n"
+      "Time in milliseconds\n")
+{
+	struct mgcp_trunk_config *trunk = vty->index;
+	trunk->dtmf_on_off_time = atoi(argv[0]);
+	return CMD_SUCCESS;
+}
+
+DEFUN(cfg_trunk_dtmf_transmit_pwr, cfg_trunk_dtmf_transmit_pwr_cmd,
+      "dtmf transmit-power <1-255>",
+      "DTMF related commands\n" "Transmit power\n"
+      "Power in units\n")
+{
+	struct mgcp_trunk_config *trunk = vty->index;
+	trunk->dtmf_transmit_pwr = atoi(argv[0]);
+	return CMD_SUCCESS;
+}
+
 void mgcp_write_extra(struct vty *vty, struct mgcp_config *cfg)
 {
 	vty_out(vty, "  configure-trunks %d%s",
@@ -293,6 +313,10 @@ void write_trunk_extra(struct vty *vty, struct mgcp_trunk_config *trunk)
 		trunk->dwnstr_target_lvl, VTY_NEWLINE);
 	vty_out(vty, "  loop-on-idle %d%s",
 		trunk->loop_on_idle, VTY_NEWLINE);
+	vty_out(vty, "  dtmf on-off-time %d%s",
+		trunk->dtmf_on_off_time, VTY_NEWLINE);
+	vty_out(vty, "  dtmf transmit-power %d%s",
+		trunk->dtmf_transmit_pwr, VTY_NEWLINE);
 	write_blocked_endpoints(vty, trunk);
 }
 
@@ -335,6 +359,8 @@ void mgcp_mgw_vty_init(void)
 	install_element(VTRUNK_NODE, &cfg_trunk_endp_offset_cmd);
 	install_element(VTRUNK_NODE, &cfg_trunk_timeslot_block_cmd);
 	install_element(VTRUNK_NODE, &cfg_trunk_loop_idle_cmd);
+	install_element(VTRUNK_NODE, &cfg_trunk_dtmf_on_off_time_cmd);
+	install_element(VTRUNK_NODE, &cfg_trunk_dtmf_transmit_pwr_cmd);
 
 	install_element(TRUNK_NODE, &cfg_trunk_vad_cmd);
 	install_element(TRUNK_NODE, &cfg_trunk_realloc_cmd);
@@ -351,6 +377,8 @@ void mgcp_mgw_vty_init(void)
 	install_element(TRUNK_NODE, &cfg_trunk_endp_offset_cmd);
 	install_element(TRUNK_NODE, &cfg_trunk_timeslot_block_cmd);
 	install_element(TRUNK_NODE, &cfg_trunk_loop_idle_cmd);
+	install_element(TRUNK_NODE, &cfg_trunk_dtmf_on_off_time_cmd);
+	install_element(TRUNK_NODE, &cfg_trunk_dtmf_transmit_pwr_cmd);
 }
 
 

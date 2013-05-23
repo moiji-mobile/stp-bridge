@@ -510,6 +510,11 @@ static void allocate_endp(struct mgcp_ss7 *ss7, struct mgcp_endpoint *endp)
 			  ManObj_C_AMR_MODE_REQUEST, 2, 0);
 	MtnSaSetManObject(mgw_port, ChannelType_PORT,
 			  ManObj_C_VOICE_VAD_CNG, endp->tcfg->vad_enabled, 0);
+	MtnSaSetManObject(mgw_port, ChannelType_PORT,
+			  ManObj_G_DTMF_ON_OFF_TIME, endp->tcfg->dtmf_on_off_time, 0);
+	MtnSaSetManObject(mgw_port, ChannelType_PORT,
+			  ManObj_G_DTMF_TRANSMIT_POWER, endp->tcfg->dtmf_transmit_pwr, 0);
+
 
 	update_mute_status(mgw_port, endp->conn_mode);
 
