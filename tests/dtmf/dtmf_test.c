@@ -119,19 +119,29 @@ static void test_queue_single_pop(void)
 	dtmf_state_add(&state, '0');
 	dtmf_state_add(&state, '1');
 	dtmf_state_add(&state, '2');
+	ASSERT(dtmf_tones_queued(&state), 3);
 	ASSERT(dtmf_state_pop_tone(&state), '0');
+	ASSERT(dtmf_tones_queued(&state), 2);
 	ASSERT(dtmf_state_pop_tone(&state), '1');
+	ASSERT(dtmf_tones_queued(&state), 1);
 	ASSERT(dtmf_state_pop_tone(&state), '2');
+	ASSERT(dtmf_tones_queued(&state), 0);
 	ASSERT(dtmf_state_pop_tone(&state), CHAR_MAX);
 
 	dtmf_state_add(&state, '3');
 	dtmf_state_add(&state, '4');
 	dtmf_state_add(&state, '5');
+	ASSERT(dtmf_tones_queued(&state), 3);
 	ASSERT(dtmf_state_pop_tone(&state), '3');
+	ASSERT(dtmf_tones_queued(&state), 2);
 	ASSERT(dtmf_state_pop_tone(&state), '4');
+	ASSERT(dtmf_tones_queued(&state), 1);
 	dtmf_state_add(&state, '6');
+	ASSERT(dtmf_tones_queued(&state), 2);
 	ASSERT(dtmf_state_pop_tone(&state), '5');
+	ASSERT(dtmf_tones_queued(&state), 1);
 	ASSERT(dtmf_state_pop_tone(&state), '6');
+	ASSERT(dtmf_tones_queued(&state), 0);
 	ASSERT(dtmf_state_pop_tone(&state), CHAR_MAX);
 }
 
