@@ -128,6 +128,8 @@ struct mgcp_trunk_config {
 	char *virtual_domain;
 	int target_trunk_start;
 	int vad_enabled;
+	int dtmf_on_off_time;
+	int dtmf_transmit_pwr;
 
 	int digital_inp_gain;
 	int digital_out_gain;

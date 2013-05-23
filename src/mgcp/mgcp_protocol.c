@@ -948,6 +948,10 @@ static void trunk_init(struct mgcp_trunk_config *trunk)
 	trunk->dwnstr_adp_rate = 100;
 	trunk->dwnstr_max_gain = 46;
 	trunk->dwnstr_target_lvl = 20;
+
+	/* dtmf defaults */
+	trunk->dtmf_on_off_time = 70;
+	trunk->dtmf_transmit_pwr = 50;
 }
 
 struct mgcp_config *mgcp_config_alloc(void)
