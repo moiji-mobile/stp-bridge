@@ -1,0 +1,3 @@
+This is done for experimentation as there were some issues in
+detecting tones at the end of a MGW-MSC-MGW routing of the tones
+(inline, MGCP, inline).
