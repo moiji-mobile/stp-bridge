@@ -184,7 +184,7 @@ static int m2ua_handle_asp_ack(struct sctp_m2ua_conn *conn,
 
 	/* some verification about the ASPs */
 	llist_for_each_entry(tmp, &trans->conns, entry) {
-		if (tmp != conn)
+		if (tmp == conn)
 			continue;
 		if (memcmp(tmp->asp_ident, conn->asp_ident, 4) != 0)
 			continue;
