@@ -326,6 +326,7 @@ static int m2ua_handle_state_req(struct mtp_m2ua_link *link,
 			return -1;
 
 		index = htonl(link->link_index);
+		req = htonl(req);
 		conf->hdr.msg_class = M2UA_CLS_MAUP;
 		conf->hdr.msg_type = M2UA_MAUP_STATE_CON;
 		m2ua_msg_add_data(conf, MUA_TAG_IDENT_INT, 4, (uint8_t *) &index);
