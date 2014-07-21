@@ -1,0 +1,46 @@
+Source: cellmgr-ng
+Section: net
+Priority: optional
+Maintainer: Holger Hans Peter Freyther <holger@freyther.de>
+Build-Depends: debhelper (>= 7.0.0~), autotools-dev, pkg-config, libosmocore-dev, libosmo-sccp-dev, dh-autoreconf, libsnmp-dev, libsctp-dev
+Standards-Version: 3.8.4
+Homepage: http://openbsc.osmocom.org/
+Vcs-Git: git://bs11-abis.gnumonks.org/cellmgr-ng.git
+Vcs-Browser: http://openbsc.osmocom.org/trac/browser
+
+Package: osmocom-cellmgr-ng
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Proxy between E1 to IP
+
+Package: osmocom-cellmgr-stp
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Simple Signalling Transfer Point (STP)
+
+Package: osmocom-cellmgr-mgcp-mgw
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: MGW proxy between E1 to IP
+
+Package: osmocom-cellmgr-ng-dbg
+Architecture: any
+Section: debug
+Priority: extra
+Depends: osmocom-cellmgr-ng (= ${binary:Version}), ${misc:Depends}
+Description: Debug symbols for cellmgr-ng
+
+Package: osmocom-cellmgr-stp-dbg
+Architecture: any
+Section: debug
+Priority: extra
+Depends: osmocom-cellmgr-stp (= ${binary:Version}), ${misc:Depends}
+Description: Debug symbols for the cellmgr STP
+
+Package: osmocom-cellmgr-mgcp-mgw-dbg
+Architecture: any
+Section: debug
+Priority: extra
+Depends: osmocom-cellmgr-mgcp-mgw (= ${binary:Version}), ${misc:Depends}
+Description: Debug symbols for cellmgr MGW
+
