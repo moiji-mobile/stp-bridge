@@ -8,39 +8,39 @@ Homepage: http://openbsc.osmocom.org/
 Vcs-Git: git://bs11-abis.gnumonks.org/cellmgr-ng.git
 Vcs-Browser: http://openbsc.osmocom.org/trac/browser
 
-Package: osmocom-cellmgr-ng
+Package: osmo-cellmgr-ng
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: Proxy between E1 to IP
 
-Package: osmocom-cellmgr-stp
+Package: osmo-cellmgr-stp
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: Simple Signalling Transfer Point (STP)
 
-Package: osmocom-cellmgr-mgcp-mgw
+Package: osmo-cellmgr-mgcp-mgw
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: MGW proxy between E1 to IP
 
-Package: osmocom-cellmgr-ng-dbg
+Package: osmo-cellmgr-ng-dbg
 Architecture: any
 Section: debug
 Priority: extra
-Depends: osmocom-cellmgr-ng (= ${binary:Version}), ${misc:Depends}
+Depends: osmo-cellmgr-ng (= ${binary:Version}), ${misc:Depends}
 Description: Debug symbols for cellmgr-ng
 
-Package: osmocom-cellmgr-stp-dbg
+Package: osmo-cellmgr-stp-dbg
 Architecture: any
 Section: debug
 Priority: extra
-Depends: osmocom-cellmgr-stp (= ${binary:Version}), ${misc:Depends}
+Depends: osmo-cellmgr-stp (= ${binary:Version}), ${misc:Depends}
 Description: Debug symbols for the cellmgr STP
 
-Package: osmocom-cellmgr-mgcp-mgw-dbg
+Package: osmo-cellmgr-mgcp-mgw-dbg
 Architecture: any
 Section: debug
 Priority: extra
-Depends: osmocom-cellmgr-mgcp-mgw (= ${binary:Version}), ${misc:Depends}
+Depends: osmo-cellmgr-mgcp-mgw (= ${binary:Version}), ${misc:Depends}
 Description: Debug symbols for cellmgr MGW
 

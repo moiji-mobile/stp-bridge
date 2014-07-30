@@ -23,9 +23,9 @@ export DEB_BUILD_HARDENING=1
 	dh --with autoreconf $@
 
 override_dh_strip:
-	dh_strip -posmocom-cellmgr-ng --dbg-package=osmocom-cellmgr-ng-dbg
-	dh_strip -posmocom-cellmgr-stp --dbg-package=osmocom-cellmgr-stp-dbg
-	dh_strip -posmocom-cellmgr-mgcp-mgw --dbg-package=osmocom-cellmgr-mgcp-mgw-dbg
+	dh_strip -posmo-cellmgr-ng --dbg-package=osmo-cellmgr-ng-dbg
+	dh_strip -posmo-cellmgr-stp --dbg-package=osmo-cellmgr-stp-dbg
+	dh_strip -posmo-cellmgr-mgcp-mgw --dbg-package=osmo-cellmgr-mgcp-mgw-dbg
 
 override_dh_auto_configure:
 	echo $(VERSION) > .tarball-version
