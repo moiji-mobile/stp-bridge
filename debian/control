@@ -13,7 +13,7 @@ Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: Proxy between E1 to IP
 
-Package: osmo-cellmgr-stp
+Package: osmo-stp
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: Simple Signalling Transfer Point (STP)
@@ -30,11 +30,11 @@ Priority: extra
 Depends: osmo-cellmgr-ng (= ${binary:Version}), ${misc:Depends}
 Description: Debug symbols for cellmgr-ng
 
-Package: osmo-cellmgr-stp-dbg
+Package: osmo-stp-dbg
 Architecture: any
 Section: debug
 Priority: extra
-Depends: osmo-cellmgr-stp (= ${binary:Version}), ${misc:Depends}
+Depends: osmo-stp (= ${binary:Version}), ${misc:Depends}
 Description: Debug symbols for the cellmgr STP
 
 Package: osmo-cellmgr-mgcp-mgw-dbg

@@ -3,7 +3,7 @@ AM_CFLAGS=-Wall $(LIBOSMOCORE_CFLAGS) $(LIBOSMOSCCP_CFLAGS) $(LIBOSMOVTY_CFLAGS)
 		$(LIBOSMOGSM_CFLAGS) \
 		$(NEXUSWARE_C7_CFLAGS) $(NEXUSWARE_UNIPORTE_CFLAGS) $(UNIPORTE)
 
-sbin_PROGRAMS = cellmgr_ng osmo_stp mgcp_mgw
+sbin_PROGRAMS = cellmgr_ng osmo-stp mgcp_mgw
 
 mgcp_mgw_SOURCES = mgcp_ss7.c mgcp_ss7_vty.c mgcp_hw.c thread.c debug.c \
 		   mgcp/mgcp_protocol.c mgcp/mgcp_network.c mgcp/mgcp_vty.c \
