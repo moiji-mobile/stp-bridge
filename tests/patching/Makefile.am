@@ -1,4 +1,4 @@
-INCLUDES = $(all_includes) -I$(top_srcdir)/include $(LIBOSMOCORE_CFLAGS) $(LIBOSMOSCCP_CFLAGS) -Wall
+AM_CPPFLAGS = $(all_includes) -I$(top_srcdir)/include $(LIBOSMOCORE_CFLAGS) $(LIBOSMOSCCP_CFLAGS) -Wall
 noinst_PROGRAMS = patching_test
 
 EXTRA_DIST = patching_test.ok

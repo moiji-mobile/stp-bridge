@@ -1,4 +1,4 @@
-INCLUDES = $(all_includes) -I$(top_srcdir)/include
+AM_CPPFLAGS = $(all_includes) -I$(top_srcdir)/include
 AM_CFLAGS=-Wall $(LIBOSMOCORE_CFLAGS) $(LIBOSMOSCCP_CFLAGS) $(LIBOSMOVTY_CFLAGS) \
 		$(LIBOSMOGSM_CFLAGS) \
 		$(NEXUSWARE_C7_CFLAGS) $(NEXUSWARE_UNIPORTE_CFLAGS) $(UNIPORTE)

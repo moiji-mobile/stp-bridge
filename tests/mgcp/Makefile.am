@@ -1,4 +1,4 @@
-INCLUDES = $(all_includes) -I$(top_srcdir)/include
+AM_CPPFLAGS = $(all_includes) -I$(top_srcdir)/include
 AM_CFLAGS=-Wall $(LIBOSMOCORE_CFLAGS)
 noinst_PROGRAMS = mgcp_patch_test
 
