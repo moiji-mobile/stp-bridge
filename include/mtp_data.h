@@ -41,6 +41,7 @@ enum ss7_link_type {
 	SS7_LTYPE_NONE,
 	SS7_LTYPE_UDP,
 	SS7_LTYPE_M2UA,
+	SS7_LTYPE_M3UA_CLIENT,
 };
 
 /**
