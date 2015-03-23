@@ -20,7 +20,7 @@
 
 #include "mtp_data.h"
 
-#include <osmocom/m2ua/m2ua_msg.h>
+#include <osmocom/sigtran/xua_msg.h>
 #include <osmocom/core/write_queue.h>
 
 #include <netinet/in.h>

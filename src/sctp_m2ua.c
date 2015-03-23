@@ -24,6 +24,8 @@
 
 #include <osmocom/core/talloc.h>
 
+#include <osmocom/sigtran/m2ua_types.h>
+
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
@@ -89,11 +91,11 @@ static void m2ua_conn_destroy(struct sctp_m2ua_conn *conn)
 }
 
 static int m2ua_conn_send(struct sctp_m2ua_conn *conn,
-			  struct m2ua_msg *m2ua,
+			  struct xua_msg *m2ua,
 			  struct sctp_sndrcvinfo *info)
 {
 	struct msgb *msg;
-	msg = m2ua_to_msg(m2ua);
+	msg = xua_to_msg(M2UA_VERSION, m2ua);
 	if (!msg)
 		return -1;
 
@@ -115,12 +117,12 @@ static int m2ua_conn_send_ntfy(struct mtp_m2ua_link *link,
 			       struct sctp_m2ua_conn *conn,
 			       struct sctp_sndrcvinfo *info)
 {
-	struct m2ua_msg *msg;
+	struct xua_msg *msg;
 	uint16_t state[2];
 	uint32_t ident;
 	int rc;
 
-	msg = m2ua_msg_alloc();
+	msg = xua_msg_alloc();
 	if (!msg)
 		return -1;
 	msg->hdr.msg_class = M2UA_CLS_MGMT;
@@ -134,28 +136,28 @@ static int m2ua_conn_send_ntfy(struct mtp_m2ua_link *link,
 	else
 		state[1] = ntohs(M2UA_STP_AS_INACTIVE);
 
-	m2ua_msg_add_data(msg, MUA_TAG_STATUS, 4, (uint8_t *) state);
-	m2ua_msg_add_data(msg, MUA_TAG_ASP_IDENT, 4, conn->asp_ident);
+	xua_msg_add_data(msg, MUA_TAG_STATUS, 4, (uint8_t *) state);
+	xua_msg_add_data(msg, MUA_TAG_ASP_IDENT, 4, conn->asp_ident);
 
 	ident = htonl(link->link_index);
-	m2ua_msg_add_data(msg, MUA_TAG_IDENT_INT, 4, (uint8_t *) &ident);
+	xua_msg_add_data(msg, MUA_TAG_IDENT_INT, 4, (uint8_t *) &ident);
 
 	rc = m2ua_conn_send(conn, msg, info);
-	m2ua_msg_free(msg);
+	xua_msg_free(msg);
 
 	return rc;
 }
 
 static int m2ua_handle_asp_ack(struct sctp_m2ua_conn *conn,
-			       struct m2ua_msg *m2ua,
+			       struct xua_msg *m2ua,
 			       struct sctp_sndrcvinfo *info)
 {
 	struct sctp_m2ua_transport *trans = conn->trans;
 	struct sctp_m2ua_conn *tmp;
-	struct m2ua_msg_part *asp_ident;
-	struct m2ua_msg *ack;
+	struct xua_msg_part *asp_ident;
+	struct xua_msg *ack;
 
-	asp_ident = m2ua_msg_find_tag(m2ua, MUA_TAG_ASP_IDENT);
+	asp_ident = xua_msg_find_tag(m2ua, MUA_TAG_ASP_IDENT);
 	if (!asp_ident) {
 		LOGP(DINP, LOGL_ERROR, "ASP UP lacks ASP IDENT\n");
 		return -1;
@@ -166,7 +168,7 @@ static int m2ua_handle_asp_ack(struct sctp_m2ua_conn *conn,
 	}
 
 	/* TODO: Better handling for fail over is needed here */
-	ack = m2ua_msg_alloc();
+	ack = xua_msg_alloc();
 	if (!ack) {
 		LOGP(DINP, LOGL_ERROR, "Failed to create response\n");
 		return -1;
@@ -175,7 +177,7 @@ static int m2ua_handle_asp_ack(struct sctp_m2ua_conn *conn,
 	ack->hdr.msg_class = M2UA_CLS_ASPSM;
 	ack->hdr.msg_type = M2UA_ASPSM_UP_ACK;
 	if (m2ua_conn_send(conn, ack, info) != 0) {
-		m2ua_msg_free(ack);
+		xua_msg_free(ack);
 		return -1;
 	}
 
@@ -195,12 +197,12 @@ static int m2ua_handle_asp_ack(struct sctp_m2ua_conn *conn,
 		     tmp, conn);
 	}
 
-	m2ua_msg_free(ack);
+	xua_msg_free(ack);
 	return 0;
 }
 
 static int m2ua_handle_asp(struct sctp_m2ua_conn *conn,
-			   struct m2ua_msg *m2ua, struct sctp_sndrcvinfo *info)
+			   struct xua_msg *m2ua, struct sctp_sndrcvinfo *info)
 {
 	switch (m2ua->hdr.msg_type) {
 	case M2UA_ASPSM_UP:
@@ -216,13 +218,13 @@ static int m2ua_handle_asp(struct sctp_m2ua_conn *conn,
 }
 
 static int m2ua_handle_asptm_act(struct sctp_m2ua_conn *conn,
-				 struct m2ua_msg *m2ua,
+				 struct xua_msg *m2ua,
 				 struct sctp_sndrcvinfo *info)
 {
-	struct m2ua_msg_part *part;
-	struct m2ua_msg *ack;
+	struct xua_msg_part *part;
+	struct xua_msg *ack;
 
-	ack = m2ua_msg_alloc();
+	ack = xua_msg_alloc();
 	if (!ack)
 		return -1;
 
@@ -252,12 +254,12 @@ static int m2ua_handle_asptm_act(struct sctp_m2ua_conn *conn,
 
 		link->conn = conn;
 		link->asp_active = 1;
-		m2ua_msg_add_data(ack, MUA_TAG_IDENT_INT, 4, (uint8_t *) &interf);
+		xua_msg_add_data(ack, MUA_TAG_IDENT_INT, 4, (uint8_t *) &interf);
 	}
 
 
 	if (m2ua_conn_send(conn, ack, info) != 0) {
-		m2ua_msg_free(ack);
+		xua_msg_free(ack);
 		return -1;
 	}
 
@@ -279,12 +281,12 @@ static int m2ua_handle_asptm_act(struct sctp_m2ua_conn *conn,
 		m2ua_conn_send_ntfy(link, conn,	info);
 	}
 
-	m2ua_msg_free(ack);
+	xua_msg_free(ack);
 	return 0;
 }
 
 static int m2ua_handle_asptm(struct sctp_m2ua_conn *conn,
-			     struct m2ua_msg *m2ua,
+			     struct xua_msg *m2ua,
 			     struct sctp_sndrcvinfo *info)
 {
 	switch (m2ua->hdr.msg_type) {
@@ -302,15 +304,15 @@ static int m2ua_handle_asptm(struct sctp_m2ua_conn *conn,
 
 static int m2ua_handle_state_req(struct mtp_m2ua_link *link,
 				 struct sctp_m2ua_conn *conn,
-				 struct m2ua_msg *m2ua,
+				 struct xua_msg *m2ua,
 				 struct sctp_sndrcvinfo *info)
 {
-	struct m2ua_msg_part *state;
-	struct m2ua_msg *conf;
+	struct xua_msg_part *state;
+	struct xua_msg *conf;
 	uint32_t index;
 	int req;
 
-	state = m2ua_msg_find_tag(m2ua, M2UA_TAG_STATE_REQ);
+	state = xua_msg_find_tag(m2ua, M2UA_TAG_STATE_REQ);
 	if (!state || state->len != 4) {
 		LOGP(DINP, LOGL_ERROR, "Mandantory state request not present.\n");
 		return -1;
@@ -321,7 +323,7 @@ static int m2ua_handle_state_req(struct mtp_m2ua_link *link,
 
 	switch (req) {
 	case M2UA_STATUS_EMER_SET:
-		conf = m2ua_msg_alloc();
+		conf = xua_msg_alloc();
 		if (!conf)
 			return -1;
 
@@ -329,13 +331,13 @@ static int m2ua_handle_state_req(struct mtp_m2ua_link *link,
 		req = htonl(req);
 		conf->hdr.msg_class = M2UA_CLS_MAUP;
 		conf->hdr.msg_type = M2UA_MAUP_STATE_CON;
-		m2ua_msg_add_data(conf, MUA_TAG_IDENT_INT, 4, (uint8_t *) &index);
-		m2ua_msg_add_data(conf, M2UA_TAG_STATE_REQ, 4, (uint8_t *) &req);
+		xua_msg_add_data(conf, MUA_TAG_IDENT_INT, 4, (uint8_t *) &index);
+		xua_msg_add_data(conf, M2UA_TAG_STATE_REQ, 4, (uint8_t *) &req);
 		if (m2ua_conn_send(conn, conf, info) != 0) {
-			m2ua_msg_free(conf);
+			xua_msg_free(conf);
 			return -1;
 		}
-		m2ua_msg_free(conf);
+		xua_msg_free(conf);
 
 		LOGP(DINP, LOGL_NOTICE, "M2UA link-index %d is running.\n", link->link_index);
 		link->active = 1;
@@ -351,13 +353,13 @@ static int m2ua_handle_state_req(struct mtp_m2ua_link *link,
 
 static int m2ua_handle_est_req(struct mtp_m2ua_link *link,
 			       struct sctp_m2ua_conn *conn,
-			       struct m2ua_msg *m2ua,
+			       struct xua_msg *m2ua,
 			       struct sctp_sndrcvinfo *info)
 {
 	uint32_t index;
-	struct m2ua_msg *conf;
+	struct xua_msg *conf;
 
-	conf = m2ua_msg_alloc();
+	conf = xua_msg_alloc();
 	if (!conf)
 		return -1;
 
@@ -365,28 +367,28 @@ static int m2ua_handle_est_req(struct mtp_m2ua_link *link,
 	conf->hdr.msg_type = M2UA_MAUP_EST_CON;
 
 	index = htonl(link->link_index);
-	m2ua_msg_add_data(conf, MUA_TAG_IDENT_INT, 4, (uint8_t *) &index);
+	xua_msg_add_data(conf, MUA_TAG_IDENT_INT, 4, (uint8_t *) &index);
 
 	if (m2ua_conn_send(conn, conf, info) != 0) {
 		link->established = 0;
-		m2ua_msg_free(conf);
+		xua_msg_free(conf);
 		return -1;
 	}
 
 	link->established = 1;
-	m2ua_msg_free(conf);
+	xua_msg_free(conf);
 	return 0;
 }
 
 static int m2ua_handle_rel_req(struct mtp_m2ua_link *link,
 			       struct sctp_m2ua_conn *conn,
-			       struct m2ua_msg *m2ua,
+			       struct xua_msg *m2ua,
 			       struct sctp_sndrcvinfo *info)
 {
 	uint32_t index;
-	struct m2ua_msg *conf;
+	struct xua_msg *conf;
 
-	conf = m2ua_msg_alloc();
+	conf = xua_msg_alloc();
 	if (!conf)
 		return -1;
 
@@ -394,10 +396,10 @@ static int m2ua_handle_rel_req(struct mtp_m2ua_link *link,
 	conf->hdr.msg_type = M2UA_MAUP_REL_CON;
 
 	index = htonl(link->link_index);
-	m2ua_msg_add_data(conf, MUA_TAG_IDENT_INT, 4, (uint8_t *) &index);
+	xua_msg_add_data(conf, MUA_TAG_IDENT_INT, 4, (uint8_t *) &index);
 
 	if (m2ua_conn_send(conn, conf, info) != 0) {
-		m2ua_msg_free(conf);
+		xua_msg_free(conf);
 		return -1;
 	}
 
@@ -405,20 +407,20 @@ static int m2ua_handle_rel_req(struct mtp_m2ua_link *link,
 	link->active = 0;
 	LOGP(DINP, LOGL_NOTICE, "M2UA/Link link-index %d is released.\n", link->link_index);
 	link_down(link->base);
-	m2ua_msg_free(conf);
+	xua_msg_free(conf);
 	return 0;
 }
 
 static int m2ua_handle_data(struct mtp_m2ua_link *_link,
 			    struct sctp_m2ua_conn *conn,
-			    struct m2ua_msg *m2ua,
+			    struct xua_msg *m2ua,
 			    struct sctp_sndrcvinfo *info)
 {
 	struct msgb *msg;
-	struct m2ua_msg_part *data;
+	struct xua_msg_part *data;
 	struct mtp_link *link;
 
-	data = m2ua_msg_find_tag(m2ua, M2UA_TAG_DATA);
+	data = xua_msg_find_tag(m2ua, M2UA_TAG_DATA);
 	if (!data) {
 		LOGP(DINP, LOGL_ERROR, "No DATA in DATA message.\n");
 		return -1;
@@ -450,7 +452,7 @@ static int m2ua_handle_data(struct mtp_m2ua_link *_link,
 
 static int m2ua_handle_maup(struct mtp_m2ua_link *link,
 			    struct sctp_m2ua_conn *conn,
-			    struct m2ua_msg *m2ua,
+			    struct xua_msg *m2ua,
 			    struct sctp_sndrcvinfo *info)
 {
 	if (!link) {
@@ -497,7 +499,7 @@ static int m2ua_handle_maup(struct mtp_m2ua_link *link,
 }
 
 static int m2ua_handle_mgmt(struct sctp_m2ua_conn *conn,
-			    struct m2ua_msg *m2ua, struct sctp_sndrcvinfo *info)
+			    struct xua_msg *m2ua, struct sctp_sndrcvinfo *info)
 {
 	switch (m2ua->hdr.msg_type) {
 	case M2UA_MGMT_ERROR:
@@ -511,11 +513,11 @@ static int m2ua_handle_mgmt(struct sctp_m2ua_conn *conn,
 	return 0;
 }
 
-static int m2ua_find_interface(struct m2ua_msg *m2ua, int def)
+static int m2ua_find_interface(struct xua_msg *m2ua, int def)
 {
-	struct m2ua_msg_part *ident;
+	struct xua_msg_part *ident;
 
-	ident = m2ua_msg_find_tag(m2ua, MUA_TAG_IDENT_INT);
+	ident = xua_msg_find_tag(m2ua, MUA_TAG_IDENT_INT);
 	if (ident && ident->len == 4) {
 		memcpy(&def, ident->dat, 4);
 		def = ntohl(def);
@@ -528,8 +530,8 @@ static int m2ua_conn_handle(struct sctp_m2ua_conn *conn,
 			    struct msgb *msg, struct sctp_sndrcvinfo *info)
 {
 	struct mtp_m2ua_link *link;
-	struct m2ua_msg *m2ua;
-	m2ua = m2ua_from_msg(msg->len, msg->data);
+	struct xua_msg *m2ua;
+	m2ua = xua_from_msg(M2UA_VERSION, msg->len, msg->data);
 	if (!m2ua) {
 		LOGP(DINP, LOGL_ERROR, "Failed to parse the message.\n");
 		return -1;
@@ -556,7 +558,7 @@ static int m2ua_conn_handle(struct sctp_m2ua_conn *conn,
 		break;
 	}
 
-	m2ua_msg_free(m2ua);
+	xua_msg_free(m2ua);
 	return 0;
 }
 
@@ -604,7 +606,7 @@ static int sctp_m2ua_write(struct mtp_link *link, struct msgb *msg)
 {
 	struct mtp_m2ua_link *mlink;
 	struct sctp_sndrcvinfo info;
-	struct m2ua_msg *m2ua;
+	struct xua_msg *m2ua;
 	uint32_t interface;
 
 	mlink = (struct mtp_m2ua_link *) link->data;
@@ -622,7 +624,7 @@ static int sctp_m2ua_write(struct mtp_link *link, struct msgb *msg)
 		goto clean;
 	}
 
-	m2ua = m2ua_msg_alloc();
+	m2ua = xua_msg_alloc();
 	if (!m2ua)
 		goto clean;
 
@@ -632,8 +634,8 @@ static int sctp_m2ua_write(struct mtp_link *link, struct msgb *msg)
 	m2ua->hdr.msg_type = M2UA_MAUP_DATA;
 
 	interface = htonl(mlink->link_index);
-	m2ua_msg_add_data(m2ua, MUA_TAG_IDENT_INT, 4, (uint8_t *) &interface);
-	m2ua_msg_add_data(m2ua, M2UA_TAG_DATA, msg->len, msg->data);
+	xua_msg_add_data(m2ua, MUA_TAG_IDENT_INT, 4, (uint8_t *) &interface);
+	xua_msg_add_data(m2ua, M2UA_TAG_DATA, msg->len, msg->data);
 
 	memset(&info, 0, sizeof(info));
 	info.sinfo_stream = 1;
@@ -641,7 +643,7 @@ static int sctp_m2ua_write(struct mtp_link *link, struct msgb *msg)
 	info.sinfo_ppid = htonl(SCTP_PPID_M2UA);
 
 	m2ua_conn_send(mlink->conn, m2ua, &info);
-	m2ua_msg_free(m2ua);
+	xua_msg_free(m2ua);
 
 clean:
 	msgb_free(msg);

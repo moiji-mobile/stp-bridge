@@ -30,7 +30,8 @@
 #include <sctp_m2ua.h>
 #include <ss7_application.h>
 
-#include <osmocom/m2ua/m2ua_msg.h>
+#include <osmocom/sigtran/xua_msg.h>
+#include <osmocom/sigtran/m2ua_types.h>
 
 #include <osmocom/core/application.h>
 #include <osmocom/core/rate_ctr.h>
@@ -91,9 +92,9 @@ static struct mtp_link_set *find_link_set(struct bsc_data *bsc,
 static int inject_read_cb(struct osmo_fd *fd, unsigned int what)
 {
 	struct msgb *msg;
-	struct m2ua_msg_part *data, *link;
+	struct xua_msg_part *data, *link;
 	struct bsc_data *bsc;
-	struct m2ua_msg *m2ua;
+	struct xua_msg *m2ua;
 	struct mtp_link_set *out_set;
 	uint8_t buf[4096];
 
@@ -110,14 +111,14 @@ static int inject_read_cb(struct osmo_fd *fd, unsigned int what)
 		return -1;
 	}
 
-	m2ua = m2ua_from_msg(rc, buf);
+	m2ua = xua_from_msg(M2UA_VERSION, rc, buf);
 	if (!m2ua) {
 		LOGP(DINP, LOGL_ERROR, "Failed to parse M2UA.\n");
 		return -1;
 	}
 
 	if (m2ua->hdr.msg_class == M2UA_CLS_MAUP && m2ua->hdr.msg_type == M2UA_MAUP_DATA) {
-		data = m2ua_msg_find_tag(m2ua, M2UA_TAG_DATA);
+		data = xua_msg_find_tag(m2ua, M2UA_TAG_DATA);
 		if (!data) {
 			LOGP(DINP, LOGL_ERROR, "MAUP Data without data.\n");
 			goto exit;
@@ -128,7 +129,7 @@ static int inject_read_cb(struct osmo_fd *fd, unsigned int what)
 			goto exit;
 		}
 
-		link = m2ua_msg_find_tag(m2ua, MUA_TAG_IDENT_TEXT);
+		link = xua_msg_find_tag(m2ua, MUA_TAG_IDENT_TEXT);
 		if (!link) {
 			LOGP(DINP, LOGL_ERROR, "Interface Identifier Text is mandantory.\n");
 			goto exit;
@@ -162,7 +163,7 @@ static int inject_read_cb(struct osmo_fd *fd, unsigned int what)
 	}
 
 exit:
-	m2ua_msg_free(m2ua);
+	xua_msg_free(m2ua);
 	return 0;
 }
 
@@ -219,7 +220,7 @@ int main(int argc, char **argv)
 	log_set_use_color(osmo_stderr_target, 0);
 
 	sccp_set_log_area(DSCCP);
-	m2ua_set_log_area(DM2UA);
+	xua_set_log_area(DM2UA);
 
 	bsc = bsc_data_create();
 	if (!bsc)
