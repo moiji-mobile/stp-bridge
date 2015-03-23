@@ -224,7 +224,6 @@ struct mtp_link *mtp_link_alloc(struct mtp_link_set *set)
 	}
 
 	/* make sure a unconfigured link does not crash */
-	link->start = dummy_arg1;
 	link->write = dummy_arg2;
 	link->shutdown = dummy_arg1;
 	link->reset = dummy_arg1;

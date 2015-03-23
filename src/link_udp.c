@@ -223,12 +223,6 @@ static int udp_link_write(struct mtp_link *link, struct msgb *msg)
 	return 0;
 }
 
-static int udp_link_start(struct mtp_link *link)
-{
-	do_start(link);
-	return 0;
-}
-
 int link_udp_init(struct mtp_udp_link *link, char *remote, int port)
 {
 	/* prepare the remote */
@@ -383,7 +377,6 @@ struct mtp_udp_link *mtp_udp_link_init(struct mtp_link *blnk)
 	lnk->base->clear_queue = udp_link_dummy;
 
 	lnk->base->reset = udp_link_reset;
-	lnk->base->start = udp_link_start;
 	lnk->base->write = udp_link_write;
 
 	/* prepare the remote */

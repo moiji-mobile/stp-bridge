@@ -139,7 +139,6 @@ struct mtp_link {
 	struct rate_ctr_group *ctrg;
 
 	/* callback's to implement */
-	int (*start)(struct mtp_link *);
 	int (*write)(struct mtp_link *, struct msgb *msg);
 	int (*shutdown)(struct mtp_link *);
 	int (*reset)(struct mtp_link *data);
