@@ -5,10 +5,15 @@
 
 #include "mtp_data.h"
 
+#include <osmocom/core/write_queue.h>
+
 #include <netinet/in.h>
 
 struct mtp_m3ua_client_link {
 	struct mtp_link *base;
+
+	struct osmo_wqueue queue;
+	struct osmo_timer_list connect_timer;
 
 	char *source;
 	struct sockaddr_in local;
