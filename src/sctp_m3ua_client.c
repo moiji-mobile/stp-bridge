@@ -23,6 +23,7 @@
 
 #include <osmocom/sigtran/xua_msg.h>
 #include <osmocom/sigtran/m3ua_types.h>
+#include <osmocom/mtp/mtp_level3.h>
 
 #include <osmocom/core/talloc.h>
 
@@ -264,17 +265,15 @@ static int m3ua_write(struct mtp_link *mtp_link, struct msgb *msg)
 	case MTP_SI_MNT_SNM_MSG:
 	case MTP_SI_MNT_REG_MSG:
 		LOGP(DINP, LOGL_ERROR,
-			"Dropping SNM/REG/ISUP/??? message %d\n", mtp_hdr->ser_ind);
+			"Dropping SNM/REG message %d\n", mtp_hdr->ser_ind);
 		goto clean;
 		break;
 	case MTP_SI_MNT_ISUP:
 	case MTP_SI_MNT_SCCP:
 	default:
-		/* TODO... read OPC/DPC from message.. */
 		memset(&proto_data, 0, sizeof(proto_data));
-		proto_data.opc = htonl(mtp_link->set->sccp_opc);
-		proto_data.dpc = htonl(mtp_link->set->sccp_dpc == -1 ?
-					mtp_link->set->sccp_dpc : mtp_link->set->dpc);
+		proto_data.opc = htonl(MTP_READ_OPC(mtp_hdr->addr));
+		proto_data.dpc = htonl(MTP_READ_DPC(mtp_hdr->addr));
 		proto_data.sls = MTP_LINK_SLS(mtp_hdr->addr);
 		proto_data.si = mtp_hdr->ser_ind;
 		proto_data.ni = mtp_link->set->ni;
