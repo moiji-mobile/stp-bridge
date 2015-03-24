@@ -132,6 +132,15 @@ void mtp_link_start_link_test(struct mtp_link *link)
 		return;
 	}
 
+	if (link->skip_link_test) {
+		LOGP(DINP, LOGL_ERROR, "Skipping starting linktest on %d/%s of %d/%s.\n",
+		     link->nr, link->name, link->set->nr, link->set->name);
+		link->sltm_pending = 0;
+		link->was_up = 1;
+		mtp_link_verified(link);
+		return;
+	}
+
 	mtp_sltm_t2_timeout(link);
 }
 

@@ -231,7 +231,7 @@ static int send_tfa(struct mtp_link *link, int opc)
 	return 0;
 }
 
-static int linkset_up(struct mtp_link *link)
+int mtp_link_verified(struct mtp_link *link)
 {
 	struct mtp_link_set *set = link->set;
 
@@ -394,7 +394,7 @@ static int mtp_link_regular_msg(struct mtp_link *link, struct mtp_level_3_hdr *h
 		case MTP_TST_MSG_SLTA:
 			/* If this link is proven set it up */
 			if (mtp_link_slta(link, l3_len, mng) == 0)
-				linkset_up(link);
+				mtp_link_verified(link);
 			break;
 		}
 		break;

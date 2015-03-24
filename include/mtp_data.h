@@ -144,6 +144,9 @@ struct mtp_link {
 	int (*reset)(struct mtp_link *data);
 	int (*clear_queue)(struct mtp_link *data);
 
+	/* for M3UA and others.. */
+	int skip_link_test;
+
 	/* private data */
 	enum ss7_link_type type;
 	void *data;
@@ -189,5 +192,8 @@ struct mtp_link_set *mtp_link_set_num(struct bsc_data *bsc, int num);
 
 struct mtp_link *mtp_link_alloc(struct mtp_link_set *set);
 struct mtp_link *mtp_link_num(struct mtp_link_set *set, int num);
+
+/* linkset handling */
+int mtp_link_verified(struct mtp_link *link);
 
 #endif
