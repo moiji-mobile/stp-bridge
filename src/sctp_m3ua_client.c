@@ -299,7 +299,7 @@ static int m3ua_write(struct mtp_link *mtp_link, struct msgb *msg)
 	xua_msg_add_data(m3ua, M3UA_TAG_PROTO_DATA, msg->len, msg->data);
 
 	memset(&info, 0, sizeof(info));
-	info.sinfo_stream = 0;
+	info.sinfo_stream = 1;
 	info.sinfo_assoc_id = 1;
 	info.sinfo_ppid = htonl(SCTP_PPID_M3UA);
 
