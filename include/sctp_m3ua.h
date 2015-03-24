@@ -22,6 +22,11 @@ struct mtp_m3ua_client_link {
 	struct sockaddr_in remote;
 	int link_index;
 	int routing_context;
+
+
+	/* state of the link */
+	int aspsm_active;
+	int asptm_active;
 };
 
 struct mtp_m3ua_client_link *mtp_m3ua_client_link_init(struct mtp_link *link);
