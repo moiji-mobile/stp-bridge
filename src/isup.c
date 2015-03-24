@@ -21,7 +21,7 @@
 #include <isup_types.h>
 #include <cellmgr_debug.h>
 #include <mtp_data.h>
-#include <mtp_level3.h>
+#include <osmocom/mtp/mtp_level3.h>
 
 #include <osmocom/core/msgb.h>
 #include <osmocom/gsm/tlv.h>

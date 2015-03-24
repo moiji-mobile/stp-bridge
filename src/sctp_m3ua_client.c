@@ -19,7 +19,6 @@
 #include <cellmgr_debug.h>
 #include <string.h>
 #include <bsc_data.h>
-#include <mtp_level3.h>
 
 #include <osmocom/sigtran/xua_msg.h>
 #include <osmocom/sigtran/m3ua_types.h>

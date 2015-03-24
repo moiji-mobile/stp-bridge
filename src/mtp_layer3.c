@@ -19,7 +19,7 @@
  *
  */
 #include <mtp_data.h>
-#include <mtp_level3.h>
+#include <osmocom/mtp/mtp_level3.h>
 #include <bsc_data.h>
 #include <cellmgr_debug.h>
 #include <isup_types.h>
@@ -368,9 +368,9 @@ static int mtp_link_regular_msg(struct mtp_link *link, struct mtp_level_3_hdr *h
 		return -1;
 	}
 
-	if (MTP_ADDR_DPC(hdr->addr) != link->set->opc) {
+	if (MTP_READ_DPC(hdr->addr) != link->set->opc) {
 		LOGP(DINP, LOGL_ERROR, "MSG for OPC %d not handled on %d/%s\n",
-			MTP_ADDR_DPC(hdr->addr), link->set->nr, link->set->name);
+			MTP_READ_DPC(hdr->addr), link->set->nr, link->set->name);
 		return -1;
 	}
 

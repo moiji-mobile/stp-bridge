@@ -20,7 +20,7 @@
  */
 
 #include <mtp_data.h>
-#include <mtp_level3.h>
+#include <osmocom/mtp/mtp_level3.h>
 #include <cellmgr_debug.h>
 #include <counter.h>
 
