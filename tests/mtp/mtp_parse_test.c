@@ -1,13 +1,14 @@
 /* MTP Layer3 parsing tests */
+#include "sctp_m3ua.h"
+
 #include <osmocom/mtp/mtp_level3.h>
+#include <osmocom/core/utils.h>
 
 #include <arpa/inet.h>
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#define ARRAY_SIZE(a) (sizeof(a)/sizeof(a[0]))
 
 struct mtp_test {
 	const uint8_t *input;
@@ -578,6 +579,17 @@ static void check_prohib(const uint8_t *data, const struct mtp_level_3_prohib *t
 	abort();
 }
 
+void test_m3ua_traffic_mode(void)
+{
+	OSMO_ASSERT(strcmp(m3ua_traffic_mode_name(1), "override") == 0);
+	OSMO_ASSERT(strcmp(m3ua_traffic_mode_name(2), "loadshare") == 0);
+	OSMO_ASSERT(strcmp(m3ua_traffic_mode_name(3), "broadcast") == 0);
+
+	OSMO_ASSERT(m3ua_traffic_mode_num("override") == 1);
+	OSMO_ASSERT(m3ua_traffic_mode_num("loadshare") == 2);
+	OSMO_ASSERT(m3ua_traffic_mode_num("broadcast") == 3);
+}
+
 int main(int argc, char **argv)
 {
 	uint32_t addr;
@@ -636,6 +648,7 @@ int main(int argc, char **argv)
 		}
 	}
 
+	test_m3ua_traffic_mode();
 	printf("All tests passed.\n");
 	return 0;
 }

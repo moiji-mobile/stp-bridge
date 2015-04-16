@@ -368,6 +368,7 @@ struct mtp_m3ua_client_link *mtp_m3ua_client_link_init(struct mtp_link *blnk)
 
 	osmo_wqueue_init(&lnk->queue, 10);
 	lnk->queue.bfd.fd = -1;
+	lnk->traffic_mode = 2;
 	return lnk;
 }
 
@@ -423,7 +424,7 @@ static void m3ua_send_aspac(struct mtp_m3ua_client_link *link)
 	aspac->hdr.msg_class = M3UA_CLS_ASPTM;
 	aspac->hdr.msg_type = M3UA_ASPTM_ACTIV;
 
-	traffic_mode = htonl(2);
+	traffic_mode = htonl(link->traffic_mode);
 	xua_msg_add_data(aspac, 11, 4, (uint8_t *) &traffic_mode);
 
 	routing_ctx = htonl(link->routing_context);

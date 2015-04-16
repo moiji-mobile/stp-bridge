@@ -201,6 +201,9 @@ static void write_link(struct vty *vty, struct mtp_link *link)
 				m3ua_client->link_index, VTY_NEWLINE);
 		vty_out(vty, "   m3ua-client routing-context %d%s",
 				m3ua_client->routing_context, VTY_NEWLINE);
+		vty_out(vty, "   m3ua-client traffic-mode %s%s",
+				m3ua_traffic_mode_name(m3ua_client->traffic_mode),
+				VTY_NEWLINE);
 		break;
 	case SS7_LTYPE_NONE:
 		break;
@@ -883,6 +886,23 @@ DEFUN(cfg_link_m3ua_client_routing_ctx, cfg_link_m3ua_client_routing_ctx_cmd,
 	return CMD_SUCCESS;
 }
 
+DEFUN(cfg_link_m3ua_client_traffic_mode, cfg_link_m3ua_client_traffic_mode_cmd,
+	"m3ua-client traffic-mode (override|loadshare|broadcast)",
+	"M3UA Client\n" "Traffic Mode\n" "Override" "Loadshare\n" "Broadcast\n")
+{
+	struct mtp_link *link = vty->index;
+	struct mtp_m3ua_client_link *m3ua_link;
+
+	if (link->type != SS7_LTYPE_M3UA_CLIENT) {
+		vty_out(vty, "%%This only applies to M3UA client links.%s", VTY_NEWLINE);
+		return CMD_WARNING;
+	}
+
+	m3ua_link = link->data;
+	m3ua_link->traffic_mode = m3ua_traffic_mode_num(argv[0]);
+	return CMD_SUCCESS;
+}
+
 DEFUN(cfg_ss7_msc, cfg_ss7_msc_cmd,
       "msc <0-100>",
       "MSC Connection\n" "MSC Number\n")
@@ -1305,6 +1325,7 @@ void cell_vty_init(void)
 	install_element(LINK_NODE, &cfg_link_m3ua_client_dest_port_cmd);
 	install_element(LINK_NODE, &cfg_link_m3ua_client_link_index_cmd);
 	install_element(LINK_NODE, &cfg_link_m3ua_client_routing_ctx_cmd);
+	install_element(LINK_NODE, &cfg_link_m3ua_client_traffic_mode_cmd);
 
 	install_element(SS7_NODE, &cfg_ss7_msc_cmd);
 	install_node(&msc_node, config_write_msc);

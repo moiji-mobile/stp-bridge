@@ -26,7 +26,8 @@ osmo_stp_SOURCES = main_stp.c mtp_layer3.c thread.c pcap.c link_udp.c snmp_mtp.c
 		   bss_patch.c bssap_sccp.c bsc_sccp.c bsc_ussd.c input/ipaccess.c \
 		   mtp_link.c counter.c bsc.c ss7_application.c \
 		   vty_interface.c vty_interface_cmds.c mgcp_patch.c \
-		   mgcp_callagent.c isup_filter.c sctp_m3ua_client.c
+		   mgcp_callagent.c isup_filter.c sctp_m3ua_client.c \
+		   sctp_m3ua_misc.c
 osmo_stp_LDADD = $(LIBOSMOCORE_LIBS) $(LIBOSMOGSM_LIBS) $(LIBOSMOVTY_LIBS) \
 		 $(LIBOSMOSCCP_LIBS) $(NEXUSWARE_C7_LIBS) \
 		   -lpthread -lnetsnmp -lcrypto -lxua -lsctp

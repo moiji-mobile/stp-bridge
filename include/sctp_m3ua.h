@@ -22,6 +22,7 @@ struct mtp_m3ua_client_link {
 	struct sockaddr_in remote;
 	int link_index;
 	int routing_context;
+	uint32_t traffic_mode;
 
 
 	/* state of the link */
@@ -30,3 +31,7 @@ struct mtp_m3ua_client_link {
 };
 
 struct mtp_m3ua_client_link *mtp_m3ua_client_link_init(struct mtp_link *link);
+
+
+const char *m3ua_traffic_mode_name(uint32_t mode);
+uint32_t m3ua_traffic_mode_num(const char *argv);
