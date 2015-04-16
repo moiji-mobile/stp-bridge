@@ -20,7 +20,7 @@
  */
 
 #include <mtp_data.h>
-#include <mtp_level3.h>
+#include <osmocom/mtp/mtp_level3.h>
 #include <cellmgr_debug.h>
 #include <counter.h>
 
@@ -132,6 +132,15 @@ void mtp_link_start_link_test(struct mtp_link *link)
 		return;
 	}
 
+	if (link->skip_link_test) {
+		LOGP(DINP, LOGL_ERROR, "Skipping starting linktest on %d/%s of %d/%s.\n",
+		     link->nr, link->name, link->set->nr, link->set->name);
+		link->sltm_pending = 0;
+		link->was_up = 1;
+		mtp_link_verified(link);
+		return;
+	}
+
 	mtp_sltm_t2_timeout(link);
 }
 
@@ -224,7 +233,6 @@ struct mtp_link *mtp_link_alloc(struct mtp_link_set *set)
 	}
 
 	/* make sure a unconfigured link does not crash */
-	link->start = dummy_arg1;
 	link->write = dummy_arg2;
 	link->shutdown = dummy_arg1;
 	link->reset = dummy_arg1;

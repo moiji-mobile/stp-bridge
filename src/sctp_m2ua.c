@@ -734,14 +734,6 @@ static int sctp_m2ua_dummy(struct mtp_link *link)
 	return 0;
 }
 
-static int sctp_m2ua_start(struct mtp_link *_link)
-{
-	struct mtp_m2ua_link *link = (struct mtp_m2ua_link *) _link->data;
-
-	link->transport->started = 1;
-	return 0;
-}
-
 static int sctp_m2ua_reset(struct mtp_link *_link)
 {
 	struct mtp_m2ua_link *link = (struct mtp_m2ua_link *) _link->data;
@@ -843,7 +835,6 @@ struct mtp_m2ua_link *mtp_m2ua_link_init(struct mtp_link *blnk)
 	lnk->base->shutdown = sctp_m2ua_reset;
 	lnk->base->clear_queue = sctp_m2ua_dummy;
 	lnk->base->reset = sctp_m2ua_reset;
-	lnk->base->start = sctp_m2ua_start;
 	lnk->base->write = sctp_m2ua_write;
 
 	lnk->transport = trans;

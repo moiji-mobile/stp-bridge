@@ -19,7 +19,7 @@
  *
  */
 #include <mtp_data.h>
-#include <mtp_level3.h>
+#include <osmocom/mtp/mtp_level3.h>
 #include <bsc_data.h>
 #include <cellmgr_debug.h>
 #include <isup_types.h>
@@ -231,7 +231,7 @@ static int send_tfa(struct mtp_link *link, int opc)
 	return 0;
 }
 
-static int linkset_up(struct mtp_link *link)
+int mtp_link_verified(struct mtp_link *link)
 {
 	struct mtp_link_set *set = link->set;
 
@@ -368,9 +368,9 @@ static int mtp_link_regular_msg(struct mtp_link *link, struct mtp_level_3_hdr *h
 		return -1;
 	}
 
-	if (MTP_ADDR_DPC(hdr->addr) != link->set->opc) {
+	if (MTP_READ_DPC(hdr->addr) != link->set->opc) {
 		LOGP(DINP, LOGL_ERROR, "MSG for OPC %d not handled on %d/%s\n",
-			MTP_ADDR_DPC(hdr->addr), link->set->nr, link->set->name);
+			MTP_READ_DPC(hdr->addr), link->set->nr, link->set->name);
 		return -1;
 	}
 
@@ -394,7 +394,7 @@ static int mtp_link_regular_msg(struct mtp_link *link, struct mtp_level_3_hdr *h
 		case MTP_TST_MSG_SLTA:
 			/* If this link is proven set it up */
 			if (mtp_link_slta(link, l3_len, mng) == 0)
-				linkset_up(link);
+				mtp_link_verified(link);
 			break;
 		}
 		break;

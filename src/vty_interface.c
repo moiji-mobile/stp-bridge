@@ -23,6 +23,7 @@
 #include <mtp_pcap.h>
 #include <msc_connection.h>
 #include <sctp_m2ua.h>
+#include <sctp_m3ua.h>
 #include <ss7_application.h>
 #include <ss7_vty.h>
 #include <cellmgr_debug.h>
@@ -157,6 +158,7 @@ static void write_link(struct vty *vty, struct mtp_link *link)
 	const char *name = link->name ? link->name : "";
 	struct mtp_udp_link *ulnk;
 	struct mtp_m2ua_link *m2ua;
+	struct mtp_m3ua_client_link *m3ua_client;
 
 	vty_out(vty, "  link %d%s", link->nr, VTY_NEWLINE);
 	vty_out(vty, "   description %s%s", name, VTY_NEWLINE);
@@ -179,10 +181,26 @@ static void write_link(struct vty *vty, struct mtp_link *link)
 		vty_out(vty, "   ss7-transport m2ua%s", VTY_NEWLINE);
 
 		if (m2ua->as)
-			vty_out(vty, "   m2ua application-server %s%s",
+			vty_out(vty, "   m2ua application-server-index %s%s",
 				m2ua->as, VTY_NEWLINE);
 		vty_out(vty, "   m2ua link-index %d%s",
 			m2ua->link_index, VTY_NEWLINE);
+		break;
+	case SS7_LTYPE_M3UA_CLIENT:
+		m3ua_client = (struct mtp_m3ua_client_link *) link->data;
+		vty_out(vty, "   ss7-transport m3ua-client%s", VTY_NEWLINE);
+		vty_out(vty, "   m3ua-client source ip %s%s",
+			inet_ntoa(m3ua_client->local.sin_addr), VTY_NEWLINE);
+		vty_out(vty, "   m3ua-client source port %d%s",
+			ntohs(m3ua_client->local.sin_port), VTY_NEWLINE);
+		vty_out(vty, "   m3ua-client dest ip %s%s",
+			inet_ntoa(m3ua_client->remote.sin_addr), VTY_NEWLINE);
+		vty_out(vty, "   m3ua-client dest port %d%s",
+			ntohs(m3ua_client->remote.sin_port), VTY_NEWLINE);
+		vty_out(vty, "   m3ua-client link-index %d%s",
+				m3ua_client->link_index, VTY_NEWLINE);
+		vty_out(vty, "   m3ua-client routing-context %d%s",
+				m3ua_client->routing_context, VTY_NEWLINE);
 		break;
 	case SS7_LTYPE_NONE:
 		break;
@@ -573,7 +591,7 @@ DEFUN(cfg_linkset_link, cfg_linkset_link_cmd,
 }
 
 DEFUN(cfg_link_ss7_transport, cfg_link_ss7_transport_cmd,
-      "ss7-transport (none|udp|m2ua)",
+      "ss7-transport (none|udp|m2ua|m3ua-client)",
       "SS7 transport for the link\n"
       "No transport\n" "MTP over UDP\n" "SCTP M2UA\n")
 {
@@ -586,6 +604,8 @@ DEFUN(cfg_link_ss7_transport, cfg_link_ss7_transport_cmd,
 		wanted = SS7_LTYPE_UDP;
 	else if (strcmp("m2ua", argv[0]) == 0)
 		wanted = SS7_LTYPE_M2UA;
+	else if (strcmp("m3ua-client", argv[0]) == 0)
+		wanted = SS7_LTYPE_M3UA_CLIENT;
 
 	if (link->type != wanted && link->type != SS7_LTYPE_NONE) {
 		vty_out(vty, "%%Can not change the type of a link.\n");
@@ -598,6 +618,9 @@ DEFUN(cfg_link_ss7_transport, cfg_link_ss7_transport_cmd,
 		break;
 	case SS7_LTYPE_M2UA:
 		link->data = mtp_m2ua_link_init(link);
+		break;
+	case SS7_LTYPE_M3UA_CLIENT:
+		link->data = mtp_m3ua_client_link_init(link);
 		break;
 	case SS7_LTYPE_NONE:
 		/* nothing */
@@ -732,6 +755,131 @@ DEFUN(cfg_link_m2ua_link_index, cfg_link_m2ua_link_index_cmd,
 
 	m2ua = link->data;
 	m2ua->link_index = atoi(argv[0]);
+	return CMD_SUCCESS;
+}
+
+
+DEFUN(cfg_link_m3ua_client_source_ip, cfg_link_m3ua_client_source_ip_cmd,
+	"m3ua-client source ip HOST_NAME",
+	"M3UA Client\n" "Source Address\n" "IP\n" "Hostname or IPv4 address\n")
+{
+	struct hostent *hosts;
+
+	struct mtp_link *link = vty->index;
+	struct mtp_m3ua_client_link *m3ua_link;
+
+	if (link->type != SS7_LTYPE_M3UA_CLIENT) {
+		vty_out(vty, "%%This only applies to UDP links.%s", VTY_NEWLINE);
+		return CMD_WARNING;
+	}
+
+	m3ua_link = link->data;
+
+	talloc_free(m3ua_link->source);
+	m3ua_link->source = talloc_strdup(m3ua_link, argv[0]);
+
+	hosts = gethostbyname(m3ua_link->source);
+	if (!hosts || hosts->h_length < 1 || hosts->h_addrtype != AF_INET) {
+		vty_out(vty, "Failed to resolve '%s'%s", argv[0], VTY_NEWLINE);
+		return CMD_WARNING;
+	}
+	m3ua_link->local.sin_addr = * (struct in_addr *) hosts->h_addr_list[0];
+	return CMD_SUCCESS;
+}
+
+DEFUN(cfg_link_m3ua_client_source_port, cfg_link_m3ua_client_source_port_cmd,
+	"m3ua-client source port <1-65535>",
+	"M3UA Client\n" "Source Address\n" "Port\n" "Number\n")
+{
+	struct mtp_link *link = vty->index;
+	struct mtp_m3ua_client_link *m3ua_link;
+
+	if (link->type != SS7_LTYPE_M3UA_CLIENT) {
+		vty_out(vty, "%%This only applies to UDP links.%s", VTY_NEWLINE);
+		return CMD_WARNING;
+	}
+
+	m3ua_link = link->data;
+	m3ua_link->local.sin_port = htons(atoi(argv[0]));
+	return CMD_SUCCESS;
+}
+
+DEFUN(cfg_link_m3ua_client_dest_ip, cfg_link_m3ua_client_dest_ip_cmd,
+	"m3ua-client dest ip HOST_NAME",
+	"M3UA Client\n" "Destination Address\n" "IP\n" "Hostname or IPv4 address\n")
+{
+	struct hostent *hosts;
+
+	struct mtp_link *link = vty->index;
+	struct mtp_m3ua_client_link *m3ua_link;
+
+	if (link->type != SS7_LTYPE_M3UA_CLIENT) {
+		vty_out(vty, "%%This only applies to M3UA client links.%s", VTY_NEWLINE);
+		return CMD_WARNING;
+	}
+
+	m3ua_link = link->data;
+
+	talloc_free(m3ua_link->dest);
+	m3ua_link->dest = talloc_strdup(m3ua_link, argv[0]);
+
+	hosts = gethostbyname(m3ua_link->dest);
+	if (!hosts || hosts->h_length < 1 || hosts->h_addrtype != AF_INET) {
+		vty_out(vty, "Failed to resolve '%s'%s", argv[0], VTY_NEWLINE);
+		return CMD_WARNING;
+	}
+	m3ua_link->remote.sin_addr = * (struct in_addr *) hosts->h_addr_list[0];
+	return CMD_SUCCESS;
+}
+
+DEFUN(cfg_link_m3ua_client_dest_port, cfg_link_m3ua_client_dest_port_cmd,
+	"m3ua-client dest port <1-65535>",
+	"M3UA Client\n" "Destination Address\n" "Port\n" "Number\n")
+{
+	struct mtp_link *link = vty->index;
+	struct mtp_m3ua_client_link *m3ua_link;
+
+	if (link->type != SS7_LTYPE_M3UA_CLIENT) {
+		vty_out(vty, "%%This only applies to M3UA client links.%s", VTY_NEWLINE);
+		return CMD_WARNING;
+	}
+
+	m3ua_link = link->data;
+	m3ua_link->remote.sin_port = htons(atoi(argv[0]));
+	return CMD_SUCCESS;
+}
+
+DEFUN(cfg_link_m3ua_client_link_index, cfg_link_m3ua_client_link_index_cmd,
+	"m3ua-client link-index <0-65535>",
+	"M3UA Client\n" "Link index\n" "Index\n")
+{
+	struct mtp_link *link = vty->index;
+	struct mtp_m3ua_client_link *m3ua_link;
+
+	if (link->type != SS7_LTYPE_M3UA_CLIENT) {
+		vty_out(vty, "%%This only applies to M3UA client links.%s", VTY_NEWLINE);
+		return CMD_WARNING;
+	}
+
+	m3ua_link = link->data;
+	m3ua_link->link_index = atoi(argv[0]);
+	return CMD_SUCCESS;
+}
+
+DEFUN(cfg_link_m3ua_client_routing_ctx, cfg_link_m3ua_client_routing_ctx_cmd,
+	"m3ua-client routing-context <0-65535>",
+	"M3UA Client\n" "Routing Context\n" "Nunber\n")
+{
+	struct mtp_link *link = vty->index;
+	struct mtp_m3ua_client_link *m3ua_link;
+
+	if (link->type != SS7_LTYPE_M3UA_CLIENT) {
+		vty_out(vty, "%%This only applies to M3UA client links.%s", VTY_NEWLINE);
+		return CMD_WARNING;
+	}
+
+	m3ua_link = link->data;
+	m3ua_link->routing_context = atoi(argv[0]);
 	return CMD_SUCCESS;
 }
 
@@ -1151,6 +1299,12 @@ void cell_vty_init(void)
 	install_element(LINK_NODE, &cfg_link_udp_link_index_cmd);
 	install_element(LINK_NODE, &cfg_link_m2ua_as_cmd);
 	install_element(LINK_NODE, &cfg_link_m2ua_link_index_cmd);
+	install_element(LINK_NODE, &cfg_link_m3ua_client_source_ip_cmd);
+	install_element(LINK_NODE, &cfg_link_m3ua_client_source_port_cmd);
+	install_element(LINK_NODE, &cfg_link_m3ua_client_dest_ip_cmd);
+	install_element(LINK_NODE, &cfg_link_m3ua_client_dest_port_cmd);
+	install_element(LINK_NODE, &cfg_link_m3ua_client_link_index_cmd);
+	install_element(LINK_NODE, &cfg_link_m3ua_client_routing_ctx_cmd);
 
 	install_element(SS7_NODE, &cfg_ss7_msc_cmd);
 	install_node(&msc_node, config_write_msc);
