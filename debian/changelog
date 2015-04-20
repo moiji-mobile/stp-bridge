@@ -1,4 +1,10 @@
-cellmgr-ng (1.4.0) UNRELEASED; urgency=medium
+cellmgr-ng (1.4.1) unstable; urgency=medium
+
+  * Allow to configure the traffic mode per m3ua link
+
+ -- Holger Hans Peter Freyther <holger@moiji-mobile.com>  Mon, 20 Apr 2015 03:07:08 +0200
+
+cellmgr-ng (1.4.0) unstable; urgency=medium
 
   * Merged m3ua code.. Ready for testing 
 
