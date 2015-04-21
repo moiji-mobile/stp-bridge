@@ -263,7 +263,8 @@ static void write_msc(struct vty *vty, struct msc_connection *msc)
 	vty_out(vty, " msc %d%s", msc->nr, VTY_NEWLINE);
 	vty_out(vty, "  description %s%s", name, VTY_NEWLINE);
 	vty_out(vty, "  mode %s%s", msc_mode(msc), VTY_NEWLINE);
-	vty_out(vty, "  ip %s%s", msc->ip, VTY_NEWLINE);
+	if (msc->ip)
+		vty_out(vty, "  ip %s%s", msc->ip, VTY_NEWLINE);
 	vty_out(vty, "  port %d%s", msc->port, VTY_NEWLINE);
 	vty_out(vty, "  token %s%s", msc->token, VTY_NEWLINE);
 	vty_out(vty, "  dscp %d%s", msc->dscp, VTY_NEWLINE);
