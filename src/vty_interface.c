@@ -340,6 +340,8 @@ static void write_application(struct vty *vty, struct ss7_application *app)
 			link_type(app->route_dst.type), app->route_dst.nr,
 			VTY_NEWLINE);
 	}
+	if (app->forward_only)
+		vty_out(vty, "  forward-only%s", VTY_NEWLINE);
 }
 
 static int config_write_app(struct vty *vty)
