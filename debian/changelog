@@ -1,4 +1,10 @@
-cellmgr-ng (1.4.2) UNRELEASED; urgency=medium
+cellmgr-ng (1.4.3) unstable; urgency=medium
+
+  * Fix the stopping of the script
+
+ -- Holger Hans Peter Freyther <holger@moiji-mobile.com>  Wed, 22 Apr 2015 17:24:29 +0200
+
+cellmgr-ng (1.4.2) unstable; urgency=medium
 
   * Fix the start script
 
