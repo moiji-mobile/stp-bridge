@@ -29,6 +29,7 @@
 #include <netinet/sctp.h>
 
 #include <unistd.h>
+#include <errno.h>
 
 #define SCTP_PPID_M3UA 3
 
@@ -156,7 +157,8 @@ static int m3ua_conn_read(struct osmo_fd *fd)
 	rc = sctp_recvmsg(fd->fd, msg->data, msg->data_len,
 			  (struct sockaddr *) &addr, &len, &info, NULL);
 	if (rc <= 0) {
-		LOGP(DINP, LOGL_ERROR, "Failed to read.\n");
+		LOGP(DINP, LOGL_ERROR, "Failed to read: %d errno: %d\n",
+			rc, errno);
 		msgb_free(msg);
 		fail_link(link);
 		return -1;

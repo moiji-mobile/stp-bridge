@@ -31,6 +31,7 @@
 
 #include <string.h>
 #include <unistd.h>
+#include <errno.h>
 
 #define SCTP_PPID_M2UA 2
 
@@ -582,7 +583,8 @@ static int m2ua_conn_read(struct osmo_fd *fd)
 	rc = sctp_recvmsg(fd->fd, msg->data, msg->data_len,
 			  (struct sockaddr *) &addr, &len, &info, NULL);
 	if (rc <= 0) {
-		LOGP(DINP, LOGL_ERROR, "Failed to read.\n");
+		LOGP(DINP, LOGL_ERROR, "Failed to read: %d errno: %d\n",
+			rc, errno);
 		msgb_free(msg);
 		m2ua_conn_destroy(fd->data);
 		return -1;
