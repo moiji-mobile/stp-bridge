@@ -345,7 +345,14 @@ static void start_msc(struct msc_connection *msc)
 	msc_connection_start(msc);
 }
 
-static void start_set(struct ss7_application *app, struct mtp_link_set *set)
+static void start_set(struct mtp_link_set *set)
+{
+	if (!set)
+		return;
+	start_mtp(set);
+}
+
+static void prepare_set(struct ss7_application *app, struct mtp_link_set *set)
 {
 	if (!set)
 		return;
@@ -353,7 +360,17 @@ static void start_set(struct ss7_application *app, struct mtp_link_set *set)
 	set->isup_opc = set->isup_opc >= 0 ? set->isup_opc : set->opc;
 	set->sccp_opc = set->sccp_opc >= 0 ? set->sccp_opc : set->opc;
 	set->pass_all_isup = app->isup_pass;
-	start_mtp(set);
+}
+
+static void shutdown_set(struct mtp_link_set *set)
+{
+	struct mtp_link *link;
+
+	if (!set)
+		return;
+
+	llist_for_each_entry(link, &set->links, entry)
+		link->shutdown(link);
 }
 
 int ss7_application_start(struct ss7_application *app)
@@ -364,8 +381,12 @@ int ss7_application_start(struct ss7_application *app)
 		return -1;
 	}
 
-	start_set(app, app->route_src.set);
-	start_set(app, app->route_dst.set);
+	prepare_set(app, app->route_src.set);
+	prepare_set(app, app->route_dst.set);
+	if (!app->force_down) {
+		start_set(app->route_src.set);
+		start_set(app->route_dst.set);
+	}
 
 	if (app->route_src.msc)
 		start_msc(app->route_src.msc);
@@ -435,10 +456,18 @@ int ss7_application_trunk_name(struct ss7_application *app, const char *name)
 
 int ss7_application_msc_up(struct ss7_application *app)
 {
+	if (!app->force_down)
+		return 0;
+	start_set(app->route_src.set);
+	start_set(app->route_dst.set);
 	return 0;
 }
 
 int ss7_application_msc_down(struct ss7_application *app)
 {
+	if (!app->force_down)
+		return 0;
+	shutdown_set(app->route_src.set);
+	shutdown_set(app->route_dst.set);
 	return 0;
 }

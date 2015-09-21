@@ -88,6 +88,11 @@ struct ss7_application {
 	 * size of it.
 	 */
 	unsigned fixed_ass_cmpl_reply : 1;
+
+	/**
+	 * force link down
+	 */
+	int force_down;
 };
 
 

@@ -325,6 +325,7 @@ static int m3ua_shutdown(struct mtp_link *mtp_link)
 	osmo_wqueue_clear(&link->queue);
 	link->aspsm_active = 0;
 	link->asptm_active = 0;
+	osmo_timer_del(&link->connect_timer);
 	return 0;
 }
 
