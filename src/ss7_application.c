@@ -432,3 +432,13 @@ int ss7_application_trunk_name(struct ss7_application *app, const char *name)
 
 	return app->trunk_name == NULL;
 }
+
+int ss7_application_msc_up(struct ss7_application *app)
+{
+	return 0;
+}
+
+int ss7_application_msc_down(struct ss7_application *app)
+{
+	return 0;
+}

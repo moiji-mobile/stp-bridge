@@ -69,6 +69,7 @@ void msc_close_connection(struct msc_connection *fw)
 	osmo_timer_del(&fw->pong_timeout);
 	osmo_timer_del(&fw->msc_timeout);
 	osmo_wqueue_clear(&fw->msc_connection);
+	ss7_application_msc_down(fw->app);
 	msc_schedule_reconnect(fw);
 }
 
@@ -155,6 +156,7 @@ static int ipaccess_a_fd_cb(struct osmo_fd *bfd)
 			osmo_timer_del(&fw->msc_timeout);
 			fw->first_contact = 0;
 			fw->msc_link_down = 0;
+			ss7_application_msc_up(fw->app);
 			msc_send_reset(fw);
 		}
 		if (msg->l2h[0] == IPAC_MSGT_ID_GET && fw->token) {
@@ -615,6 +617,7 @@ static void msc_handle_id_response(struct msc_connection *msc, struct msgb *msg)
 
 	LOGP(DMSC, LOGL_NOTICE, "Authenticated the connection.\n");
 	msc->auth = 1;
+	ss7_application_msc_up(msc->app);
 	return;
 clean:
 	msc_close_connection(msc);

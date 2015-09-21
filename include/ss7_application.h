@@ -107,4 +107,7 @@ int ss7_application_mgcp_domain_name(struct ss7_application *,
 int ss7_application_trunk_name(struct ss7_application *,
 				const char *trunk_name);
 
+int ss7_application_msc_down(struct ss7_application *app);
+int ss7_application_msc_up(struct ss7_application *app);
+
 #endif
