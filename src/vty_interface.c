@@ -343,6 +343,9 @@ static void write_application(struct vty *vty, struct ss7_application *app)
 	}
 	if (app->forward_only)
 		vty_out(vty, "  forward-only%s", VTY_NEWLINE);
+
+	if (app->force_down)
+		vty_out(vty, "  on-msc-down-force-down%s", VTY_NEWLINE);
 }
 
 static int config_write_app(struct vty *vty)
@@ -1113,6 +1116,28 @@ DEFUN(cfg_app_isup_pass, cfg_app_isup_pass_cmd,
 	return CMD_SUCCESS;
 }
 
+DEFUN(cfg_app_fail, cfg_app_fail_cmd,
+      "on-msc-down-force-down",
+      "When the MSC connection is down force MTP linksets down\n")
+{
+	struct ss7_application *app = vty->index;
+
+	/* check if there is a MSC route? */
+	app->force_down = 1;
+	return CMD_SUCCESS;
+}
+
+DEFUN(cfg_app_no_fail, cfg_app_no_fail_cmd,
+      "no on-msc-down-force-down",
+      NO_STR "When the MSC connection is down force MTP linksets down\n")
+{
+	struct ss7_application *app = vty->index;
+
+	/* check if there is a MSC route? */
+	app->force_down = 0;
+	return CMD_SUCCESS;
+}
+
 DEFUN(cfg_app_route, cfg_app_route_cmd,
       "route linkset <0-100> msc <0-100>",
       "Routing commands\n" "Source Linkset\n" "Linkset Nr\n"
@@ -1347,6 +1372,8 @@ void cell_vty_init(void)
 	install_defaults(APP_NODE);
 	install_element(APP_NODE, &cfg_app_type_cmd);
 	install_element(APP_NODE, &cfg_app_isup_pass_cmd);
+	install_element(APP_NODE, &cfg_app_fail_cmd);
+	install_element(APP_NODE, &cfg_app_no_fail_cmd);
 	install_element(APP_NODE, &cfg_app_route_cmd);
 	install_element(APP_NODE, &cfg_app_route_ls_cmd);
 	install_element(APP_NODE, &cfg_app_domain_name_cmd);
