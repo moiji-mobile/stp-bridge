@@ -25,6 +25,7 @@
 #include <mtp_pcap.h>
 #include <snmp_mtp.h>
 #include <cellmgr_debug.h>
+#include <counter.h>
 
 #include <osmocom/core/talloc.h>
 
@@ -216,6 +217,8 @@ static int udp_link_write(struct mtp_link *link, struct msgb *msg)
 	if (osmo_wqueue_enqueue(&ulnk->data->write_queue, msg) != 0) {
 		LOGP(DINP, LOGL_ERROR, "Failed to enqueue msg on link %d/%s of %d/%s.\n",
 		     link->nr, link->name, link->set->nr, link->set->name);
+		rate_ctr_inc(&link->ctrg->ctr[MTP_LNK_DRP]);
+		rate_ctr_inc(&link->set->ctrg->ctr[MTP_LSET_TOTA_DRP_MSG]);
 		msgb_free(msg);
 		return -1;
 	}

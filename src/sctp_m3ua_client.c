@@ -19,6 +19,7 @@
 #include <cellmgr_debug.h>
 #include <string.h>
 #include <bsc_data.h>
+#include <counter.h>
 
 #include <osmocom/sigtran/xua_msg.h>
 #include <osmocom/sigtran/m3ua_types.h>
@@ -129,6 +130,8 @@ static int m3ua_conn_send(struct mtp_m3ua_client_link *link,
 
 	if (osmo_wqueue_enqueue(&link->queue, msg) != 0) {
 		LOGP(DINP, LOGL_ERROR, "Failed to enqueue.\n");
+		rate_ctr_inc(&link->base->ctrg->ctr[MTP_LNK_DRP]);
+		rate_ctr_inc(&link->base->set->ctrg->ctr[MTP_LSET_TOTA_DRP_MSG]);
 		msgb_free(msg);
 		return -1;
 	}

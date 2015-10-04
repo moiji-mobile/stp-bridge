@@ -31,12 +31,14 @@ static const struct rate_ctr_desc mtp_lset_cfg_description[] = {
 	[MTP_LSET_TOTA_OUT_MSG]	= { "total.out",      "Total messages out "},
 	[MTP_LSET_SCCP_OUT_MSG]	= { "sccp.out",       "SCCP messages out  "},
 	[MTP_LSET_ISUP_OUT_MSG]	= { "isup.out",       "ISUP messages out  "},
+	[MTP_LSET_TOTA_DRP_MSG] = { "total.dropped",  "Total dropped msgs "},
 };
 
 static const struct rate_ctr_desc mtp_link_cfg_description[] = {
 	[MTP_LNK_IN]		= { "total.in",       "Messages in        "},
 	[MTP_LNK_OUT]		= { "total.out",      "Messages out       "},
 	[MTP_LNK_ERROR]		= { "total.error",    "Errors occured     "},
+	[MTP_LNK_DRP]		= { "total.dropped",  "Messages dropped   "},
 	[MTP_LNK_SLTM_TOUT]	= { "sltm.timeouts",  "SLTM timeouts      "},
 };
 
