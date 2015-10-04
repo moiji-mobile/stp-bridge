@@ -1,3 +1,13 @@
+cellmgr-ng (1.4.4) unstable; urgency=medium
+
+  * sctp: Print the rc and the errno in case of an error
+  * ss7: Inform the application layer that a connection is down
+  * ss7: Allow to force the link down when the IPA conn is going down
+  * ss7: Make the failure mode configurable
+  * ctr: Count number of dropped messages
+
+ -- Holger Hans Peter Freyther <holger@moiji-mobile.com>  Sun, 04 Oct 2015 18:40:35 +0200
+
 cellmgr-ng (1.4.3) unstable; urgency=medium
 
   * Fix the stopping of the script
