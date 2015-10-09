@@ -1,3 +1,9 @@
+cellmgr-ng (1.4.5) unstable; urgency=medium
+
+  * ss7: Mark the link as down after the shutdown
+
+ -- Holger Hans Peter Freyther <holger@moiji-mobile.com>  Fri, 09 Oct 2015 12:54:05 +0200
+
 cellmgr-ng (1.4.4) unstable; urgency=medium
 
   * sctp: Print the rc and the errno in case of an error
