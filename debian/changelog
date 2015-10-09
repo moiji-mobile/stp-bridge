@@ -1,3 +1,10 @@
+cellmgr-ng (1.4.6) unstable; urgency=medium
+
+  * m3ua: Start timer to wait for ASPAC_ACK
+  * m3ua: Make the link up timeout configurable on the system
+
+ -- Holger Hans Peter Freyther <holger@moiji-mobile.com>  Fri, 09 Oct 2015 14:52:21 +0200
+
 cellmgr-ng (1.4.5) unstable; urgency=medium
 
   * ss7: Mark the link as down after the shutdown
