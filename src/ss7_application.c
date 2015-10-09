@@ -369,8 +369,10 @@ static void shutdown_set(struct mtp_link_set *set)
 	if (!set)
 		return;
 
-	llist_for_each_entry(link, &set->links, entry)
+	llist_for_each_entry(link, &set->links, entry) {
 		link->shutdown(link);
+		mtp_link_down(link);
+	}
 }
 
 int ss7_application_start(struct ss7_application *app)
