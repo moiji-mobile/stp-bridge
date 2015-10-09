@@ -69,6 +69,14 @@ static void fail_link(struct mtp_m3ua_client_link *link)
 	schedule_restart(link);
 }
 
+static void aspac_ack_timeout(void *data)
+{
+	struct mtp_m3ua_client_link *link = data;
+
+	LOGP(DINP, LOGL_ERROR, "ASP ACK not received. Closing it down.\n");
+	fail_link(link);
+}
+
 static int m3ua_conn_handle(struct mtp_m3ua_client_link *link,
 				struct msgb *msg, struct sctp_sndrcvinfo *info)
 {
@@ -233,6 +241,9 @@ static void m3ua_start(void *data)
 	}
 
 	/* begin the messages for bring-up */
+	link->aspac_ack_timer.data = link;
+	link->aspac_ack_timer.cb = aspac_ack_timeout;
+	osmo_timer_schedule(&link->aspac_ack_timer, link->aspac_ack_timeout, 0);
 	m3ua_send_aspup(link);
 }
 
@@ -329,6 +340,7 @@ static int m3ua_shutdown(struct mtp_link *mtp_link)
 	link->aspsm_active = 0;
 	link->asptm_active = 0;
 	osmo_timer_del(&link->connect_timer);
+	osmo_timer_del(&link->aspac_ack_timer);
 	return 0;
 }
 
@@ -375,6 +387,7 @@ struct mtp_m3ua_client_link *mtp_m3ua_client_link_init(struct mtp_link *blnk)
 	osmo_wqueue_init(&lnk->queue, 10);
 	lnk->queue.bfd.fd = -1;
 	lnk->traffic_mode = 2;
+	lnk->aspac_ack_timeout = 10;
 	return lnk;
 }
 
@@ -490,6 +503,7 @@ static void m3ua_handle_asptm(struct mtp_m3ua_client_link *link, struct xua_msg 
 	switch (m3ua->hdr.msg_type) {
 	case M3UA_ASPTM_ACTIV_ACK:
 		LOGP(DINP, LOGL_NOTICE, "Received ASPAC_ACK.. taking link up\n");
+		osmo_timer_del(&link->aspac_ack_timer);
 		link->asptm_active = 1;
 		mtp_link_up(link->base);
 		m3ua_send_daud(link, link->base->set->dpc);

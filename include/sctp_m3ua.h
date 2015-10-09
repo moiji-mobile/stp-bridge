@@ -28,6 +28,10 @@ struct mtp_m3ua_client_link {
 	/* state of the link */
 	int aspsm_active;
 	int asptm_active;
+
+	/* reliability handling */
+	struct osmo_timer_list aspac_ack_timer;
+	int aspac_ack_timeout;
 };
 
 struct mtp_m3ua_client_link *mtp_m3ua_client_link_init(struct mtp_link *link);
