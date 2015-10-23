@@ -35,6 +35,9 @@
 
 static int mtp_int_submit(struct mtp_link_set *set, int opc, int dpc, int sls, int type, const uint8_t *data, unsigned int length);
 
+static void linkset_t18_cb(void *_set);
+static void linkset_t20_cb(void *_set);
+
 struct msgb *mtp_msg_alloc(struct mtp_link_set *set)
 {
 	struct mtp_level_3_hdr *hdr;
@@ -240,8 +243,10 @@ int mtp_link_verified(struct mtp_link *link)
 		return 0;
 
 	set->linkset_up = 1;
-	osmo_timer_schedule(&set->T18, set->timeout_t18, 0);
-	osmo_timer_schedule(&set->T20, set->timeout_t20, 0);
+	if (set->timeout_t18 != 0)
+		osmo_timer_schedule(&set->T18, set->timeout_t18, 0);
+	if (set->timeout_t20 != 0)
+		osmo_timer_schedule(&set->T20, set->timeout_t20, 0);
 
 	/* More the functionality of a SSP here... */
 	if (set->sccp_opc != set->opc &&
@@ -255,6 +260,11 @@ int mtp_link_verified(struct mtp_link *link)
 		LOGP(DINP, LOGL_ERROR,
 		     "Failed to send TFA for OPC %d on linkset %d.\n", set->sccp_opc, set->nr);
 	}
+
+	if (set->timeout_t18 == 0)
+		linkset_t18_cb(set);
+	if (set->timeout_t20 == 0)
+		linkset_t20_cb(set);
 
 	return 0;
 }
