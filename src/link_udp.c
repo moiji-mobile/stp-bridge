@@ -305,8 +305,10 @@ void snmp_mtp_callback(struct snmp_mtp_session *session,
 	struct mtp_link *link;
 
 	ulink = session->data;
-	if (!ulink)
-		return LOGP(DINP, LOGL_ERROR, "Failed to find link_id %d\n", link_id);
+	if (!ulink) {
+		LOGP(DINP, LOGL_ERROR, "Failed to find link_id %d\n", link_id);
+		return;
+	}
 
 	link = ulink->base;
 
