@@ -48,7 +48,7 @@
 
 extern struct bsc_data *bsc;
 
-static enum node_type ss7_go_parent(struct vty *vty)
+static int ss7_go_parent(struct vty *vty)
 {
 	switch (vty->node) {
 	case LINK_NODE:

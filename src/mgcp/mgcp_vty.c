@@ -40,7 +40,7 @@ extern void mgcp_write_vtrunk_extra(struct vty *vty, struct mgcp_trunk_config *c
 
 static int allocate_endpoints(struct mgcp_trunk_config *tcfg);
 
-enum node_type mgcp_go_parent(struct vty *vty)
+int mgcp_go_parent(struct vty *vty)
 {
 	switch (vty->node) {
 	case TRUNK_NODE:
