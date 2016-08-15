@@ -1,0 +1,11 @@
+[Unit]
+Description=Osmocom osmo-stp bridge
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/osmo-stp -c /etc/osmocom/osmo-stp.cfg
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
