@@ -23,6 +23,7 @@ stamp-h1
 *.gcda
 *.gcno
 *.info
+*.pyc
 
 # binaries
 cellmgr_ng

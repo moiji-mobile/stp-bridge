@@ -28,6 +28,21 @@ PKG_CHECK_MODULES([LIBOSMOSCCP], [libosmo-sccp])
 PKG_CHECK_MODULES([LIBOSMOVTY], [libosmovty >= 0.3.2])
 #PKG_CHECK_MODULES([NEXUSWARE_C7], [nexusware-c7])
 
+AC_ARG_ENABLE([external_tests],
+		AC_HELP_STRING([--enable-external-tests],
+				[Include the VTY tests in make check [default=no]]),
+		[enable_ext_tests="$enableval"],[enable_ext_tests="no"])
+if test "x$enable_ext_tests" = "xyes" ; then
+	AM_PATH_PYTHON
+	AC_CHECK_PROG(OSMOTESTEXT_CHECK,osmotestvty.py,yes)
+	 if test "x$OSMOTESTEXT_CHECK" != "xyes" ; then
+		AC_MSG_ERROR([Please install osmocom-python to run the VTY tests.])
+	fi
+fi
+AC_MSG_CHECKING([whether to enable VTY tests])
+AC_MSG_RESULT([$enable_ext_tests])
+AM_CONDITIONAL(ENABLE_EXT_TESTS, test "x$enable_ext_tests" = "xyes")
+
 old_libs=$LIBS
 AC_CHECK_LIB([sctp], sctp_sendmsg, [], [AC_MSG_ERROR([The sctp library is required.])])
 LIBS=$old_libs

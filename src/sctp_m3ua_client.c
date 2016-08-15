@@ -388,6 +388,10 @@ struct mtp_m3ua_client_link *mtp_m3ua_client_link_init(struct mtp_link *blnk)
 	lnk->queue.bfd.fd = -1;
 	lnk->traffic_mode = 2;
 	lnk->aspac_ack_timeout = 10;
+
+	/* default ports */
+	lnk->local.sin_port = lnk->remote.sin_port = htons(2905);
+
 	return lnk;
 }
 

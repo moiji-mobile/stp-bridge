@@ -103,7 +103,7 @@ DEFUN(node_end, node_end_cmd,
 }
 
 static struct vty_app_info vty_info = {
-	.name 		= "Cellmgr-ng",
+	.name 		= "OsmoSTP",
 	.version	= VERSION,
 	.go_parent_cb	= ss7_go_parent,
 };
@@ -155,13 +155,13 @@ static int config_write_ss7(struct vty *vty)
 
 static void write_link(struct vty *vty, struct mtp_link *link)
 {
-	const char *name = link->name ? link->name : "";
 	struct mtp_udp_link *ulnk;
 	struct mtp_m2ua_link *m2ua;
 	struct mtp_m3ua_client_link *m3ua_client;
 
 	vty_out(vty, "  link %d%s", link->nr, VTY_NEWLINE);
-	vty_out(vty, "   description %s%s", name, VTY_NEWLINE);
+	if (link->name && strlen(link->name) > 0)
+		vty_out(vty, "   description %s%s", link->name, VTY_NEWLINE);
 
 	switch (link->type) {
 	case SS7_LTYPE_UDP:
@@ -214,12 +214,12 @@ static void write_link(struct vty *vty, struct mtp_link *link)
 
 static void write_linkset(struct vty *vty, struct mtp_link_set *set)
 {
-	const char *name = set->name ? set->name : "";
 	struct mtp_link *link;
 	int i;
 
 	vty_out(vty, " linkset %d%s", set->nr, VTY_NEWLINE);
-	vty_out(vty, "  description %s%s", name, VTY_NEWLINE);
+	if (set->name && strlen(set->name) > 0)
+		vty_out(vty, "  description %s%s", set->name, VTY_NEWLINE);
 	vty_out(vty, "  mtp3 dpc %d%s", set->dpc, VTY_NEWLINE);
 	vty_out(vty, "  mtp3 opc %d%s", set->opc, VTY_NEWLINE);
 	vty_out(vty, "  mtp3 ni %d%s", set->ni, VTY_NEWLINE);
@@ -260,18 +260,20 @@ static int config_write_linkset(struct vty *vty)
 
 static void write_msc(struct vty *vty, struct msc_connection *msc)
 {
-	const char *name = msc->name ? msc->name : "";
 
 	vty_out(vty, " msc %d%s", msc->nr, VTY_NEWLINE);
-	vty_out(vty, "  description %s%s", name, VTY_NEWLINE);
+	if (msc->name && strlen(msc->name) > 0)
+		vty_out(vty, "  description %s%s", msc->name, VTY_NEWLINE);
 	vty_out(vty, "  mode %s%s", msc_mode(msc), VTY_NEWLINE);
 	if (msc->ip)
 		vty_out(vty, "  ip %s%s", msc->ip, VTY_NEWLINE);
 	vty_out(vty, "  port %d%s", msc->port, VTY_NEWLINE);
 	vty_out(vty, "  token %s%s", msc->token, VTY_NEWLINE);
 	vty_out(vty, "  dscp %d%s", msc->dscp, VTY_NEWLINE);
-	vty_out(vty, "  timeout ping %d%s", msc->ping_time, VTY_NEWLINE);
-	vty_out(vty, "  timeout pong %d%s", msc->pong_time, VTY_NEWLINE);
+	if (msc->ping_time > 0) {
+		vty_out(vty, "  timeout ping %d%s", msc->ping_time, VTY_NEWLINE);
+		vty_out(vty, "  timeout pong %d%s", msc->pong_time, VTY_NEWLINE);
+	}
 	vty_out(vty, "  timeout restart %d%s", msc->msc_time, VTY_NEWLINE);
 }
 
@@ -316,10 +318,9 @@ static const char *link_type(enum ss7_set_type type)
 
 static void write_application(struct vty *vty, struct ss7_application *app)
 {
-	const char *name = app->name ? app->name : "";
-
 	vty_out(vty, " application %d%s", app->nr, VTY_NEWLINE);
-	vty_out(vty, "  description %s%s", name, VTY_NEWLINE);
+	if (app->name && strlen(app->name) > 0)
+		vty_out(vty, "  description %s%s", app->name, VTY_NEWLINE);
 	vty_out(vty, "  type %s%s", app_type(app->type), VTY_NEWLINE);
 
 	if (app->fixed_ass_cmpl_reply)
@@ -463,7 +464,7 @@ DEFUN(cfg_linkset_mtp3_ssn, cfg_linkset_mtp3_ssn_cmd,
 
 DEFUN(cfg_linkset_no_mtp3_ssn, cfg_linkset_no_mtp3_ssn_cmd,
       "no mtp3 ssn <0-255>",
-      "MTP Level3\n" "SSN supported\n" "SSN\n")
+      NO_STR "MTP Level3\n" "SSN supported\n" "SSN\n")
 {
 	struct mtp_link_set *set = vty->index;
 	set->supported_ssn[atoi(argv[0])] = 0;
@@ -604,7 +605,7 @@ DEFUN(cfg_linkset_link, cfg_linkset_link_cmd,
 DEFUN(cfg_link_ss7_transport, cfg_link_ss7_transport_cmd,
       "ss7-transport (none|udp|m2ua|m3ua-client)",
       "SS7 transport for the link\n"
-      "No transport\n" "MTP over UDP\n" "SCTP M2UA\n")
+      "No transport\n" "MTP over UDP\n" "SCTP M2UA server\n" "SCTP M3UA client\n")
 {
 	int wanted = SS7_LTYPE_NONE;
 	struct mtp_link *link;
@@ -648,7 +649,7 @@ DEFUN(cfg_link_ss7_transport, cfg_link_ss7_transport_cmd,
 
 DEFUN(cfg_link_udp_dest_ip, cfg_link_udp_dest_ip_cmd,
       "udp dest ip HOST_NAME",
-      "UDP Transport\n" "IP\n" "Hostname\n")
+      "UDP Transport\n" "Destination\n" "IP\n" "Hostname\n")
 {
 	struct hostent *hosts;
 
@@ -684,7 +685,7 @@ DEFUN(cfg_link_udp_dest_ip, cfg_link_udp_dest_ip_cmd,
 
 DEFUN(cfg_link_udp_dest_port, cfg_link_udp_dest_port_cmd,
       "udp dest port <1-65535>",
-      "UDP Transport\n" "Set the port number\n" "Port\n")
+      "UDP Transport\n" "Destination\n" "Set the port number\n" "Port\n")
 {
 	struct mtp_link *link = vty->index;
 	struct mtp_udp_link *ulnk;
@@ -896,7 +897,7 @@ DEFUN(cfg_link_m3ua_client_routing_ctx, cfg_link_m3ua_client_routing_ctx_cmd,
 
 DEFUN(cfg_link_m3ua_client_traffic_mode, cfg_link_m3ua_client_traffic_mode_cmd,
 	"m3ua-client traffic-mode (override|loadshare|broadcast)",
-	"M3UA Client\n" "Traffic Mode\n" "Override" "Loadshare\n" "Broadcast\n")
+	"M3UA Client\n" "Traffic Mode\n" "Override\n" "Loadshare\n" "Broadcast\n")
 {
 	struct mtp_link *link = vty->index;
 	struct mtp_m3ua_client_link *m3ua_link;
@@ -1047,7 +1048,7 @@ DEFUN(cfg_msc_timeout_pong, cfg_msc_timeout_pong_cmd,
 }
 
 DEFUN(cfg_msc_timeout_restart, cfg_msc_timeout_restart_cmd,
-      "timeout restart <1-65535>",
+      "timeout restart <0-65535>",
       "Timeout commands\n" "Time between restarts\n" "Seconds\n")
 {
 	struct msc_connection *msc = vty->index;
@@ -1306,7 +1307,7 @@ DEFUN(cfg_app_hardcode_ass, cfg_app_hardcode_ass_cmd,
 
 DEFUN(cfg_app_no_hardcode_ass, cfg_app_no_hardcode_ass_cmd,
       "no hardcode-assignment-complete",
-      "Hardcode the assignment complete message to HR3\n")
+      NO_STR "Hardcode the assignment complete message to HR3\n")
 {
 	struct ss7_application *app = vty->index;
 	app->fixed_ass_cmpl_reply = 0;

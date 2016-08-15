@@ -20,9 +20,19 @@ $(srcdir)/package.m4: $(top_srcdir)/configure.ac
      
 EXTRA_DIST = testsuite.at $(srcdir)/package.m4 $(TESTSUITE)
 TESTSUITE = $(srcdir)/testsuite
+
+if ENABLE_EXT_TESTS
+python-tests: $(BUILT_SOURCES)
+	osmotestvty.py -p $(abs_top_srcdir) -w $(abs_top_builddir) -v
+	osmotestconfig.py -p $(abs_top_srcdir) -w $(abs_top_builddir) -v
+else
+python-tests: $(BUILT_SOURCES)
+	echo "Not running python-based tests (determined at configure-time)"
+endif
      
 check-local: atconfig $(TESTSUITE)
 	$(SHELL) '$(TESTSUITE)' $(TESTSUITEFLAGS)
+	$(MAKE) $(AM_MAKEFLAGS) python-tests
      
 installcheck-local: atconfig $(TESTSUITE)
 	$(SHELL) '$(TESTSUITE)' AUTOTEST_PATH='$(bindir)' \

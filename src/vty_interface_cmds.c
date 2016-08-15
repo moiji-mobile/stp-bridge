@@ -280,7 +280,7 @@ DEFUN(allow_inject, allow_inject_cmd,
 
 DEFUN(show_sctp_count, show_sctp_count_cmd,
       "show sctp-connections count",
-      SHOW_STR "Number of SCTP connections\n")
+      SHOW_STR "SCTP connections\n" "Number of connections\n")
 {
 	int count = sctp_m2ua_conn_count(bsc->m2ua_trans);
 	vty_out(vty, "Active SCTP connections are: %d.%s", count, VTY_NEWLINE);
@@ -289,7 +289,7 @@ DEFUN(show_sctp_count, show_sctp_count_cmd,
 
 DEFUN(show_sctp_details, show_sctp_details_cmd,
       "show sctp-connections details",
-      SHOW_STR "Details of SCTP connections\n")
+      SHOW_STR "SCTP connections\n" "Details\n")
 {
 	struct sctp_m2ua_conn *conn;
 
