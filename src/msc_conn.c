@@ -605,7 +605,7 @@ static void msc_handle_id_response(struct msc_connection *msc, struct msgb *msg)
 	len = msgb_l2len(msg) - 4;
 
 	if (len != strlen(msc->token)) {
-		LOGP(DMSC, LOGL_ERROR, "Wrong length %u vs. %u\n",
+		LOGP(DMSC, LOGL_ERROR, "Wrong length %u vs. %zu\n",
 			len, strlen(msc->token));
 		goto clean;
 	}

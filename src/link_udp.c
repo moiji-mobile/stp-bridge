@@ -149,7 +149,7 @@ static int udp_read_cb(struct osmo_fd *fd)
 	length = ntohl(hdr->data_length);
 	if (length + sizeof(*hdr) > (unsigned int) rc) {
 		LOGP(DINP, LOGL_ERROR,
-		     "The MSU payload does not fit: %u + %u > %d on link %d/%s of %d/%s.\n",
+		     "The MSU payload does not fit: %u + %zu > %d on link %d/%s of %d/%s.\n",
 		     length, sizeof(*hdr), rc,
 		     link->nr, link->name, link->set->nr, link->set->name);
 		rc = 0;

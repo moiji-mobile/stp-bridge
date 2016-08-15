@@ -368,7 +368,7 @@ static void test_rewrite_msc_fixed_ass_cmpl(void)
 	}
 
 	if (msgb_l2len(outp) != sizeof(dt1_ass_compl_hardcoded)) {
-		printf("The length's don't match on %u != %u\n",
+		printf("The length's don't match on %u != %zu\n",
 			msgb_l2len(outp), sizeof(dt1_ass_compl_hardcoded));
 		printf("hex: %s\n", osmo_hexdump(outp->l2h, msgb_l2len(outp)));
 		abort();

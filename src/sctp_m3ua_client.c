@@ -569,7 +569,7 @@ static void m3ua_handle_trans(struct mtp_m3ua_client_link *link, struct xua_msg 
 	dpc = ntohl(proto->dpc);
 	sls = proto->sls;
 	si = proto->si;
-	LOGP(DINP, LOGL_DEBUG, "Got data for OPC(%d)/DPC(%d)/SLS(%d) len(%d)\n",
+	LOGP(DINP, LOGL_DEBUG, "Got data for OPC(%d)/DPC(%d)/SLS(%d) len(%zu)\n",
 		opc, dpc, sls, msgb_l2len(msg) - sizeof(*proto));
 
 
